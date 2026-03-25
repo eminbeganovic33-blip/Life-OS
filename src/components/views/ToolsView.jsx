@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { S } from "../../styles/theme";
 import { TROPHIES } from "../../data";
 import { getTotalVolume } from "../../utils";
@@ -6,6 +7,7 @@ import { usePremium } from "../../hooks/usePremium";
 import AISettings from "../AISettings";
 
 export default function ToolsView({ state, user, pomodoro, onReset, onOpenNotifications, onOpenJournal }) {
+  const [confirmReset, setConfirmReset] = useState(false);
   const { logout } = useAuth();
   const { isPremium, setShowUpgrade } = usePremium();
   const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer } = pomodoro;
@@ -188,12 +190,34 @@ export default function ToolsView({ state, user, pomodoro, onReset, onOpenNotifi
         </button>
       </div>
 
-      <button
-        style={{ ...S.timerBtnSec, marginTop: 10, color: "#ef4444", borderColor: "rgba(239,68,68,0.15)", marginLeft: 16, marginRight: 16 }}
-        onClick={onReset}
-      >
-        Reset All Data
-      </button>
+      {!confirmReset ? (
+        <button
+          style={{ ...S.timerBtnSec, marginTop: 10, color: "#ef4444", borderColor: "rgba(239,68,68,0.15)", marginLeft: 16, marginRight: 16 }}
+          onClick={() => setConfirmReset(true)}
+        >
+          Reset All Data
+        </button>
+      ) : (
+        <div style={resetConfirmBox}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#EF4444", marginBottom: 6 }}>
+            Are you sure? This will erase all your progress permanently.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={{ ...S.timerBtnSec, flex: 1, color: "#EF4444", borderColor: "rgba(239,68,68,0.3)", fontWeight: 700 }}
+              onClick={() => { onReset(); setConfirmReset(false); }}
+            >
+              Yes, Reset Everything
+            </button>
+            <button
+              style={{ ...S.timerBtnSec, flex: 1 }}
+              onClick={() => setConfirmReset(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -232,6 +256,14 @@ const premiumCard = {
   background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
   border: "1px solid rgba(255,215,0,0.1)",
   cursor: "pointer",
+};
+
+const resetConfirmBox = {
+  margin: "10px 16px 0",
+  padding: "14px",
+  borderRadius: 12,
+  background: "rgba(239,68,68,0.06)",
+  border: "1px solid rgba(239,68,68,0.15)",
 };
 
 const logoutBtn = {

@@ -37,20 +37,15 @@ function getDateForDay(startDate, day) {
 
 /**
  * Estimate XP earned on a specific day based on completed quests.
+ * questId format is "category-day" (e.g. "sleep-1") or "custom-category-id-day".
+ * Since we don't have the quest text, estimate based on count × average XP.
  */
 function estimateDayXP(completedQuests, day) {
   const quests = completedQuests?.[day];
   if (!quests || !Array.isArray(quests)) return 0;
-  let total = 0;
-  for (const questId of quests) {
-    try {
-      total += calculateQuestXP(questId);
-    } catch {
-      // Fallback: assume 50 XP per quest if calculation fails
-      total += 50;
-    }
-  }
-  return total;
+  // Average quest XP is ~30, so estimate based on count
+  // This is more accurate than passing questId to calculateQuestXP which expects text
+  return quests.length * 30;
 }
 
 /**
