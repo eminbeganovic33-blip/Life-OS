@@ -174,7 +174,13 @@ export default function HomeView({
                           style={{ ...S.dojoLink, color: "#EF4444" }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            const rawId = q.id.replace(`custom-${q.category}-`, "").replace(`-${state.currentDay}`, "");
+                            // Quest ID format: "custom-{category}-{cq.id}-{day}"
+                            // Extract the original cq.id (e.g. "cq_1234567890") between category and day
+                            const prefix = `custom-${q.category}-`;
+                            const suffix = `-${state.currentDay}`;
+                            let rawId = q.id;
+                            if (rawId.startsWith(prefix)) rawId = rawId.slice(prefix.length);
+                            if (rawId.endsWith(suffix)) rawId = rawId.slice(0, -suffix.length);
                             onRemoveCustomQuest(rawId);
                           }}
                         >

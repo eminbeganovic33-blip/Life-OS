@@ -74,7 +74,7 @@ export const PREMIUM_FEATURES = {
     description: "Personalized recommendations and smart coaching",
     icon: "🤖",
     free: "Not available",
-    premium: "Coming in Phase 7",
+    premium: "AI coach, journal insights, & more",
   },
   prioritySupport: {
     id: "prioritySupport",

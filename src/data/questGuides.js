@@ -263,6 +263,9 @@ export const QUEST_GUIDES = {
   },
 
   screen: { _aliasOf: "phone" },
+  social: { _aliasOf: "phone" },
+  "social media": { _aliasOf: "phone" },
+  doomscroll: { _aliasOf: "phone" },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // NUTRITION & WATER

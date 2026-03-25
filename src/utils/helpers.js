@@ -68,8 +68,9 @@ export function getDayQuests(day, customQuests) {
 export function daysBetween(dateStr) {
   if (!dateStr) return 0;
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 0; // Invalid date guard
   const now = new Date();
-  return Math.floor((now - d) / 86400000);
+  return Math.max(0, Math.floor((now - d) / 86400000));
 }
 
 export function getTotalVolume(workoutLogs) {

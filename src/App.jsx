@@ -215,7 +215,6 @@ export default function LifeOS() {
         if (daysClean >= milestone && !seen[key]) {
           const story = stories.find((s) => s.day === milestone);
           if (story) {
-            const tracker = (state.sobrietyDates && trackerId) || trackerId;
             const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
             setForgeStory({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
             setModal("forge_success");
@@ -410,11 +409,13 @@ export default function LifeOS() {
 
   function submitRelapse() {
     if (!relapseText.trim()) return;
+    // Cap recovery journal text at 2000 characters
+    const trimmedText = relapseText.trim().slice(0, 2000);
     const prevDate = state.sobrietyDates?.[relapseTracker];
     const daysClean = prevDate ? daysBetween(prevDate) : 0;
     const newJournals = [
       ...(state.recoveryJournals || []),
-      { tracker: relapseTracker, text: relapseText, date: getTodayStr(), daysCleanBefore: daysClean },
+      { tracker: relapseTracker, text: trimmedText, date: getTodayStr(), daysCleanBefore: daysClean },
     ];
     const ns = {
       ...state,
@@ -431,6 +432,8 @@ export default function LifeOS() {
 
   // ── Feature Set 3: Add / Remove Custom Quests ──
   function addCustomQuest(quest) {
+    // Validate max length for quest text
+    if (!quest || !quest.text || quest.text.length > 200) return;
     save({ ...state, customQuests: [...(state.customQuests || []), quest] });
     setModal(null);
   }
@@ -499,6 +502,7 @@ export default function LifeOS() {
           unlockedCategories={unlockedCustomCategories}
           onAdd={addCustomQuest}
           onClose={() => setModal(null)}
+          currentDay={day}
         />
       );
     }

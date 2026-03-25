@@ -110,31 +110,29 @@ export default function AISettings() {
       {/* Model */}
       <div style={s.field}>
         <label style={s.label}>Model</label>
-        <div style={s.selectRow}>
-          <select
-            style={s.select}
-            value={DEFAULT_MODELS.includes(settings.model) ? settings.model : "__custom"}
-            onChange={(e) => {
-              if (e.target.value !== "__custom") {
-                handleChange("model", e.target.value);
-              }
-            }}
-          >
-            {DEFAULT_MODELS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-            {!DEFAULT_MODELS.includes(settings.model) && (
-              <option value="__custom">{settings.model} (custom)</option>
-            )}
-          </select>
+        <select
+          style={s.select}
+          value={DEFAULT_MODELS.includes(settings.model) ? settings.model : "__custom"}
+          onChange={(e) => {
+            if (e.target.value === "__custom") return;
+            handleChange("model", e.target.value);
+          }}
+        >
+          {DEFAULT_MODELS.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+          <option value="__custom">Custom...</option>
+        </select>
+        {!DEFAULT_MODELS.includes(settings.model) && (
           <input
-            style={{ ...s.input, flex: 1 }}
+            style={{ ...s.input, marginTop: 6 }}
             type="text"
             value={settings.model}
             onChange={(e) => handleChange("model", e.target.value)}
-            placeholder="Model name"
+            placeholder="Custom model name"
           />
-        </div>
+        )}
+        <div style={s.hint}>Select a preset or type a custom model name</div>
       </div>
 
       {/* Actions */}

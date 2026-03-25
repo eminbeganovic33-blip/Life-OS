@@ -3,12 +3,12 @@ import { S } from "../../styles/theme";
 import { CATEGORIES } from "../../data";
 import { getQuestTier, calculateQuestXP } from "../../utils";
 
-export default function CustomQuestModal({ unlockedCategories, onAdd, onClose }) {
+export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, currentDay }) {
   const [selectedCat, setSelectedCat] = useState(null);
   const [questText, setQuestText] = useState("");
 
   const tier = questText.trim() ? getQuestTier(questText) : null;
-  const xpPreview = questText.trim() ? calculateQuestXP(questText, 1) : 0;
+  const xpPreview = questText.trim() ? calculateQuestXP(questText, currentDay || 1) : 0;
 
   function handleAdd() {
     if (!selectedCat || !questText.trim()) return;

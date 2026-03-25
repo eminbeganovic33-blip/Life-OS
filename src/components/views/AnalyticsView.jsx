@@ -14,6 +14,8 @@ import { FEATURE_IDS } from "../../data/premium";
 
 export default function AnalyticsView({ state }) {
   const [tab, setTab] = useState("overview"); // overview | heatmap | insights
+  const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
+  const hasAdvancedAnalytics = checkFeatureAccess(FEATURE_IDS.ADVANCED_ANALYTICS);
 
   const weeklyXp = getWeeklyXpData(state);
   const categoryRates = getCategoryCompletionRates(state);
@@ -23,6 +25,22 @@ export default function AnalyticsView({ state }) {
   const heatmap = getHeatmapData(state);
 
   const maxXp = Math.max(...weeklyXp.map((d) => d.xp), 1);
+
+  // Welcome state for brand new users
+  if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0) {
+    return (
+      <div style={S.vc}>
+        <div style={S.secTitle}>Analytics</div>
+        <div style={welcomeState}>
+          <span style={{ fontSize: 32 }}>📊</span>
+          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8 }}>Your analytics are waiting</div>
+          <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4, lineHeight: 1.5 }}>
+            Complete your first day of quests to start seeing progress charts, completion rates, and personal records.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={S.vc}>
@@ -162,33 +180,46 @@ export default function AnalyticsView({ state }) {
 
       {tab === "insights" && (
         <>
-          <div style={sectionLabel}>Correlation Insights</div>
-          {insights.length > 0 ? (
-            insights.map((insight, i) => (
-              <div key={i} style={insightCard}>
-                <span style={{ fontSize: 16 }}>💡</span>
-                <span style={{ fontSize: 12, lineHeight: 1.5 }}>{insight}</span>
+          {!hasAdvancedAnalytics ? (
+            <div style={premiumGate} onClick={() => setShowUpgrade(true)}>
+              <span style={{ fontSize: 24 }}>👑</span>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700" }}>Premium Insights</div>
+              <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>
+                Unlock correlation insights, trend analysis, and category streaks with Premium.
               </div>
-            ))
-          ) : (
-            <div style={emptyState}>
-              Complete a few more days with mood tracking to unlock correlation insights.
+              <div style={premiumGateBtn}>Upgrade to Premium</div>
             </div>
-          )}
+          ) : (
+            <>
+              <div style={sectionLabel}>Correlation Insights</div>
+              {insights.length > 0 ? (
+                insights.map((insight, i) => (
+                  <div key={i} style={insightCard}>
+                    <span style={{ fontSize: 16 }}>💡</span>
+                    <span style={{ fontSize: 12, lineHeight: 1.5 }}>{insight}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={emptyState}>
+                  Complete a few more days with mood tracking to unlock correlation insights.
+                </div>
+              )}
 
-          <div style={sectionLabel}>Category Streaks</div>
-          {categoryRates.map((c) => {
-            const streakDays = getCatStreak(state, c.category);
-            return (
-              <div key={c.category} style={streakRow}>
-                <span>{c.icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{c.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: streakDays > 0 ? "#10B981" : "rgba(255,255,255,0.2)" }}>
-                  {streakDays > 0 ? `${streakDays}d streak` : "—"}
-                </span>
-              </div>
-            );
-          })}
+              <div style={sectionLabel}>Category Streaks</div>
+              {categoryRates.map((c) => {
+                const streakDays = getCatStreak(state, c.category);
+                return (
+                  <div key={c.category} style={streakRow}>
+                    <span>{c.icon}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{c.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: streakDays > 0 ? "#10B981" : "rgba(255,255,255,0.2)" }}>
+                      {streakDays > 0 ? `${streakDays}d streak` : "—"}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </>
       )}
     </div>
@@ -392,4 +423,40 @@ const streakRow = {
   background: "rgba(255,255,255,0.02)",
   border: "1px solid rgba(255,255,255,0.03)",
   marginBottom: 6,
+};
+
+const premiumGate = {
+  margin: "0 14px",
+  padding: "30px 20px",
+  borderRadius: 16,
+  background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
+  border: "1px solid rgba(255,215,0,0.12)",
+  textAlign: "center",
+  cursor: "pointer",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 4,
+};
+
+const premiumGateBtn = {
+  marginTop: 12,
+  padding: "8px 20px",
+  borderRadius: 8,
+  background: "linear-gradient(135deg, #FFD700, #FFA500)",
+  color: "#000",
+  fontSize: 12,
+  fontWeight: 700,
+};
+
+const welcomeState = {
+  margin: "20px 14px",
+  padding: "40px 20px",
+  borderRadius: 16,
+  background: "rgba(124,92,252,0.04)",
+  border: "1px solid rgba(124,92,252,0.08)",
+  textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
 };

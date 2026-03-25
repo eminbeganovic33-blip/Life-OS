@@ -2,9 +2,33 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { defaultState } from "../utils/state";
+import { getTodayStr, daysBetween } from "../utils";
 
 const STORAGE_KEY = "life-os-state";
 const DEBOUNCE_MS = 1000;
+
+function reconcileStreaks(s) {
+  const today = getTodayStr();
+  const lastActive = s.lastActiveDate;
+  if (!lastActive || lastActive === today) return s;
+
+  const missedDays = daysBetween(lastActive);
+
+  // If more than 1 day has passed since last activity, break streaks
+  if (missedDays > 1) {
+    s = { ...s, streak: 0 };
+  }
+
+  // Break lifting streak if more than 1 day since last lift
+  if (s.lastLiftDate) {
+    const liftGap = daysBetween(s.lastLiftDate);
+    if (liftGap > 1) {
+      s = { ...s, liftingStreak: 0 };
+    }
+  }
+
+  return s;
+}
 
 function readLocalStorage() {
   try {
@@ -27,14 +51,29 @@ export default function useCloudSync(user) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const debounceRef = useRef(null);
 
-  // Flush pending Firestore writes on unmount
+  // Track latest state for flushing on unload
+  const latestStateRef = useRef(null);
+
+  // Flush pending Firestore writes on unmount and page close
   useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
+    function flushToFirestore() {
+      if (debounceRef.current && user && latestStateRef.current) {
         clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+        // Best-effort sync — use sendBeacon-style approach
+        try {
+          const ref = doc(db, "users", user.uid, "data", "state");
+          setDoc(ref, latestStateRef.current, { merge: true }).catch(() => {});
+        } catch {}
       }
+    }
+
+    window.addEventListener("beforeunload", flushToFirestore);
+    return () => {
+      window.removeEventListener("beforeunload", flushToFirestore);
+      flushToFirestore();
     };
-  }, []);
+  }, [user]);
 
   // Load state when user changes
   useEffect(() => {
@@ -48,7 +87,9 @@ export default function useCloudSync(user) {
         const local = readLocalStorage();
         if (!cancelled) {
           if (local) {
-            setState({ ...defaultState(), ...local });
+            let merged = { ...defaultState(), ...local };
+            merged = reconcileStreaks(merged);
+            setState(merged);
             if (!local.onboarded) setShowOnboarding(true);
           } else {
             setState(defaultState());
@@ -67,7 +108,8 @@ export default function useCloudSync(user) {
         if (cancelled) return;
 
         if (snap.exists()) {
-          const remote = { ...defaultState(), ...snap.data() };
+          let remote = { ...defaultState(), ...snap.data() };
+          remote = reconcileStreaks(remote);
           setState(remote);
           writeLocalStorage(remote);
           if (!remote.onboarded) setShowOnboarding(true);
@@ -75,7 +117,8 @@ export default function useCloudSync(user) {
           // No Firestore doc — check localStorage for migration
           const local = readLocalStorage();
           if (local) {
-            const merged = { ...defaultState(), ...local };
+            let merged = { ...defaultState(), ...local };
+            merged = reconcileStreaks(merged);
             setState(merged);
             // Migrate to Firestore
             try {
@@ -93,7 +136,9 @@ export default function useCloudSync(user) {
         if (cancelled) return;
         const local = readLocalStorage();
         if (local) {
-          setState({ ...defaultState(), ...local });
+          let merged = { ...defaultState(), ...local };
+          merged = reconcileStreaks(merged);
+          setState(merged);
           if (!local.onboarded) setShowOnboarding(true);
         } else {
           setState(defaultState());
@@ -114,6 +159,7 @@ export default function useCloudSync(user) {
     (newState) => {
       setState(newState);
       writeLocalStorage(newState);
+      latestStateRef.current = newState;
 
       if (!user) return;
 

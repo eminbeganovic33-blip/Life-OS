@@ -154,7 +154,7 @@ export default function Onboarding({ onFinish }) {
               <button style={ob.backBtn} onClick={back}>Back</button>
               <button style={S.primaryBtn} onClick={next}>
                 {selectedCategories.length > 0
-                  ? `Continue with ${selectedCategories.length} focus areas`
+                  ? `Continue with ${selectedCategories.length} focus area${selectedCategories.length !== 1 ? "s" : ""}`
                   : "Skip — I'll do everything →"}
               </button>
             </div>

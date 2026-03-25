@@ -91,7 +91,11 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
         else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1} ${LEVELS[course.levelReq]?.name}`;
 
         return (
-          <div key={course.id} style={{ ...S.courseCard, opacity: locked ? 0.35 : 1 }}>
+          <div
+            key={course.id}
+            style={{ ...S.courseCard, opacity: locked ? 0.35 : 1, cursor: premiumLocked ? "pointer" : "default" }}
+            onClick={premiumLocked ? () => setShowUpgrade(true) : undefined}
+          >
             <div style={S.courseHead}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 24 }}>{course.icon}</span>
