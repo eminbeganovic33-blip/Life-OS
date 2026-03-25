@@ -1,0 +1,114 @@
+import { S } from "../../styles/theme";
+import { LEVELS } from "../../data";
+
+export default function LevelUpModal({ levelIndex, onDismiss }) {
+  const level = LEVELS[levelIndex];
+  if (!level) return null;
+
+  // Perks that unlock at each level
+  const LEVEL_PERKS = {
+    1: "Academy courses: Sleep Optimization, Strength Training Basics",
+    2: "Academy course: Hydration Science",
+    3: "Academy course: Dopamine Detox Protocol",
+    4: "Academy course: Advanced Breathwork",
+    5: "All courses unlocked. You've mastered the fundamentals.",
+    6: "Mythic status. Your discipline is rare.",
+    7: "Transcended. You have completed the ultimate transformation.",
+  };
+
+  const perk = LEVEL_PERKS[levelIndex];
+
+  return (
+    <div style={S.overlay} onClick={onDismiss}>
+      <div style={levelUpCard} onClick={(e) => e.stopPropagation()}>
+        <div style={glowBg} />
+        <div style={{ fontSize: 56, position: "relative", zIndex: 2, marginBottom: 4 }}>
+          {levelIndex >= 6 ? "👑" : levelIndex >= 4 ? "⚔️" : "🔓"}
+        </div>
+        <div style={badge}>LEVEL UP</div>
+        <div style={titleStyle}>
+          Lv.{levelIndex + 1} {level.name}
+        </div>
+        <div style={xpReqStyle}>{level.xpReq} XP reached</div>
+        {perk && (
+          <div style={perkBox}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5, marginBottom: 4 }}>
+              Unlocked
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>{perk}</div>
+          </div>
+        )}
+        <button style={{ ...S.motBtn, position: "relative", zIndex: 10 }} onClick={(e) => { e.stopPropagation(); onDismiss(); }}>Continue →</button>
+      </div>
+    </div>
+  );
+}
+
+const levelUpCard = {
+  maxWidth: 340,
+  width: "100%",
+  padding: 32,
+  borderRadius: 24,
+  background: "linear-gradient(145deg,#0F0F28,#1A1038)",
+  border: "1px solid rgba(124,92,252,0.25)",
+  textAlign: "center",
+  position: "relative",
+  overflow: "hidden",
+  boxShadow: "0 20px 80px rgba(124,92,252,0.2)",
+};
+
+const glowBg = {
+  position: "absolute",
+  top: "-50%",
+  left: "-50%",
+  width: "200%",
+  height: "200%",
+  background: "radial-gradient(circle,rgba(124,92,252,0.12) 0%,transparent 60%)",
+  animation: "pulse 3s ease infinite",
+};
+
+const badge = {
+  display: "inline-block",
+  padding: "4px 16px",
+  borderRadius: 16,
+  background: "linear-gradient(135deg,rgba(124,92,252,0.2),rgba(236,72,153,0.15))",
+  color: "#EC4899",
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: "uppercase",
+  letterSpacing: 2,
+  marginBottom: 12,
+  position: "relative",
+  zIndex: 2,
+};
+
+const titleStyle = {
+  fontSize: 26,
+  fontWeight: 900,
+  background: "linear-gradient(135deg,#7C5CFC,#EC4899)",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  position: "relative",
+  zIndex: 2,
+  letterSpacing: -0.5,
+};
+
+const xpReqStyle = {
+  fontSize: 13,
+  opacity: 0.4,
+  marginTop: 4,
+  marginBottom: 16,
+  position: "relative",
+  zIndex: 2,
+};
+
+const perkBox = {
+  padding: "12px 16px",
+  borderRadius: 12,
+  background: "rgba(124,92,252,0.08)",
+  border: "1px solid rgba(124,92,252,0.12)",
+  marginBottom: 20,
+  position: "relative",
+  zIndex: 2,
+  textAlign: "center",
+};

@@ -1,0 +1,620 @@
+import { useState, useEffect, useRef } from "react";
+import { S } from "./styles/theme";
+import { MOTIVATION_CARDS, COURSES, COURSES_TIER2, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
+import { getPersonalizedQuote } from "./utils/intelligence";
+import {
+  getTodayStr, getDayQuests, getLevelIndex, daysBetween,
+  getCalendarDay, getCategoryStreak, defaultState,
+} from "./utils";
+import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium } from "./hooks";
+import { firebaseConfigured } from "./firebase";
+import { injectGlobalStyles } from "./styles/global";
+
+import LoadingScreen from "./components/LoadingScreen";
+import AuthScreen from "./components/AuthScreen";
+import Onboarding from "./components/Onboarding";
+import BottomNav from "./components/BottomNav";
+import MotivationModal from "./components/modals/MotivationModal";
+import WorkoutModal from "./components/modals/WorkoutModal";
+import RelapseModal from "./components/modals/RelapseModal";
+import BossModal from "./components/modals/BossModal";
+import LevelUpModal from "./components/modals/LevelUpModal";
+import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
+import CustomQuestModal from "./components/modals/CustomQuestModal";
+import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
+import HomeView from "./components/views/HomeView";
+import JournalView from "./components/views/JournalView";
+import AcademyView from "./components/views/AcademyView";
+import ForgeView from "./components/views/ForgeView";
+import SocialView from "./components/views/SocialView";
+import ToolsView from "./components/views/ToolsView";
+import { updatePublicProfile } from "./utils/social";
+import AnalyticsView from "./components/views/AnalyticsView";
+import UpgradeScreen from "./components/UpgradeScreen";
+import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
+import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
+
+injectGlobalStyles();
+
+// Combine all courses — Tier 2 are gated by bossClears in AcademyView
+const ALL_COURSES = [...COURSES, ...COURSES_TIER2];
+
+export default function LifeOS() {
+  const { user, loading: authLoading } = useAuth();
+  const { state, loading, save, showOnboarding, setShowOnboarding } = useCloudSync(user);
+  const { checkTrophies } = useTrophies();
+  const pomodoro = usePomodoro(state?.pomodoroMinutes || 25);
+
+  const [view, setView] = useState("home");
+  const [modal, setModal] = useState(null);
+  const [currentCard, setCurrentCard] = useState(null);
+  const [journalText, setJournalText] = useState("");
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [xpPopup, setXpPopup] = useState(null);
+
+  // Dojo state
+  const [workoutExercise, setWorkoutExercise] = useState(null);
+  const [workoutSets, setWorkoutSets] = useState([{ weight: "", reps: "" }]);
+
+  // Forge relapse
+  const [relapseTracker, setRelapseTracker] = useState(null);
+  const [relapseText, setRelapseText] = useState("");
+
+  // Boss level
+  const [bossDay, setBossDay] = useState(null);
+
+  // Level-up detection
+  const [levelUpIndex, setLevelUpIndex] = useState(null);
+  const prevLevelRef = useRef(null);
+
+  // Forge success story
+  const [forgeStory, setForgeStory] = useState(null);
+
+  // Weekly summary
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+
+  // Notification scheduler
+  const notifIntervalRef = useRef(null);
+
+  // Track level changes to trigger level-up modal
+  useEffect(() => {
+    if (!state) return;
+    const currentLvl = getLevelIndex(state.xp);
+    if (prevLevelRef.current !== null && currentLvl > prevLevelRef.current) {
+      setLevelUpIndex(currentLvl);
+      setModal("levelup");
+    }
+    prevLevelRef.current = currentLvl;
+  }, [state?.xp]);
+
+  // Daily Motivation Card — personalized based on user state
+  useEffect(() => {
+    if (state && !modal && view === "home") {
+      const today = getTodayStr();
+      if (!state.motivationSeen?.includes(today)) {
+        const personalized = getPersonalizedQuote(state, MOTIVATION_CARDS);
+        setCurrentCard(personalized);
+        setTimeout(() => setModal("motivation"), 500);
+      }
+    }
+  }, [state?.currentDay, view]);
+
+  // Feature Set 2: Check forge milestones whenever forge view opens
+  useEffect(() => {
+    if (!state || view !== "forge" || modal) return;
+    checkForgeMilestones();
+  }, [view]);
+
+  // Notification scheduler
+  useEffect(() => {
+    if (!state) return;
+    const settings = state.notificationSettings || getDefaultNotificationSettings();
+    if (!settings.enabled) return;
+
+    if (notifIntervalRef.current) clearInterval(notifIntervalRef.current);
+    notifIntervalRef.current = scheduleNotificationCheck(state, settings, {
+      onReminder: (label) => sendNotification("Life OS Reminder", label),
+      onStreakRisk: () => sendNotification("Streak at Risk!", "You haven't completed any quests today. Don't break your streak!"),
+    });
+
+    return () => {
+      if (notifIntervalRef.current) clearInterval(notifIntervalRef.current);
+    };
+  }, [state?.notificationSettings?.enabled, state?.currentDay]);
+
+  // Weekly summary check — show on Sundays (or user-set day) if not dismissed this week
+  useEffect(() => {
+    if (!state) return;
+    const settings = state.notificationSettings || getDefaultNotificationSettings();
+    const today = new Date();
+    if (today.getDay() === (settings.weeklySummaryDay ?? 0)) {
+      const todayStr = getTodayStr();
+      if (state.weeklySummaryDismissed !== todayStr && state.currentDay > 7) {
+        setShowWeeklySummary(true);
+      }
+    }
+  }, [state?.currentDay]);
+
+  // Sync public profile to Firestore for leaderboard/social
+  useEffect(() => {
+    if (!user || !state) return;
+    updatePublicProfile(user.uid, {
+      displayName: user.displayName || state.userName || "Warrior",
+      photoURL: user.photoURL || null,
+      xp: state.xp,
+      streak: state.streak,
+      level: getLevelIndex(state.xp),
+      currentDay: state.currentDay,
+    });
+  }, [user?.uid, state?.xp, state?.streak, state?.currentDay]);
+
+  if (authLoading) return <LoadingScreen />;
+  if (firebaseConfigured && !user) return <AuthScreen onAuth={() => {}} />;
+  if (loading || !state) return <LoadingScreen />;
+
+  if (showOnboarding) {
+    return (
+      <Onboarding
+        onFinish={(preferences) => {
+          const updates = { ...state, onboarded: true };
+          if (preferences) {
+            if (preferences.focusCategories) updates.focusCategories = preferences.focusCategories;
+            if (preferences.forgeTrackers) {
+              const dates = {};
+              preferences.forgeTrackers.forEach((id) => { dates[id] = getTodayStr(); });
+              updates.sobrietyDates = { ...state.sobrietyDates, ...dates };
+            }
+            if (preferences.userName) updates.userName = preferences.userName;
+          }
+          save(updates);
+          setShowOnboarding(false);
+        }}
+      />
+    );
+  }
+
+  // ── Derived values ──
+  const day = state.currentDay;
+  const calendarDay = getCalendarDay(state.startDate);
+  const maxAllowedDay = state.masteryMode ? 999 : 66;
+
+  // Feature Set 1: Temporal lock — can the user advance?
+  const previousDayCompleted = day === 1 || state.completedDays[day - 1];
+  const calendarAllowsAdvance = calendarDay > day;
+  const canCompleteDay = previousDayCompleted && calendarAllowsAdvance;
+
+  // Feature Set 3: Which categories have unlocked custom slots?
+  const unlockedCustomCategories = [];
+  const CATEGORIES_IDS = ["sleep", "water", "exercise", "mind", "screen", "shower"];
+  CATEGORIES_IDS.forEach((catId) => {
+    const streak = getCategoryStreak(state.completedQuests, catId, day);
+    if (streak >= 7) unlockedCustomCategories.push(catId);
+  });
+
+  // Feature Set 4: Quests now include custom quests
+  const quests = getDayQuests(day, state.customQuests);
+  const completed = state.completedQuests[day] || [];
+  const allDone = completed.length === quests.length && quests.length > 0;
+
+  // ── Helpers ──
+  function showXp(val) {
+    setXpPopup({ xp: val, id: Date.now() });
+    setTimeout(() => setXpPopup(null), 1200);
+  }
+
+  // ── Feature Set 2: Check Forge Milestones ──
+  function checkForgeMilestones() {
+    const seen = state.forgeStoriesSeen || {};
+    for (const [trackerId, startDate] of Object.entries(state.sobrietyDates || {})) {
+      if (!startDate) continue;
+      const daysClean = daysBetween(startDate);
+      const stories = FORGE_SUCCESS_STORIES[trackerId];
+      if (!stories) continue;
+      for (const milestone of FORGE_MILESTONES) {
+        const key = `${trackerId}-${milestone}`;
+        if (daysClean >= milestone && !seen[key]) {
+          const story = stories.find((s) => s.day === milestone);
+          if (story) {
+            const tracker = (state.sobrietyDates && trackerId) || trackerId;
+            const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
+            setForgeStory({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
+            setModal("forge_success");
+            return; // Show one at a time
+          }
+        }
+      }
+    }
+  }
+
+  function dismissForgeSuccess() {
+    if (forgeStory) {
+      save({
+        ...state,
+        forgeStoriesSeen: { ...(state.forgeStoriesSeen || {}), [forgeStory.key]: true },
+      });
+    }
+    setForgeStory(null);
+    setModal(null);
+  }
+
+  // ── Quest Actions ──
+  // Check a quest (one-way click — unchecking uses uncheckQuest via swipe)
+  function checkQuest(questId, xpVal) {
+    const dc = [...completed];
+    if (dc.includes(questId)) return; // already done
+    dc.push(questId);
+    const newXp = state.xp + xpVal;
+    showXp(xpVal);
+    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
+    const { unlocked, xpBonus } = checkTrophies(ns);
+    if (xpBonus > 0) showXp(xpBonus);
+    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+  }
+
+  // Uncheck a quest (called only via swipe gesture)
+  function uncheckQuest(questId, xpVal) {
+    const dc = [...completed];
+    if (!dc.includes(questId)) return;
+    dc.splice(dc.indexOf(questId), 1);
+    const newXp = Math.max(0, state.xp - xpVal);
+    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
+    save(ns);
+  }
+
+  function completeDay() {
+    if (!allDone) return;
+    // Feature Set 1: Temporal lock
+    if (!canCompleteDay) return;
+    const newStreak = state.streak + 1;
+    const newDay = Math.min(day + 1, maxAllowedDay);
+    const ns = {
+      ...state,
+      completedDays: { ...state.completedDays, [day]: true },
+      currentDay: newDay,
+      streak: newStreak,
+      bestStreak: Math.max(state.bestStreak, newStreak),
+      lastActiveDate: getTodayStr(),
+    };
+    const { unlocked, xpBonus } = checkTrophies(ns);
+    if (xpBonus > 0) showXp(xpBonus);
+    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    if (day === 21 || day === 66) {
+      setBossDay(day);
+      setModal("boss");
+    }
+  }
+
+  // Feature Set 5: progressLifecycle — called when boss modal is dismissed
+  function progressLifecycle() {
+    const bossClears = { ...(state.bossClears || {}) };
+    let xpBonus = 0;
+    let masteryMode = state.masteryMode || false;
+
+    if (bossDay && !bossClears[bossDay]) {
+      bossClears[bossDay] = true;
+      xpBonus = bossDay === 66 ? 500 : 100;
+
+      if (bossDay === 66) {
+        masteryMode = true;
+      }
+    }
+
+    const ns = {
+      ...state,
+      bossClears,
+      masteryMode,
+      xp: state.xp + xpBonus,
+    };
+    if (xpBonus > 0) showXp(xpBonus);
+
+    const { unlocked, xpBonus: tXp } = checkTrophies(ns);
+    if (tXp > 0) showXp(tXp);
+    save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
+    setModal(null);
+    setBossDay(null);
+  }
+
+  function dismissMotivation() {
+    save({ ...state, motivationSeen: [...(state.motivationSeen || []), getTodayStr()] });
+    setModal(null);
+  }
+
+  // ── Journal ──
+  function saveJournal() {
+    save({
+      ...state,
+      journal: { ...state.journal, [day]: journalText || state.journal[day] },
+      moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
+    });
+    setView("home");
+  }
+
+  // ── Dojo ──
+  function saveWorkout() {
+    if (!workoutExercise) return;
+    const validSets = workoutSets
+      .filter((s) => s.weight && s.reps)
+      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+    if (validSets.length === 0) return;
+    const volume = validSets.reduce((a, s) => a + s.weight * s.reps, 0);
+    const bonusXp = Math.floor(volume / 100);
+    const todayKey = getTodayStr();
+    const existing = state.workoutLogs[todayKey] || [];
+    const newEntry = { exercise: workoutExercise, sets: validSets, time: Date.now() };
+    const isNewDay = state.lastLiftDate !== todayKey;
+    const newLiftStreak = isNewDay ? (state.liftingStreak || 0) + 1 : state.liftingStreak || 0;
+    const ns = {
+      ...state,
+      workoutLogs: { ...state.workoutLogs, [todayKey]: [...existing, newEntry] },
+      xp: state.xp + 20 + bonusXp,
+      liftingStreak: newLiftStreak,
+      bestLiftingStreak: Math.max(state.bestLiftingStreak || 0, newLiftStreak),
+      lastLiftDate: todayKey,
+    };
+    const { unlocked, xpBonus } = checkTrophies(ns);
+    showXp(20 + bonusXp + xpBonus);
+    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    setModal(null);
+    setWorkoutExercise(null);
+    setWorkoutSets([{ weight: "", reps: "" }]);
+  }
+
+  // ── Academy ──
+  // Check a course step (one-way — unchecking uses uncheckCourseStep)
+  function checkCourseStep(courseId, stepIdx) {
+    const progress = { ...(state.courseProgress || {}) };
+    if (!progress[courseId]) progress[courseId] = { steps: [], completed: false };
+    const steps = [...progress[courseId].steps];
+    if (steps.includes(stepIdx)) return; // already checked
+    steps.push(stepIdx);
+    const course = ALL_COURSES.find((c) => c.id === courseId);
+    if (!course) return;
+    const isCompleted = steps.length === course.steps.length;
+    progress[courseId] = { steps, completed: isCompleted };
+    // Only award 50 XP if never awarded before (permanent tracking)
+    const courseXpAwarded = { ...(state.courseXpAwarded || {}) };
+    let xpBonus = 0;
+    if (isCompleted && !courseXpAwarded[courseId]) {
+      xpBonus = 50;
+      courseXpAwarded[courseId] = true;
+    }
+    const ns = { ...state, courseProgress: progress, courseXpAwarded, xp: state.xp + xpBonus };
+    const { unlocked, xpBonus: tXp } = checkTrophies(ns);
+    if (xpBonus > 0 || tXp > 0) showXp(xpBonus + tXp);
+    save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
+  }
+
+  // Uncheck a course step (called only via swipe gesture)
+  function uncheckCourseStep(courseId, stepIdx) {
+    const progress = { ...(state.courseProgress || {}) };
+    if (!progress[courseId]) return;
+    const steps = [...progress[courseId].steps];
+    if (!steps.includes(stepIdx)) return;
+    steps.splice(steps.indexOf(stepIdx), 1);
+    const course = ALL_COURSES.find((c) => c.id === courseId);
+    if (!course) return;
+    progress[courseId] = { steps, completed: false };
+    save({ ...state, courseProgress: progress });
+  }
+
+  // ── Forge ──
+  function startSobriety(trackerId) {
+    save({ ...state, sobrietyDates: { ...state.sobrietyDates, [trackerId]: getTodayStr() } });
+  }
+
+  function triggerRelapse(trackerId) {
+    setRelapseTracker(trackerId);
+    setRelapseText("");
+    setModal("relapse");
+  }
+
+  function submitRelapse() {
+    if (!relapseText.trim()) return;
+    const prevDate = state.sobrietyDates?.[relapseTracker];
+    const daysClean = prevDate ? daysBetween(prevDate) : 0;
+    const newJournals = [
+      ...(state.recoveryJournals || []),
+      { tracker: relapseTracker, text: relapseText, date: getTodayStr(), daysCleanBefore: daysClean },
+    ];
+    const ns = {
+      ...state,
+      sobrietyDates: { ...state.sobrietyDates, [relapseTracker]: getTodayStr() },
+      recoveryJournals: newJournals,
+      xp: state.xp + 25,
+    };
+    const { unlocked, xpBonus } = checkTrophies(ns);
+    showXp(25 + xpBonus);
+    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    setModal(null);
+    setRelapseTracker(null);
+  }
+
+  // ── Feature Set 3: Add / Remove Custom Quests ──
+  function addCustomQuest(quest) {
+    save({ ...state, customQuests: [...(state.customQuests || []), quest] });
+    setModal(null);
+  }
+
+  function removeCustomQuest(questId) {
+    save({
+      ...state,
+      customQuests: (state.customQuests || []).filter((q) => q.id !== questId),
+    });
+  }
+
+  function resetApp() {
+    save(defaultState());
+    setView("home");
+  }
+
+  // ── Modal Rendering ──
+  function renderModal() {
+    if (!modal) return null;
+    if (modal === "motivation") {
+      return <MotivationModal card={currentCard} onDismiss={dismissMotivation} />;
+    }
+    if (modal === "workout") {
+      return (
+        <WorkoutModal
+          workoutExercise={workoutExercise}
+          setWorkoutExercise={setWorkoutExercise}
+          workoutSets={workoutSets}
+          setWorkoutSets={setWorkoutSets}
+          onSave={saveWorkout}
+          onClose={() => setModal(null)}
+          bossClears={state.bossClears || {}}
+        />
+      );
+    }
+    if (modal === "relapse") {
+      return (
+        <RelapseModal
+          trackerId={relapseTracker}
+          relapseText={relapseText}
+          setRelapseText={setRelapseText}
+          onSubmit={submitRelapse}
+          onClose={() => setModal(null)}
+        />
+      );
+    }
+    if (modal === "boss") {
+      return <BossModal bossDay={bossDay} onProgress={progressLifecycle} />;
+    }
+    if (modal === "levelup") {
+      return <LevelUpModal levelIndex={levelUpIndex} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
+    }
+    if (modal === "forge_success" && forgeStory) {
+      return (
+        <ForgeSuccessModal
+          story={forgeStory.story}
+          trackerLabel={forgeStory.trackerLabel}
+          daysClean={forgeStory.daysClean}
+          onDismiss={dismissForgeSuccess}
+        />
+      );
+    }
+    if (modal === "custom_quest") {
+      return (
+        <CustomQuestModal
+          unlockedCategories={unlockedCustomCategories}
+          onAdd={addCustomQuest}
+          onClose={() => setModal(null)}
+        />
+      );
+    }
+    if (modal === "notifications") {
+      return (
+        <NotificationSettingsModal
+          settings={state.notificationSettings || getDefaultNotificationSettings()}
+          onSave={(settings) => save({ ...state, notificationSettings: settings })}
+          onClose={() => setModal(null)}
+        />
+      );
+    }
+    return null;
+  }
+
+  function openDojo() {
+    setWorkoutExercise(null);
+    setWorkoutSets([{ weight: "", reps: "" }]);
+    setModal("workout");
+  }
+
+  return (
+    <PremiumProvider state={state} save={save}>
+      <LifeOSInner
+        state={state} save={save} view={view} setView={setView}
+        renderModal={renderModal} showWeeklySummary={showWeeklySummary}
+        setShowWeeklySummary={setShowWeeklySummary} xpPopup={xpPopup}
+        checkQuest={checkQuest} uncheckQuest={uncheckQuest}
+        completeDay={completeDay} openDojo={openDojo} canCompleteDay={canCompleteDay}
+        calendarDay={calendarDay} setModal={setModal}
+        removeCustomQuest={removeCustomQuest} unlockedCustomCategories={unlockedCustomCategories}
+        journalText={journalText} setJournalText={setJournalText}
+        selectedMood={selectedMood} setSelectedMood={setSelectedMood}
+        saveJournal={saveJournal} checkCourseStep={checkCourseStep}
+        uncheckCourseStep={uncheckCourseStep} ALL_COURSES={ALL_COURSES}
+        startSobriety={startSobriety} triggerRelapse={triggerRelapse}
+        user={user} pomodoro={pomodoro} resetApp={resetApp}
+      />
+    </PremiumProvider>
+  );
+}
+
+function LifeOSInner({
+  state, save, view, setView, renderModal, showWeeklySummary, setShowWeeklySummary,
+  xpPopup, checkQuest, uncheckQuest, completeDay, openDojo, canCompleteDay,
+  calendarDay, setModal, removeCustomQuest, unlockedCustomCategories,
+  journalText, setJournalText, selectedMood, setSelectedMood, saveJournal,
+  checkCourseStep, uncheckCourseStep, ALL_COURSES, startSobriety, triggerRelapse,
+  user, pomodoro, resetApp,
+}) {
+  const { showUpgrade, setShowUpgrade } = usePremium();
+
+  return (
+    <div style={S.app}>
+      {renderModal()}
+      {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
+      <div style={S.content}>
+        {view === "home" && showWeeklySummary && (
+          <WeeklySummaryBanner
+            summary={computeWeeklySummary(state)}
+            onDismiss={() => {
+              setShowWeeklySummary(false);
+              save({ ...state, weeklySummaryDismissed: getTodayStr() });
+            }}
+          />
+        )}
+        {view === "home" && (
+          <HomeView
+            state={state}
+            xpPopup={xpPopup}
+            onCheckQuest={checkQuest}
+            onUncheckQuest={uncheckQuest}
+            onCompleteDay={completeDay}
+            onOpenDojo={openDojo}
+            canCompleteDay={canCompleteDay}
+            calendarDay={calendarDay}
+            onOpenCustomQuest={() => setModal("custom_quest")}
+            onRemoveCustomQuest={removeCustomQuest}
+            unlockedCustomCategories={unlockedCustomCategories}
+          />
+        )}
+        {view === "journal" && (
+          <JournalView
+            state={state}
+            journalText={journalText}
+            setJournalText={setJournalText}
+            selectedMood={selectedMood}
+            setSelectedMood={setSelectedMood}
+            onSave={saveJournal}
+          />
+        )}
+        {view === "academy" && (
+          <AcademyView
+            state={state}
+            onCheckStep={checkCourseStep}
+            onUncheckStep={uncheckCourseStep}
+            allCourses={ALL_COURSES}
+          />
+        )}
+        {view === "forge" && <ForgeView state={state} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
+        {view === "social" && <SocialView user={user} state={state} />}
+        {view === "analytics" && <AnalyticsView state={state} />}
+        {view === "tools" && (
+          <ToolsView
+            state={state}
+            user={user}
+            pomodoro={pomodoro}
+            onReset={resetApp}
+            onOpenNotifications={() => setModal("notifications")}
+            onOpenJournal={() => setView("journal")}
+          />
+        )}
+      </div>
+      <BottomNav view={view} setView={setView} />
+    </div>
+  );
+}
+
+// Keep the export as the outer LifeOS function
