@@ -12,6 +12,7 @@ export function injectGlobalStyles() {
     @keyframes swipeHintSlide { 0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)} }
     @keyframes swipeArrowBounce { 0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)} }
     @keyframes spin { 0%{transform:rotate(0deg)}100%{transform:rotate(360deg)} }
+    @keyframes dotPulse { 0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)} }
   `;
   document.head.appendChild(s);
 }

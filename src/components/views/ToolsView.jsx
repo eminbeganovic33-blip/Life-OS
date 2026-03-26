@@ -131,8 +131,8 @@ export default function ToolsView({ state, user, pomodoro, onReset, onOpenNotifi
 
       {/* Day Map */}
       <div style={{ ...S.secTitle, marginTop: 20 }}>
-        {state.masteryMode ? "Journey Map" : "66-Day Map"}
-        {state.masteryMode && <span style={{ fontSize: 11, opacity: 0.4, fontWeight: 400, marginLeft: 6 }}>Mastery Mode</span>}
+        Journey Map
+        {day > 66 && <span style={{ fontSize: 11, opacity: 0.4, fontWeight: 400, marginLeft: 6 }}>Mastery</span>}
       </div>
       <div style={S.dayGrid}>
         {Array.from({ length: Math.max(66, day) }, (_, i) => {

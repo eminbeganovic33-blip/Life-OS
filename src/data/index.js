@@ -1,7 +1,7 @@
 export { CATEGORIES } from "./categories";
 export { QUESTS_TEMPLATE } from "./quests";
 export { EXERCISES, EXERCISES_TIER2 } from "./exercises";
-export { COURSES, COURSES_TIER2 } from "./courses";
+export { COURSES } from "./courses";
 export { TROPHIES } from "./trophies";
 export { SOBRIETY_DEFAULTS, MOTIVATION_CARDS, MOODS, LEVELS } from "./constants";
 export { FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./forgeStories";

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { S } from "./styles/theme";
-import { MOTIVATION_CARDS, COURSES, COURSES_TIER2, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
+import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
 import { getPersonalizedQuote } from "./utils/intelligence";
 import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
@@ -36,8 +36,8 @@ import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNo
 
 injectGlobalStyles();
 
-// Combine all courses — Tier 2 are gated by bossClears in AcademyView
-const ALL_COURSES = [...COURSES, ...COURSES_TIER2];
+// All courses in one array — tier 2 gating handled by AcademyView
+const ALL_COURSES = COURSES;
 
 export default function LifeOS() {
   const { user, loading: authLoading } = useAuth();
@@ -176,20 +176,18 @@ export default function LifeOS() {
   // ── Derived values ──
   const day = state.currentDay;
   const calendarDay = getCalendarDay(state.startDate);
-  const maxAllowedDay = state.masteryMode ? 999 : 66;
+  const maxAllowedDay = 999;
 
   // Feature Set 1: Temporal lock — can the user advance?
   const previousDayCompleted = day === 1 || state.completedDays[day - 1];
   const calendarAllowsAdvance = calendarDay > day;
   const canCompleteDay = previousDayCompleted && calendarAllowsAdvance;
 
-  // Feature Set 3: Which categories have unlocked custom slots?
-  const unlockedCustomCategories = [];
-  const CATEGORIES_IDS = ["sleep", "water", "exercise", "mind", "screen", "shower"];
-  CATEGORIES_IDS.forEach((catId) => {
-    const streak = getCategoryStreak(state.completedQuests, catId, day);
-    if (streak >= 7) unlockedCustomCategories.push(catId);
-  });
+  // Feature Set 3: Custom quests unlock after Day 3 — all categories open at once
+  const customQuestsUnlocked = day >= 4; // Completed 3 days
+  const unlockedCustomCategories = customQuestsUnlocked
+    ? ["sleep", "water", "exercise", "mind", "screen", "shower"]
+    : [];
 
   // Feature Set 4: Quests now include custom quests
   const quests = getDayQuests(day, state.customQuests);
@@ -503,6 +501,8 @@ export default function LifeOS() {
           onAdd={addCustomQuest}
           onClose={() => setModal(null)}
           currentDay={day}
+          existingQuests={quests}
+          customQuestCount={(state.customQuests || []).length}
         />
       );
     }
@@ -582,6 +582,7 @@ function LifeOSInner({
             onOpenCustomQuest={() => setModal("custom_quest")}
             onRemoveCustomQuest={removeCustomQuest}
             unlockedCustomCategories={unlockedCustomCategories}
+            onNavigate={(v) => { if (v === "journal") { setView("home"); setJournalText(state.journal?.[day] || ""); setSelectedMood(state.moods?.[day] ?? null); } setView(v === "journal" ? "journal" : v); }}
           />
         )}
         {view === "journal" && (

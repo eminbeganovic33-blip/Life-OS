@@ -2,10 +2,52 @@ import { useState } from "react";
 import { S } from "../styles/theme";
 import { CATEGORIES, SOBRIETY_DEFAULTS } from "../data";
 
+function HeroIllustration() {
+  return (
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: 8 }}>
+      {/* Background glow */}
+      <circle cx="60" cy="60" r="50" fill="url(#heroGlow)" opacity="0.15" />
+      {/* Shield */}
+      <path d="M60 18L88 30V54C88 74 76 88 60 96C44 88 32 74 32 54V30L60 18Z"
+        fill="url(#heroShield)" opacity="0.9" />
+      {/* Inner shield accent */}
+      <path d="M60 26L80 35V54C80 70 71 81 60 87C49 81 40 70 40 54V35L60 26Z"
+        fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+      {/* Lightning bolt */}
+      <path d="M56 38L44 62H56L52 82L76 52H64L68 38H56Z"
+        fill="#fff" opacity="0.95" />
+      {/* Sparkles */}
+      <circle cx="28" cy="38" r="2" fill="#FACC15" opacity="0.6">
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="92" cy="42" r="1.5" fill="#EC4899" opacity="0.5">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="24" cy="72" r="1.5" fill="#7C5CFC" opacity="0.5">
+        <animate attributeName="opacity" values="0.5;0.8;0.5" dur="1.8s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="96" cy="76" r="2" fill="#10B981" opacity="0.5">
+        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.2s" repeatCount="indefinite" />
+      </circle>
+      <defs>
+        <radialGradient id="heroGlow" cx="60" cy="60" r="50">
+          <stop offset="0%" stopColor="#7C5CFC" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <linearGradient id="heroShield" x1="32" y1="18" x2="88" y2="96">
+          <stop offset="0%" stopColor="#7C5CFC" />
+          <stop offset="50%" stopColor="#6D28D9" />
+          <stop offset="100%" stopColor="#EC4899" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 const FEATURES = [
-  { i: "⚔️", t: "Daily Quests", d: "Build habits through 66 days of guided challenges" },
-  { i: "📚", t: "The Academy", d: "Learn the science behind habit formation" },
-  { i: "🔥", t: "The Forge", d: "Break free from bad habits with daily guidance" },
+  { i: "⚔️", t: "Daily Quests", d: "Build habits through personalized daily challenges" },
+  { i: "📚", t: "The Academy", d: "Learn the science behind every habit you build" },
+  { i: "🔥", t: "The Forge", d: "Break free from bad habits with structured programs" },
   { i: "🧠", t: "Smart Guides", d: "Every quest comes with expert tips and techniques" },
   { i: "🏆", t: "Trophy Room", d: "Earn XP, level up, and unlock achievements" },
   { i: "📊", t: "Analytics", d: "Track your mood, streaks, and progress patterns" },
@@ -66,19 +108,15 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Welcome */}
         {currentStep === "welcome" && (
           <div style={ob.slide}>
-            <div style={ob.heroIcon}>⚡</div>
+            <HeroIllustration />
             <h1 style={S.obTitle}>Life OS</h1>
             <p style={ob.heroSub}>Your Operating System for Self-Mastery</p>
             <p style={ob.description}>
-              66 days of guided quests to build unbreakable habits,
+              Daily quests to build unbreakable habits,
               break free from what holds you back, and become the
-              strongest version of yourself.
+              strongest version of yourself. No end date — just consistent growth.
             </p>
             <div style={ob.statRow}>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>66</div>
-                <div style={ob.statLabel}>Day Journey</div>
-              </div>
               <div style={ob.stat}>
                 <div style={ob.statNum}>6</div>
                 <div style={ob.statLabel}>Life Areas</div>
@@ -86,6 +124,10 @@ export default function Onboarding({ onFinish }) {
               <div style={ob.stat}>
                 <div style={ob.statNum}>8</div>
                 <div style={ob.statLabel}>Levels</div>
+              </div>
+              <div style={ob.stat}>
+                <div style={ob.statNum}>∞</div>
+                <div style={ob.statLabel}>Your Journey</div>
               </div>
             </div>
             <button style={S.primaryBtn} onClick={next}>
@@ -262,11 +304,11 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Ready */}
         {currentStep === "ready" && (
           <div style={ob.slide}>
-            <div style={ob.heroIcon}>⚡</div>
+            <HeroIllustration />
             <h2 style={ob.stepTitle}>
               {userName.trim() ? `Ready, ${userName.trim()}?` : "You're All Set"}
             </h2>
-            <p style={ob.stepDesc}>Your 66-day transformation starts now.</p>
+            <p style={ob.stepDesc}>Your transformation starts now.</p>
 
             {/* Summary */}
             <div style={ob.summary}>
@@ -294,7 +336,7 @@ export default function Onboarding({ onFinish }) {
               )}
               <div style={ob.summaryRow}>
                 <span style={{ opacity: 0.5 }}>Journey:</span>
-                <span>66 days to mastery</span>
+                <span>Ongoing self-mastery</span>
               </div>
             </div>
 

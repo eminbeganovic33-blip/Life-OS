@@ -12,7 +12,7 @@ const SWIPE_THRESHOLD = 60;
 export default function HomeView({
   state, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onRemoveCustomQuest,
-  unlockedCustomCategories,
+  unlockedCustomCategories, onNavigate,
 }) {
   const day = state.currentDay;
   const quests = getDayQuests(day, state.customQuests);
@@ -22,8 +22,10 @@ export default function HomeView({
   const nextLevel = getNextLevel(state.xp);
   const levelIdx = getLevelIndex(state.xp);
   const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
-  const maxDay = state.masteryMode ? "∞" : 66;
-  const dayProgress = state.masteryMode ? Math.min(100, (day / 365) * 100) : (day / 66) * 100;
+  // Journey progress based on milestones: Day 21 (first boss), Day 66 (second boss), then ongoing
+  const nextMilestone = day <= 21 ? 21 : day <= 66 ? 66 : Math.ceil(day / 100) * 100;
+  const prevMilestone = day <= 21 ? 0 : day <= 66 ? 21 : Math.floor(day / 100) * 100;
+  const dayProgress = ((day - prevMilestone) / (nextMilestone - prevMilestone)) * 100;
 
   // Quest guide panel
   const [activeGuide, setActiveGuide] = useState(null); // { questId, guide }
@@ -78,7 +80,7 @@ export default function HomeView({
             <div style={S.dayLabel}>
               Day {day}{" "}
               <span style={{ fontSize: 14, opacity: 0.4, fontWeight: 400 }}>
-                {state.masteryMode ? "Mastery Mode" : `of ${maxDay}`}
+                {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery"}
               </span>
             </div>
             <div style={S.levelName}>Lv.{levelIdx + 1} {level.name}</div>
@@ -88,7 +90,7 @@ export default function HomeView({
             <span style={S.streakNum}>{state.streak}</span>
           </div>
         </div>
-        <div style={S.pLabel}><span>Journey</span><span>{Math.round(dayProgress)}%</span></div>
+        <div style={S.pLabel}><span>Journey</span><span>Next milestone: Day {nextMilestone}</span></div>
         <div style={S.pBarOut}>
           <div style={{ ...S.pBarIn, width: `${dayProgress}%`, background: "linear-gradient(90deg,#7C5CFC,#EC4899)" }} />
         </div>
@@ -135,11 +137,18 @@ export default function HomeView({
                 onTouchStart={(e) => handleTouchStart(e, q)}
                 onTouchEnd={(e) => handleTouchEnd(e, q)}
               >
-                {/* Swipe hint overlay */}
+                {/* Undo overlay — shows on click, supports both swipe (mobile) and click (desktop) */}
                 {isShowingHint && (
-                  <div style={swipeHintOverlay}>
-                    <span style={swipeHintArrow}>←</span>
-                    <span style={swipeHintText}>Swipe left to undo</span>
+                  <div
+                    style={swipeHintOverlay}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSwipeHint(null);
+                      onUncheckQuest(q.id, q.xp);
+                    }}
+                  >
+                    <span style={swipeHintArrow}>↩</span>
+                    <span style={swipeHintText}>Tap to undo</span>
                   </div>
                 )}
                 <div style={S.qLeft}>
@@ -205,6 +214,67 @@ export default function HomeView({
         })}
       </div>
 
+      {/* Discovery cards — early engagement for new users */}
+      {day <= 5 && (
+        <div style={{ padding: "0 14px", marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          {day <= 2 && (
+            <div style={discoveryCard} onClick={() => onNavigate?.("academy")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <span style={{ fontSize: 20 }}>📚</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>Learn the science</div>
+                  <div style={{ fontSize: 11, opacity: 0.4 }}>
+                    The Academy teaches you <em>why</em> each quest works — start with "Getting Started"
+                  </div>
+                </div>
+              </div>
+              <span style={discoveryArrow}>→</span>
+            </div>
+          )}
+          {Object.keys(state.sobrietyDates || {}).length > 0 && day <= 3 && (
+            <div style={discoveryCard} onClick={() => onNavigate?.("forge")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <span style={{ fontSize: 20 }}>🔥</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>Check your Forge progress</div>
+                  <div style={{ fontSize: 11, opacity: 0.4 }}>
+                    Daily tips and support for breaking bad habits
+                  </div>
+                </div>
+              </div>
+              <span style={discoveryArrow}>→</span>
+            </div>
+          )}
+          {day >= 2 && day <= 4 && (
+            <div style={discoveryCard} onClick={() => onNavigate?.("journal")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <span style={{ fontSize: 20 }}>📖</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>Start journaling</div>
+                  <div style={{ fontSize: 11, opacity: 0.4 }}>
+                    Track your mood daily — Analytics will reveal which habits help most
+                  </div>
+                </div>
+              </div>
+              <span style={discoveryArrow}>→</span>
+            </div>
+          )}
+          {day === 3 && (
+            <div style={{ ...discoveryCard, borderColor: "rgba(124,92,252,0.15)", background: "rgba(124,92,252,0.04)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <span style={{ fontSize: 20 }}>🎯</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>Custom quests unlock tomorrow!</div>
+                  <div style={{ fontSize: 11, opacity: 0.4 }}>
+                    After today, you can add your own personalized quests
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Temporal Lock Warning */}
       {isTimeLocked && (
         <div style={timeLockBox}>
@@ -227,7 +297,7 @@ export default function HomeView({
       >
         {allDone
           ? canCompleteDay
-            ? (day >= 66 && !state.masteryMode ? "Complete Journey!" : `Complete Day ${day} →`)
+            ? `Complete Day ${day} →`
             : "⏳ Waiting for tomorrow..."
           : `${completed.length}/${quests.length} Quests`}
       </button>
@@ -253,7 +323,7 @@ export default function HomeView({
       {/* Custom quest unlock hint */}
       {unlockedCustomCategories.length === 0 && (state.customQuests || []).length === 0 && (
         <div style={hintBox}>
-          Unlock custom quest slots by maintaining a 7-day streak in any category.
+          Custom quests unlock on Day 4. Complete your first 3 days to add your own quests.
         </div>
       )}
     </div>
@@ -293,6 +363,24 @@ const timeLockBox = {
   border: "1px solid rgba(124,92,252,0.1)",
 };
 
+const discoveryCard = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "12px 14px",
+  borderRadius: 12,
+  background: "rgba(255,255,255,0.025)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  cursor: "pointer",
+  transition: "all 0.15s",
+};
+
+const discoveryArrow = {
+  fontSize: 14,
+  opacity: 0.3,
+  flexShrink: 0,
+};
+
 const hintBox = {
   margin: "10px 14px 0",
   padding: "10px 14px",
@@ -316,7 +404,7 @@ const swipeHintOverlay = {
   zIndex: 5,
   borderRadius: 12,
   animation: "swipeHintSlide 0.3s ease",
-  pointerEvents: "none",
+  cursor: "pointer",
   backdropFilter: "blur(2px)",
 };
 
