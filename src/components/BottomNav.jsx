@@ -1,21 +1,24 @@
 import { S } from "../styles/theme";
+import { useTheme } from "../hooks";
 
 const NAV = [
   { id: "home", icon: "⚔️", label: "Quests" },
   { id: "academy", icon: "📚", label: "Academy" },
+  { id: "dojo", icon: "🥋", label: "Dojo" },
   { id: "forge", icon: "🔥", label: "Forge" },
-  { id: "social", icon: "👥", label: "Social" },
-  { id: "analytics", icon: "📊", label: "Analytics" },
-  { id: "tools", icon: "🏆", label: "Tools" },
+  { id: "profile", icon: "👤", label: "Profile" },
 ];
 
 export default function BottomNav({ view, setView }) {
+  const { theme, themed } = useTheme();
+  const inactiveColor = theme === "light" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)";
+
   return (
-    <div style={S.bottomNav}>
+    <div style={themed("bottomNav")}>
       {NAV.map((n) => (
         <div
           key={n.id}
-          style={{ ...S.navItem, color: view === n.id ? "#7C5CFC" : "rgba(255,255,255,0.3)" }}
+          style={{ ...S.navItem, color: view === n.id ? "#7C5CFC" : inactiveColor }}
           onClick={() => setView(n.id)}
         >
           <div style={{ fontSize: 18 }}>{n.icon}</div>

@@ -1,40 +1,19 @@
-// AI Service Layer — calls OpenAI-compatible APIs with caching and graceful fallback
-// API key is stored in localStorage (never synced to cloud) or provided via env vars
+// AI Service Layer — uses Gemini API with built-in key
+// No user configuration needed — AI coach is always available
 
-const AI_SETTINGS_KEY = "life-os-ai-settings";
+const GEMINI_API_KEY = "AIzaSyCyD5_WJz8V6h5vIQbdcTD3JaioHslnCQc";
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
 const AI_CACHE_KEY = "life-os-ai-cache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// --- Settings Management ---
-
-function getSettings() {
-  try {
-    const raw = localStorage.getItem(AI_SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveAISettings(settings) {
-  try {
-    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
-  } catch {}
-}
-
+// --- Legacy settings compatibility (remove user-facing settings) ---
 export function loadAISettings() {
-  const saved = getSettings();
-  return {
-    apiKey: saved.apiKey || import.meta.env.VITE_AI_API_KEY || "",
-    apiUrl: saved.apiUrl || import.meta.env.VITE_AI_API_URL || "https://api.openai.com/v1",
-    model: saved.model || import.meta.env.VITE_AI_MODEL || "gpt-4o-mini",
-  };
+  return { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL };
 }
-
-export function isAIConfigured() {
-  const { apiKey } = loadAISettings();
-  return !!apiKey;
-}
+export function saveAISettings() {} // no-op
+export function isAIConfigured() { return true; } // always configured
 
 // --- Cache ---
 
@@ -67,7 +46,6 @@ function getCached(key) {
 
 function setCache(key, value) {
   const store = getCacheStore();
-  // Evict old entries to prevent unbounded growth
   const keys = Object.keys(store);
   if (keys.length > 30) {
     const sorted = keys.sort((a, b) => (store[a].timestamp || 0) - (store[b].timestamp || 0));
@@ -86,44 +64,36 @@ function hashInput(prefix, data) {
   return prefix + "_" + Math.abs(hash).toString(36);
 }
 
-// --- Core API Call ---
+// --- Core Gemini API Call ---
 
 async function callAI(systemPrompt, userPrompt, cacheKey) {
-  if (!isAIConfigured()) return null;
-
   // Check cache
   if (cacheKey) {
     const cached = getCached(cacheKey);
     if (cached) return cached;
   }
 
-  const { apiKey, apiUrl, model } = loadAISettings();
-
   try {
-    const res = await fetch(`${apiUrl}/chat/completions`, {
+    const res = await fetch(GEMINI_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.8,
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: 500,
+          temperature: 0.8,
+        },
       }),
     });
 
     if (!res.ok) {
-      console.warn("AI API error:", res.status);
+      console.warn("Gemini API error:", res.status);
       return null;
     }
 
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!content) return null;
 
     if (cacheKey) {
@@ -140,18 +110,10 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
 
 function buildStateSummary(state) {
   const {
-    currentDay = 1,
-    xp = 0,
-    streak = 0,
-    bestStreak = 0,
-    completedQuests = {},
-    journal = {},
-    moods = {},
-    sobrietyDates = {},
-    recoveryJournals = [],
-    customQuests = [],
-    liftingStreak = 0,
-    userName = "User",
+    currentDay = 1, xp = 0, streak = 0, bestStreak = 0,
+    completedQuests = {}, journal = {}, moods = {},
+    sobrietyDates = {}, recoveryJournals = [], customQuests = [],
+    liftingStreak = 0, userName = "User",
   } = state || {};
 
   const todayQuests = completedQuests[currentDay] || [];
@@ -159,7 +121,6 @@ function buildStateSummary(state) {
     (d) => (completedQuests[d] || []).length > 0
   ).length;
 
-  // Recent moods
   const recentMoods = Object.entries(moods)
     .sort(([a], [b]) => Number(b) - Number(a))
     .slice(0, 5)
@@ -168,13 +129,11 @@ function buildStateSummary(state) {
       return `Day ${day}: ${labels[mood] || "Unknown"}`;
     });
 
-  // Active forge trackers
   const forgeTrackers = Object.entries(sobrietyDates).map(([id, date]) => {
     const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
     return `${id}: ${days} days clean`;
   });
 
-  // Recent journal snippet
   const journalDays = Object.keys(journal).map(Number).sort((a, b) => b - a);
   const latestJournal = journalDays.length > 0 ? journal[journalDays[0]] : "";
   const journalSnippet = latestJournal
@@ -206,15 +165,12 @@ Your personality: Supportive but direct. You celebrate wins authentically. You d
 export async function getAICoachMessage(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("coach", {
-    day: state?.currentDay,
-    streak: state?.streak,
+    day: state?.currentDay, streak: state?.streak,
     date: new Date().toISOString().split("T")[0],
   });
 
   return callAI(
-    `${SYSTEM_BASE}
-
-Generate a personalized daily coaching message for this user. Be specific about their data — reference their streak, progress, or struggles. Make it feel personal and motivating, not generic.`,
+    `${SYSTEM_BASE}\n\nGenerate a personalized daily coaching message for this user. Be specific about their data — reference their streak, progress, or struggles. Make it feel personal and motivating, not generic.`,
     `Here is the user's current state:\n${summary}\n\nGive a brief, personalized coaching message for today.`,
     cacheKey
   );
@@ -223,14 +179,11 @@ Generate a personalized daily coaching message for this user. Be specific about 
 export async function getAIJournalPrompt(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("jprompt", {
-    day: state?.currentDay,
-    date: new Date().toISOString().split("T")[0],
+    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
   });
 
   return callAI(
-    `${SYSTEM_BASE}
-
-Generate a thoughtful, context-aware journal writing prompt. The prompt should encourage reflection and self-awareness. It should relate to what the user is currently working on or struggling with. Return ONLY the prompt question, nothing else.`,
+    `${SYSTEM_BASE}\n\nGenerate a thoughtful, context-aware journal writing prompt. The prompt should encourage reflection and self-awareness. It should relate to what the user is currently working on or struggling with. Return ONLY the prompt question, nothing else.`,
     `Here is the user's current state:\n${summary}\n\nGenerate one journal prompt.`,
     cacheKey
   );
@@ -243,16 +196,7 @@ export async function analyzeJournalEntryAI(entry, state) {
   const cacheKey = hashInput("janalyze", { entry: entry.substring(0, 100), day: state?.currentDay });
 
   const raw = await callAI(
-    `${SYSTEM_BASE}
-
-Analyze this journal entry and return a JSON object with these fields:
-- sentiment: "positive", "negative", or "neutral"
-- score: number from -1 to 1
-- insight: a brief personalized observation (1-2 sentences)
-- pattern: a pattern you notice relating to their habits (1 sentence, or null if not enough data)
-- suggestion: one specific actionable suggestion based on the entry (1 sentence)
-
-Return ONLY valid JSON, no markdown fences.`,
+    `${SYSTEM_BASE}\n\nAnalyze this journal entry and return a JSON object with these fields:\n- sentiment: "positive", "negative", or "neutral"\n- score: number from -1 to 1\n- insight: a brief personalized observation (1-2 sentences)\n- pattern: a pattern you notice relating to their habits (1 sentence, or null if not enough data)\n- suggestion: one specific actionable suggestion based on the entry (1 sentence)\n\nReturn ONLY valid JSON, no markdown fences.`,
     `User state:\n${summary}\n\nJournal entry:\n"${entry}"`,
     cacheKey
   );
@@ -260,79 +204,42 @@ Return ONLY valid JSON, no markdown fences.`,
   if (!raw) return null;
 
   try {
-    // Strip markdown fences if present
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(cleaned);
   } catch {
-    // Try to extract what we can
-    return {
-      sentiment: "neutral",
-      score: 0,
-      insight: raw.substring(0, 200),
-      pattern: null,
-      suggestion: null,
-    };
+    return { sentiment: "neutral", score: 0, insight: raw.substring(0, 200), pattern: null, suggestion: null };
   }
 }
 
 export async function getAIQuestSuggestions(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("quests", {
-    day: state?.currentDay,
-    date: new Date().toISOString().split("T")[0],
+    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
   });
 
   const raw = await callAI(
-    `${SYSTEM_BASE}
-
-Suggest 3 personalized quests for this user based on their data. Return a JSON array where each item has:
-- text: the quest description (short, actionable)
-- category: one of "sleep", "water", "exercise", "mind", "screen", "shower"
-- reason: why this quest is relevant to them (1 sentence)
-
-Return ONLY valid JSON array, no markdown fences.`,
+    `${SYSTEM_BASE}\n\nSuggest 3 personalized quests for this user based on their data. Return a JSON array where each item has:\n- text: the quest description (short, actionable)\n- category: one of "sleep", "water", "exercise", "mind", "screen", "shower"\n- reason: why this quest is relevant to them (1 sentence)\n\nReturn ONLY valid JSON array, no markdown fences.`,
     `User state:\n${summary}\n\nSuggest 3 quests.`,
     cacheKey
   );
 
   if (!raw) return null;
-
   try {
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export async function getAIRelapseSupport(trackerId, state) {
   const summary = buildStateSummary(state);
-  const trackerLabels = {
-    smoking: "Smoking",
-    alcohol: "Alcohol",
-    junkfood: "Junk Food",
-    social_media: "Doomscrolling",
-  };
+  const trackerLabels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
   const label = trackerLabels[trackerId] || trackerId;
-
   const startDate = state?.sobrietyDates?.[trackerId];
   const daysClean = startDate ? Math.floor((Date.now() - new Date(startDate).getTime()) / 86400000) : 0;
-
-  const cacheKey = hashInput("relapse", {
-    tracker: trackerId,
-    days: daysClean,
-    date: new Date().toISOString().split("T")[0],
-  });
+  const cacheKey = hashInput("relapse", { tracker: trackerId, days: daysClean, date: new Date().toISOString().split("T")[0] });
 
   return callAI(
-    `${SYSTEM_BASE}
-
-The user is tracking their recovery from ${label} in The Forge. They have been clean for ${daysClean} days. Generate a supportive, encouraging message that:
-1. Acknowledges their progress (${daysClean} days is significant)
-2. Offers a specific coping strategy
-3. Reminds them why they started
-
-Keep it warm and personal, 3-4 sentences. Don't be preachy.`,
+    `${SYSTEM_BASE}\n\nThe user is tracking their recovery from ${label} in The Forge. They have been clean for ${daysClean} days. Generate a supportive, encouraging message that:\n1. Acknowledges their progress (${daysClean} days is significant)\n2. Offers a specific coping strategy\n3. Reminds them why they started\n\nKeep it warm and personal, 3-4 sentences. Don't be preachy.`,
     `User state:\n${summary}\n\nGenerate a support message for their ${label} recovery journey.`,
     cacheKey
   );
@@ -340,43 +247,30 @@ Keep it warm and personal, 3-4 sentences. Don't be preachy.`,
 
 export async function chatWithCoach(message, state) {
   const summary = buildStateSummary(state);
-  // Chat messages are NOT cached — they're unique
   return callAI(
-    `${SYSTEM_BASE}
-
-The user is asking you a question in a chat. You have full context about their habits and progress. Answer specifically and helpfully. Keep responses to 2-4 sentences unless the question requires more detail.`,
+    `${SYSTEM_BASE}\n\nThe user is asking you a question in a chat. You have full context about their habits and progress. Answer specifically and helpfully. Keep responses to 2-4 sentences unless the question requires more detail.`,
     `User state:\n${summary}\n\nUser's question: ${message}`,
     null
   );
 }
 
 export async function testAIConnection() {
-  if (!isAIConfigured()) return { success: false, error: "API key not configured" };
-
-  const { apiKey, apiUrl, model } = loadAISettings();
-
   try {
-    const res = await fetch(`${apiUrl}/chat/completions`, {
+    const res = await fetch(GEMINI_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: "Reply with exactly: OK" }],
-        max_tokens: 5,
+        contents: [{ parts: [{ text: "Reply with exactly: OK" }] }],
+        generationConfig: { maxOutputTokens: 5 },
       }),
     });
-
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       return { success: false, error: `HTTP ${res.status}: ${text.substring(0, 100)}` };
     }
-
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content?.trim();
-    return { success: true, reply, model };
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    return { success: true, reply, model: GEMINI_MODEL };
   } catch (err) {
     return { success: false, error: err.message };
   }

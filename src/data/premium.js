@@ -19,7 +19,7 @@ export const PREMIUM_PLANS = {
 
 export const FREE_LIMITS = {
   questsPerCategory: 3, // first 3 quests in each category
-  maxForgeTrackers: 3, // max sobriety trackers
+  maxForgeTrackers: 4, // 4 default trackers free, custom ones need premium
   maxCustomQuests: 0, // no custom quests on free
   analyticsAccess: "basic", // basic analytics only (overview tab)
   journalAccess: "basic", // basic journal (no export, no search)
@@ -38,11 +38,11 @@ export const PREMIUM_FEATURES = {
   },
   unlimitedForge: {
     id: "unlimitedForge",
-    label: "Unlimited Forge Trackers",
-    description: "Track as many habits as you need",
+    label: "Custom Forge Trackers",
+    description: "Add custom trackers with personalized tips beyond the 4 free defaults",
     icon: "🔥",
-    free: "3 trackers max",
-    premium: "Unlimited trackers",
+    free: "4 default trackers",
+    premium: "Unlimited custom trackers",
   },
   advancedAnalytics: {
     id: "advancedAnalytics",
@@ -67,6 +67,14 @@ export const PREMIUM_FEATURES = {
     icon: "🎓",
     free: "Basic courses only",
     premium: "All courses + Tier 2",
+  },
+  unlimitedFocus: {
+    id: "unlimitedFocus",
+    label: "Unlimited Focus Slots",
+    description: "Focus on as many courses as you want simultaneously",
+    icon: "🎯",
+    free: "3 focus slots max",
+    premium: "Unlimited focus slots",
   },
   aiFeatures: {
     id: "aiFeatures",
@@ -112,6 +120,7 @@ export const FEATURE_IDS = {
   ADVANCED_ANALYTICS: "advancedAnalytics",
   CUSTOM_QUESTS: "customQuests",
   ALL_COURSES: "allCourses",
+  UNLIMITED_FOCUS: "unlimitedFocus",
   AI_FEATURES: "aiFeatures",
   PRIORITY_SUPPORT: "prioritySupport",
   EXPORT_DATA: "exportData",

@@ -92,8 +92,9 @@ export default function useCloudSync(user) {
             setState(merged);
             if (!local.onboarded) setShowOnboarding(true);
           } else {
-            setState(defaultState());
-            setShowOnboarding(true);
+            const fresh = defaultState();
+            setState(fresh);
+            if (!fresh.onboarded) setShowOnboarding(true);
           }
           setLoading(false);
         }
@@ -128,7 +129,7 @@ export default function useCloudSync(user) {
           } else {
             const fresh = defaultState();
             setState(fresh);
-            setShowOnboarding(true);
+            if (!fresh.onboarded) setShowOnboarding(true);
           }
         }
       } catch {
@@ -141,8 +142,9 @@ export default function useCloudSync(user) {
           setState(merged);
           if (!local.onboarded) setShowOnboarding(true);
         } else {
-          setState(defaultState());
-          setShowOnboarding(true);
+          const fresh = defaultState();
+          setState(fresh);
+          if (!fresh.onboarded) setShowOnboarding(true);
         }
       }
 

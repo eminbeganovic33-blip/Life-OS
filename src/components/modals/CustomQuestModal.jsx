@@ -22,6 +22,26 @@ const SIMILARITY_KEYWORDS = {
   food: ["food", "eat", "diet", "meal", "calorie", "junk"],
 };
 
+// Category auto-detection keywords
+const CATEGORY_KEYWORDS = {
+  sleep: ["sleep", "bed", "bedtime", "wake", "alarm", "nap", "rest", "pillow"],
+  water: ["water", "hydrat", "drink", "glass", "bottle", "liquid"],
+  exercise: ["run", "walk", "steps", "workout", "gym", "exercise", "lift", "push-up", "pull-up", "squat", "stretch", "yoga", "swim", "bike", "cycle", "jog", "sprint", "plank", "pushup", "pullup"],
+  mind: ["read", "meditat", "journal", "mindful", "book", "learn", "study", "focus", "breath", "gratitude", "write"],
+  screen: ["screen", "phone", "social media", "digital", "doomscroll", "tv", "netflix", "scroll", "tiktok", "instagram"],
+  shower: ["cold", "shower", "ice", "bath"],
+};
+
+function detectCategory(text) {
+  const lower = text.toLowerCase();
+  for (const [categoryId, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some((k) => lower.includes(k))) {
+      return categoryId;
+    }
+  }
+  return "mind"; // default
+}
+
 function findSimilarQuests(newText, existingQuests) {
   const lower = newText.toLowerCase();
   const matches = [];
@@ -50,9 +70,13 @@ function findSimilarQuests(newText, existingQuests) {
 }
 
 export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, currentDay, existingQuests = [], customQuestCount = 0 }) {
-  const [selectedCat, setSelectedCat] = useState(null);
   const [questText, setQuestText] = useState("");
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
+
+  const detectedCategory = useMemo(() => {
+    if (!questText.trim() || questText.trim().length < 2) return null;
+    return detectCategory(questText);
+  }, [questText]);
 
   const tier = questText.trim() ? getQuestTier(questText) : null;
   const xpPreview = questText.trim() ? calculateQuestXP(questText, currentDay || 1) : 0;
@@ -66,15 +90,17 @@ export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, c
 
   const showSuggestion = similarQuests.length > 0 && !dismissedSuggestion;
 
+  const categoryInfo = detectedCategory ? CATEGORIES.find((c) => c.id === detectedCategory) : null;
+
   function handleAdd() {
-    if (!selectedCat || !questText.trim() || atLimit) return;
+    if (!questText.trim() || atLimit) return;
+    const category = detectedCategory || "mind";
     onAdd({
       id: `cq_${Date.now()}`,
-      category: selectedCat,
+      category,
       text: questText.trim().slice(0, 200),
     });
     setQuestText("");
-    setSelectedCat(null);
     setDismissedSuggestion(false);
   }
 
@@ -113,36 +139,11 @@ export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, c
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 12, opacity: 0.4, marginBottom: 14, lineHeight: 1.5 }}>
-              {customQuestCount}/{MAX_CUSTOM_QUESTS} custom quest slots used
+            <div style={{ fontSize: 12, opacity: 0.4, marginBottom: 4, lineHeight: 1.5 }}>
+              Add a quest you'd like to track daily
             </div>
-
-            {/* Category selector */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-              {CATEGORIES.map((cat) => {
-                const isUnlocked = unlockedCategories.includes(cat.id);
-                const isSelected = selectedCat === cat.id;
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => isUnlocked && setSelectedCat(cat.id)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 10,
-                      border: `1px solid ${isSelected ? cat.color : isUnlocked ? `${cat.color}33` : "rgba(255,255,255,0.06)"}`,
-                      background: isSelected ? `${cat.color}18` : "rgba(255,255,255,0.02)",
-                      color: isUnlocked ? cat.color : "rgba(255,255,255,0.2)",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: isUnlocked ? "pointer" : "default",
-                      opacity: isUnlocked ? 1 : 0.4,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {cat.icon} {cat.label}
-                  </div>
-                );
-              })}
+            <div style={{ fontSize: 11, opacity: 0.25, marginBottom: 14 }}>
+              {customQuestCount}/{MAX_CUSTOM_QUESTS} custom quest slots used
             </div>
 
             {/* Quest text input */}
@@ -157,12 +158,33 @@ export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, c
                 boxSizing: "border-box",
               }}
               type="text"
-              placeholder={selectedCat ? "e.g. 20 min morning run" : "Select a category first..."}
+              placeholder="e.g. Walk 10,000 steps, Meditate 15 min, No sugar..."
               value={questText}
               onChange={handleTextChange}
-              disabled={!selectedCat}
               maxLength={200}
+              autoFocus
             />
+
+            {/* Detected category badge */}
+            {questText.trim().length >= 2 && categoryInfo && (
+              <div style={{ marginBottom: 10 }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "3px 10px",
+                    borderRadius: 99,
+                    background: `${categoryInfo.color}18`,
+                    color: categoryInfo.color,
+                    border: `1px solid ${categoryInfo.color}33`,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {categoryInfo.icon} {categoryInfo.label}
+                </span>
+              </div>
+            )}
 
             {/* Similar quest suggestion */}
             {showSuggestion && (
@@ -212,10 +234,10 @@ export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, c
                 ...S.primaryBtn,
                 margin: "4px 0 0",
                 width: "100%",
-                opacity: selectedCat && questText.trim() && !showSuggestion ? 1 : 0.35,
+                opacity: questText.trim() && !showSuggestion ? 1 : 0.35,
               }}
               onClick={handleAdd}
-              disabled={!selectedCat || !questText.trim() || showSuggestion}
+              disabled={!questText.trim() || showSuggestion}
             >
               Add Quest
             </button>

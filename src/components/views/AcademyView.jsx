@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { S } from "../../styles/theme";
 import { LEVELS } from "../../data";
 import { getLevelIndex } from "../../utils";
@@ -6,20 +6,81 @@ import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
 
 const SWIPE_THRESHOLD = 60;
+const RATE_LIMIT_MS = 12 * 60 * 60 * 1000; // 12 hours in ms
+const MAX_FOCUS_SLOTS = 3;
 
-export default function AcademyView({ state, onCheckStep, onUncheckStep, allCourses }) {
+export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses }) {
   const levelIdx = getLevelIndex(state.xp);
   const bossClears = state.bossClears || {};
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasAllCourses = checkFeatureAccess(FEATURE_IDS.ALL_COURSES);
+  const hasUnlimitedFocus = checkFeatureAccess(FEATURE_IDS.UNLIMITED_FOCUS);
+
+  const academyFocus = state.academyFocus || [];
+  const stepCompletedAt = state.stepCompletedAt || {};
 
   const [expandedCourse, setExpandedCourse] = useState(null);
-  const [expandedStep, setExpandedStep] = useState(null); // "courseId-stepIdx"
-  const [filter, setFilter] = useState("recommended"); // "recommended", "all", "completed"
+  const [expandedStep, setExpandedStep] = useState(null);
+  const [filter, setFilter] = useState("focused");
+  const [now, setNow] = useState(Date.now());
 
   // Swipe state
   const touchStartX = useRef(0);
   const touchStartKey = useRef(null);
+
+  // Update countdown timers every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Focus management
+  const focusedCount = academyFocus.length;
+  const maxSlots = hasUnlimitedFocus ? Infinity : MAX_FOCUS_SLOTS;
+  const slotsRemaining = hasUnlimitedFocus ? Infinity : maxSlots - focusedCount;
+
+  function addToFocus(courseId) {
+    if (academyFocus.includes(courseId)) return;
+    if (!hasUnlimitedFocus && focusedCount >= maxSlots) return;
+    const newFocus = [...academyFocus, courseId];
+    save({ ...state, academyFocus: newFocus });
+  }
+
+  function removeFromFocus(courseId) {
+    const newFocus = academyFocus.filter((id) => id !== courseId);
+    save({ ...state, academyFocus: newFocus });
+  }
+
+  // Rate-limiting helper: check if a step is locked
+  function getStepLockInfo(courseId, stepIdx) {
+    // First step is always available
+    if (stepIdx === 0) return { locked: false, remaining: 0 };
+
+    const courseTimestamps = stepCompletedAt[courseId] || {};
+    // Find the previous step's completion time
+    const prevStepIdx = stepIdx - 1;
+    const prevCompletedTime = courseTimestamps[prevStepIdx];
+
+    if (!prevCompletedTime) {
+      // Previous step wasn't completed — this step is available if previous step is checked
+      return { locked: false, remaining: 0 };
+    }
+
+    const elapsed = now - prevCompletedTime;
+    if (elapsed >= RATE_LIMIT_MS) {
+      return { locked: false, remaining: 0 };
+    }
+
+    return { locked: true, remaining: RATE_LIMIT_MS - elapsed };
+  }
+
+  function formatCountdown(ms) {
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
 
   // Categorize courses
   const courseStates = allCourses.map((course) => {
@@ -36,7 +97,8 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
     const stepCount = course.steps.length;
     const pct = Math.round((completedSteps.length / stepCount) * 100);
 
-    // Is this recommended based on user's focus categories?
+    const isFocused = academyFocus.includes(course.id);
+
     const isRecommended = !locked && !isCompleted && (
       course.category === "general" ||
       !state.focusCategories ||
@@ -44,32 +106,29 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
     );
 
     let lockReason = "";
-    if (premiumLocked) lockReason = "Premium · Upgrade to unlock";
+    if (premiumLocked) lockReason = "Premium -- Upgrade to unlock";
     else if (tierLocked) lockReason = "Complete Day 21 to unlock";
     else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1} ${LEVELS[course.levelReq]?.name}`;
 
-    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked };
+    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, isFocused };
   });
 
-  const recommended = courseStates.filter((c) => c.isRecommended);
-  const completed = courseStates.filter((c) => c.isCompleted);
-  const inProgress = courseStates.filter((c) => !c.locked && !c.isCompleted && c.completedSteps.length > 0);
+  const focused = courseStates.filter((c) => c.isFocused && !c.isCompleted && !c.locked);
+  const mastered = courseStates.filter((c) => c.isCompleted);
+  const available = courseStates.filter((c) => !c.locked && !c.isCompleted && !c.isFocused);
+  const lockedCourses = courseStates.filter((c) => c.locked);
 
   let filteredCourses;
-  if (filter === "recommended") {
-    // Show in-progress first, then recommended, then locked
-    filteredCourses = [
-      ...inProgress.filter((c) => c.isRecommended),
-      ...recommended.filter((c) => c.completedSteps.length === 0),
-      ...courseStates.filter((c) => c.locked),
-    ];
-  } else if (filter === "completed") {
-    filteredCourses = completed;
+  if (filter === "focused") {
+    filteredCourses = [...focused, ...available, ...lockedCourses];
+  } else if (filter === "mastered") {
+    filteredCourses = mastered;
   } else {
-    filteredCourses = courseStates.filter((c) => !c.isCompleted);
+    filteredCourses = [...courseStates.filter((c) => !c.isCompleted && !c.locked), ...lockedCourses];
   }
 
-  function handleStepClick(courseId, stepIdx, isChecked) {
+  function handleStepClick(courseId, stepIdx, isChecked, isRateLocked) {
+    if (isRateLocked) return;
     if (isChecked) {
       onUncheckStep(courseId, stepIdx);
     } else {
@@ -102,15 +161,48 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
     <div style={S.vc}>
       <div style={S.secTitle}>The Academy</div>
       <div style={{ padding: "0 16px", marginBottom: 14, fontSize: 12, opacity: 0.4, lineHeight: 1.5 }}>
-        Learn the science behind every quest. Complete courses for +50 XP.
+        Focus on 2-3 courses at a time. Complete steps mindfully -- there's a 12-hour cooldown between steps.
       </div>
+
+      {/* Focus Slot Indicator */}
+      {!hasUnlimitedFocus && (
+        <div style={focusSlotBar}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>Focus Slots:</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              {Array.from({ length: MAX_FOCUS_SLOTS }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 3,
+                    background: i < focusedCount ? "#7C5CFC" : "rgba(255,255,255,0.08)",
+                    border: `1px solid ${i < focusedCount ? "#7C5CFC" : "rgba(255,255,255,0.12)"}`,
+                    transition: "all 0.3s",
+                  }}
+                />
+              ))}
+            </div>
+            <span style={{ fontSize: 11, opacity: 0.5 }}>{focusedCount}/{MAX_FOCUS_SLOTS} used</span>
+          </div>
+          {focusedCount >= MAX_FOCUS_SLOTS && (
+            <span
+              style={{ fontSize: 10, color: "#FFD700", cursor: "pointer", fontWeight: 600 }}
+              onClick={() => setShowUpgrade(true)}
+            >
+              Unlock more
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div style={filterRow}>
         {[
-          { id: "recommended", label: "For You", count: recommended.length },
+          { id: "focused", label: "In Focus", count: focused.length },
           { id: "all", label: "All Courses", count: courseStates.filter((c) => !c.isCompleted).length },
-          { id: "completed", label: "Completed", count: completed.length },
+          { id: "mastered", label: "Mastered", count: mastered.length },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -133,10 +225,10 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
       </div>
 
       {/* Premium upsell banner for free users */}
-      {!hasAllCourses && filter !== "completed" && (
+      {!hasAllCourses && filter !== "mastered" && (
         <div style={premiumCourseBanner} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>👑</span>
+            <span style={{ fontSize: 16 }}>&#x1F451;</span>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Unlock Advanced Courses</div>
               <div style={{ fontSize: 10, opacity: 0.5 }}>Premium includes Tier 2 deep-dive courses</div>
@@ -146,18 +238,28 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
         </div>
       )}
 
-      {/* Empty state */}
-      {filteredCourses.length === 0 && filter === "completed" && (
+      {/* Empty state for focused tab */}
+      {filter === "focused" && focused.length === 0 && available.length > 0 && (
         <div style={emptyState}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No completed courses yet</div>
-          <div style={{ fontSize: 11, opacity: 0.4 }}>Start a course and complete all steps to earn +50 XP</div>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F3AF;</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Choose courses to focus on below</div>
+          <div style={{ fontSize: 11, opacity: 0.4 }}>Pick 2-3 courses to actively work through. Focus beats overwhelm.</div>
         </div>
       )}
 
-      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked }) => {
+      {/* Empty state for mastered tab */}
+      {filteredCourses.length === 0 && filter === "mastered" && (
+        <div style={emptyState}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F4DA;</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No mastered courses yet</div>
+          <div style={{ fontSize: 11, opacity: 0.4 }}>Complete all steps in a focused course to master it and earn +50 XP</div>
+        </div>
+      )}
+
+      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, isFocused }) => {
         const isExpanded = expandedCourse === course.id;
         const skillBadge = course.skillLevel || "beginner";
+        const canExpand = isFocused || isCompleted;
 
         return (
           <div
@@ -168,26 +270,40 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
               cursor: locked && premiumLocked ? "pointer" : "default",
               border: isCompleted
                 ? "1px solid rgba(16,185,129,0.15)"
-                : isExpanded
+                : isFocused
                   ? "1px solid rgba(124,92,252,0.15)"
-                  : "1px solid rgba(255,255,255,0.04)",
+                  : isExpanded
+                    ? "1px solid rgba(124,92,252,0.08)"
+                    : "1px solid rgba(255,255,255,0.04)",
               background: isCompleted
                 ? "rgba(16,185,129,0.04)"
-                : "rgba(255,255,255,0.025)",
+                : isFocused
+                  ? "rgba(124,92,252,0.03)"
+                  : "rgba(255,255,255,0.025)",
             }}
             onClick={locked && premiumLocked ? () => setShowUpgrade(true) : undefined}
           >
             {/* Course header */}
             <div
               style={{ ...S.courseHead, cursor: locked ? "default" : "pointer" }}
-              onClick={locked ? undefined : () => setExpandedCourse(isExpanded ? null : course.id)}
+              onClick={locked ? undefined : () => {
+                if (canExpand) {
+                  setExpandedCourse(isExpanded ? null : course.id);
+                }
+              }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                 <span style={{ fontSize: 24 }}>{course.icon}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{course.title}</span>
-                    {premiumLocked && <span style={{ fontSize: 12 }}>🔒</span>}
+                    {premiumLocked && <span style={{ fontSize: 12 }}>&#x1F512;</span>}
+                    {isFocused && !isCompleted && (
+                      <span style={focusBadge}>IN FOCUS</span>
+                    )}
+                    {isCompleted && (
+                      <span style={masteredBadge}>MASTERED</span>
+                    )}
                     <span style={{
                       ...skillBadgeStyle,
                       color: skillBadge === "advanced" ? "#F97316" : skillBadge === "intermediate" ? "#FACC15" : "#10B981",
@@ -201,34 +317,68 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
                     {locked
                       ? lockReason
                       : isCompleted
-                        ? "Mastered ✓"
-                        : course.description || `${completedSteps.length}/${course.steps.length} steps`}
+                        ? `Mastered -- ${course.steps.length} steps completed`
+                        : isFocused
+                          ? `${completedSteps.length}/${course.steps.length} steps`
+                          : course.description || `${completedSteps.length}/${course.steps.length} steps`}
                   </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {xpAwarded && <span style={{ color: "#10B981", fontSize: 12, fontWeight: 700 }}>+50 XP</span>}
-                {isCompleted && <span style={{ fontSize: 18 }}>🎓</span>}
+                {isCompleted && <span style={{ fontSize: 18 }}>&#x1F393;</span>}
                 {!locked && !isCompleted && pct > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>{pct}%</span>
                 )}
-                {!locked && (
+                {!locked && canExpand && (
                   <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                    ▼
+                    &#x25BC;
                   </span>
                 )}
               </div>
             </div>
 
+            {/* Focus/Unfocus button for non-locked, non-completed courses */}
+            {!locked && !isCompleted && (
+              <div style={{ padding: "0 0 4px", display: "flex", gap: 8 }}>
+                {isFocused ? (
+                  <button
+                    style={removeFocusBtn}
+                    onClick={(e) => { e.stopPropagation(); removeFromFocus(course.id); }}
+                  >
+                    Remove from Focus
+                  </button>
+                ) : (
+                  <button
+                    style={{
+                      ...addFocusBtn,
+                      opacity: slotsRemaining <= 0 ? 0.4 : 1,
+                      cursor: slotsRemaining <= 0 ? "default" : "pointer",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (slotsRemaining <= 0) {
+                        setShowUpgrade(true);
+                        return;
+                      }
+                      addToFocus(course.id);
+                    }}
+                  >
+                    {slotsRemaining <= 0 && !hasUnlimitedFocus ? "Slots full" : "Add to Focus"}
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Progress bar */}
             {!locked && !isCompleted && completedSteps.length > 0 && (
-              <div style={{ ...progressBarOuter, marginTop: 10 }}>
+              <div style={{ ...progressBarOuter, marginTop: 6 }}>
                 <div style={{ ...progressBarInner, width: `${pct}%` }} />
               </div>
             )}
 
-            {/* Expanded steps */}
-            {isExpanded && !locked && (
+            {/* Expanded steps — only for focused or completed courses */}
+            {isExpanded && canExpand && !locked && (
               <div style={{ marginTop: 12 }}>
                 {course.steps.map((step, idx) => {
                   const checked = completedSteps.includes(idx);
@@ -236,12 +386,21 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
                   const isStepExpanded = expandedStep === stepKey;
                   const stepObj = typeof step === "string" ? { title: step, content: step, why: null } : step;
 
+                  // Rate-limiting
+                  const { locked: isRateLocked, remaining } = checked
+                    ? { locked: false, remaining: 0 }
+                    : getStepLockInfo(course.id, idx);
+
+                  // Check if previous step is completed (sequential order)
+                  const prevStepDone = idx === 0 || completedSteps.includes(idx - 1);
+                  const isStepAvailable = !isRateLocked && prevStepDone && !checked;
+
                   return (
                     <div key={idx} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
                       <div
                         style={{
                           ...stepRow,
-                          opacity: checked ? 0.5 : 1,
+                          opacity: checked ? 0.5 : isRateLocked || !prevStepDone ? 0.4 : 1,
                         }}
                         onTouchStart={(e) => handleTouchStart(e, course.id, idx, checked)}
                         onTouchEnd={(e) => handleTouchEnd(e, course.id, idx)}
@@ -253,17 +412,31 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
                             width: 18,
                             height: 18,
                             borderRadius: 5,
-                            background: checked ? "#10B981" : "transparent",
-                            borderColor: checked ? "#10B981" : "rgba(255,255,255,0.15)",
-                            cursor: "pointer",
+                            background: checked
+                              ? "#10B981"
+                              : isRateLocked || !prevStepDone
+                                ? "rgba(255,255,255,0.03)"
+                                : "transparent",
+                            borderColor: checked
+                              ? "#10B981"
+                              : isRateLocked
+                                ? "rgba(255,165,0,0.3)"
+                                : !prevStepDone
+                                  ? "rgba(255,255,255,0.08)"
+                                  : "rgba(255,255,255,0.15)",
+                            cursor: isStepAvailable ? "pointer" : checked ? "pointer" : "default",
                             flexShrink: 0,
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleStepClick(course.id, idx, checked);
+                            if (isRateLocked || (!prevStepDone && !checked)) return;
+                            handleStepClick(course.id, idx, checked, false);
                           }}
                         >
-                          {checked && <span style={{ fontSize: 10 }}>✓</span>}
+                          {checked && <span style={{ fontSize: 10 }}>&#x2713;</span>}
+                          {isRateLocked && !checked && (
+                            <span style={{ fontSize: 8, color: "rgba(255,165,0,0.7)" }}>&#x1F512;</span>
+                          )}
                         </div>
 
                         {/* Step content */}
@@ -279,6 +452,21 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
                           }}>
                             {stepObj.title}
                           </div>
+
+                          {/* Rate-limit countdown */}
+                          {isRateLocked && !checked && (
+                            <div style={countdownStyle}>
+                              &#x23F3; Unlocks in {formatCountdown(remaining)}
+                            </div>
+                          )}
+
+                          {/* Sequential lock message */}
+                          {!prevStepDone && !checked && !isRateLocked && (
+                            <div style={{ fontSize: 10, opacity: 0.4, marginTop: 2 }}>
+                              Complete the previous step first
+                            </div>
+                          )}
+
                           {isStepExpanded && stepObj.content !== stepObj.title && (
                             <div style={{ fontSize: 12, opacity: 0.6, lineHeight: 1.5, marginTop: 4 }}>
                               {stepObj.content}
@@ -298,7 +486,7 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
 
                         {/* Expand indicator */}
                         <span style={{ fontSize: 10, opacity: 0.3, flexShrink: 0, transition: "transform 0.2s", transform: isStepExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                          ▼
+                          &#x25BC;
                         </span>
                       </div>
                     </div>
@@ -308,7 +496,7 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
                 {/* Completion celebration */}
                 {isCompleted && (
                   <div style={completionBox}>
-                    <span style={{ fontSize: 24 }}>🎓</span>
+                    <span style={{ fontSize: 24 }}>&#x1F393;</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
                       <div style={{ fontSize: 11, opacity: 0.4 }}>
@@ -327,6 +515,17 @@ export default function AcademyView({ state, onCheckStep, onUncheckStep, allCour
 }
 
 // ── Styles ──
+
+const focusSlotBar = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "8px 14px",
+  margin: "0 14px 12px",
+  borderRadius: 10,
+  background: "rgba(124,92,252,0.06)",
+  border: "1px solid rgba(124,92,252,0.1)",
+};
 
 const filterRow = {
   display: "flex",
@@ -368,6 +567,52 @@ const skillBadgeStyle = {
   letterSpacing: 0.3,
 };
 
+const focusBadge = {
+  fontSize: 8,
+  fontWeight: 800,
+  padding: "2px 6px",
+  borderRadius: 4,
+  background: "rgba(124,92,252,0.15)",
+  color: "#7C5CFC",
+  border: "1px solid rgba(124,92,252,0.25)",
+  letterSpacing: 0.5,
+};
+
+const masteredBadge = {
+  fontSize: 8,
+  fontWeight: 800,
+  padding: "2px 6px",
+  borderRadius: 4,
+  background: "rgba(16,185,129,0.15)",
+  color: "#10B981",
+  border: "1px solid rgba(16,185,129,0.25)",
+  letterSpacing: 0.5,
+};
+
+const addFocusBtn = {
+  fontSize: 11,
+  fontWeight: 700,
+  padding: "5px 12px",
+  borderRadius: 8,
+  background: "rgba(124,92,252,0.1)",
+  color: "#7C5CFC",
+  border: "1px solid rgba(124,92,252,0.2)",
+  cursor: "pointer",
+  transition: "all 0.2s",
+};
+
+const removeFocusBtn = {
+  fontSize: 11,
+  fontWeight: 700,
+  padding: "5px 12px",
+  borderRadius: 8,
+  background: "rgba(255,255,255,0.04)",
+  color: "rgba(255,255,255,0.4)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  cursor: "pointer",
+  transition: "all 0.2s",
+};
+
 const stepRow = {
   display: "flex",
   gap: 10,
@@ -381,6 +626,16 @@ const whyBox = {
   borderRadius: 8,
   background: "rgba(124,92,252,0.06)",
   border: "1px solid rgba(124,92,252,0.1)",
+};
+
+const countdownStyle = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: "#FFA500",
+  marginTop: 2,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
 };
 
 const progressBarOuter = {

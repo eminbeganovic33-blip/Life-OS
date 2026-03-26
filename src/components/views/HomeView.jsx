@@ -5,7 +5,7 @@ import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getQuestTier } fro
 import { getQuestSuggestions } from "../../utils/intelligence";
 import QuestGuidePanel from "../QuestGuidePanel";
 import SmartInsights from "../SmartInsights";
-import AICoach from "../AICoach";
+import AIQuestCoach from "../AIQuestCoach";
 
 const SWIPE_THRESHOLD = 60;
 
@@ -317,8 +317,8 @@ export default function HomeView({
         }}
       />
 
-      {/* AI Coach */}
-      <AICoach state={state} />
+      {/* AI Quest Coach */}
+      <AIQuestCoach state={state} onAddQuest={(text, cat) => onAddSuggestedQuest?.(text, cat)} />
 
       {/* Custom quest unlock hint */}
       {unlockedCustomCategories.length === 0 && (state.customQuests || []).length === 0 && (

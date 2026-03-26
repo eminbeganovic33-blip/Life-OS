@@ -6,7 +6,7 @@ import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
   getCalendarDay, getCategoryStreak, defaultState,
 } from "./utils";
-import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium } from "./hooks";
+import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -26,10 +26,9 @@ import HomeView from "./components/views/HomeView";
 import JournalView from "./components/views/JournalView";
 import AcademyView from "./components/views/AcademyView";
 import ForgeView from "./components/views/ForgeView";
-import SocialView from "./components/views/SocialView";
-import ToolsView from "./components/views/ToolsView";
+import DojoView from "./components/views/DojoView";
+import ProfileView from "./components/views/ProfileView";
 import { updatePublicProfile } from "./utils/social";
-import AnalyticsView from "./components/views/AnalyticsView";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
 import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
@@ -148,8 +147,10 @@ export default function LifeOS() {
     });
   }, [user?.uid, state?.xp, state?.streak, state?.currentDay]);
 
+  const [skipAuth, setSkipAuth] = useState(false);
+
   if (authLoading) return <LoadingScreen />;
-  if (firebaseConfigured && !user) return <AuthScreen onAuth={() => {}} />;
+  if (firebaseConfigured && !user && !skipAuth) return <AuthScreen onAuth={() => {}} onSkip={() => setSkipAuth(true)} />;
   if (loading || !state) return <LoadingScreen />;
 
   if (showOnboarding) {
@@ -333,11 +334,19 @@ export default function LifeOS() {
       .filter((s) => s.weight && s.reps)
       .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }));
     if (validSets.length === 0) return;
+    doSaveWorkout(workoutExercise, validSets);
+    setModal(null);
+    setWorkoutExercise(null);
+    setWorkoutSets([{ weight: "", reps: "" }]);
+  }
+
+  // Shared workout save logic (used by both modal and DojoView)
+  function doSaveWorkout(exercise, validSets) {
     const volume = validSets.reduce((a, s) => a + s.weight * s.reps, 0);
     const bonusXp = Math.floor(volume / 100);
     const todayKey = getTodayStr();
     const existing = state.workoutLogs[todayKey] || [];
-    const newEntry = { exercise: workoutExercise, sets: validSets, time: Date.now() };
+    const newEntry = { exercise, sets: validSets, time: Date.now() };
     const isNewDay = state.lastLiftDate !== todayKey;
     const newLiftStreak = isNewDay ? (state.liftingStreak || 0) + 1 : state.liftingStreak || 0;
     const ns = {
@@ -351,9 +360,6 @@ export default function LifeOS() {
     const { unlocked, xpBonus } = checkTrophies(ns);
     showXp(20 + bonusXp + xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
-    setModal(null);
-    setWorkoutExercise(null);
-    setWorkoutSets([{ weight: "", reps: "" }]);
   }
 
   // ── Academy ──
@@ -368,6 +374,10 @@ export default function LifeOS() {
     if (!course) return;
     const isCompleted = steps.length === course.steps.length;
     progress[courseId] = { steps, completed: isCompleted };
+    // Save step completion timestamp for rate-limiting
+    const stepCompletedAt = { ...(state.stepCompletedAt || {}) };
+    if (!stepCompletedAt[courseId]) stepCompletedAt[courseId] = {};
+    stepCompletedAt[courseId] = { ...stepCompletedAt[courseId], [stepIdx]: Date.now() };
     // Only award 50 XP if never awarded before (permanent tracking)
     const courseXpAwarded = { ...(state.courseXpAwarded || {}) };
     let xpBonus = 0;
@@ -375,7 +385,12 @@ export default function LifeOS() {
       xpBonus = 50;
       courseXpAwarded[courseId] = true;
     }
-    const ns = { ...state, courseProgress: progress, courseXpAwarded, xp: state.xp + xpBonus };
+    // Auto-remove completed course from focus (frees a slot)
+    let academyFocus = [...(state.academyFocus || [])];
+    if (isCompleted && academyFocus.includes(courseId)) {
+      academyFocus = academyFocus.filter((id) => id !== courseId);
+    }
+    const ns = { ...state, courseProgress: progress, courseXpAwarded, stepCompletedAt, academyFocus, xp: state.xp + xpBonus };
     const { unlocked, xpBonus: tXp } = checkTrophies(ns);
     if (xpBonus > 0 || tXp > 0) showXp(xpBonus + tXp);
     save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
@@ -525,23 +540,26 @@ export default function LifeOS() {
   }
 
   return (
-    <PremiumProvider state={state} save={save}>
-      <LifeOSInner
-        state={state} save={save} view={view} setView={setView}
-        renderModal={renderModal} showWeeklySummary={showWeeklySummary}
-        setShowWeeklySummary={setShowWeeklySummary} xpPopup={xpPopup}
-        checkQuest={checkQuest} uncheckQuest={uncheckQuest}
-        completeDay={completeDay} openDojo={openDojo} canCompleteDay={canCompleteDay}
-        calendarDay={calendarDay} setModal={setModal}
-        removeCustomQuest={removeCustomQuest} unlockedCustomCategories={unlockedCustomCategories}
-        journalText={journalText} setJournalText={setJournalText}
-        selectedMood={selectedMood} setSelectedMood={setSelectedMood}
-        saveJournal={saveJournal} checkCourseStep={checkCourseStep}
-        uncheckCourseStep={uncheckCourseStep} ALL_COURSES={ALL_COURSES}
-        startSobriety={startSobriety} triggerRelapse={triggerRelapse}
-        user={user} pomodoro={pomodoro} resetApp={resetApp}
-      />
-    </PremiumProvider>
+    <ThemeProvider>
+      <PremiumProvider state={state} save={save}>
+        <LifeOSInner
+          state={state} save={save} view={view} setView={setView}
+          renderModal={renderModal} showWeeklySummary={showWeeklySummary}
+          setShowWeeklySummary={setShowWeeklySummary} xpPopup={xpPopup}
+          checkQuest={checkQuest} uncheckQuest={uncheckQuest}
+          completeDay={completeDay} openDojo={openDojo} canCompleteDay={canCompleteDay}
+          calendarDay={calendarDay} setModal={setModal}
+          removeCustomQuest={removeCustomQuest} unlockedCustomCategories={unlockedCustomCategories}
+          journalText={journalText} setJournalText={setJournalText}
+          selectedMood={selectedMood} setSelectedMood={setSelectedMood}
+          saveJournal={saveJournal} checkCourseStep={checkCourseStep}
+          uncheckCourseStep={uncheckCourseStep} ALL_COURSES={ALL_COURSES}
+          startSobriety={startSobriety} triggerRelapse={triggerRelapse}
+          user={user} pomodoro={pomodoro} resetApp={resetApp}
+          doSaveWorkout={doSaveWorkout}
+        />
+      </PremiumProvider>
+    </ThemeProvider>
   );
 }
 
@@ -551,12 +569,16 @@ function LifeOSInner({
   calendarDay, setModal, removeCustomQuest, unlockedCustomCategories,
   journalText, setJournalText, selectedMood, setSelectedMood, saveJournal,
   checkCourseStep, uncheckCourseStep, ALL_COURSES, startSobriety, triggerRelapse,
-  user, pomodoro, resetApp,
+  user, pomodoro, resetApp, doSaveWorkout,
 }) {
   const { showUpgrade, setShowUpgrade } = usePremium();
+  // Subscribe to theme context so this component re-renders when theme changes
+  const { themed } = useTheme();
+
+  const day = state.currentDay;
 
   return (
-    <div style={S.app}>
+    <div style={themed("app")}>
       {renderModal()}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       <div style={S.content}>
@@ -598,22 +620,22 @@ function LifeOSInner({
         {view === "academy" && (
           <AcademyView
             state={state}
+            save={save}
             onCheckStep={checkCourseStep}
             onUncheckStep={uncheckCourseStep}
             allCourses={ALL_COURSES}
           />
         )}
-        {view === "forge" && <ForgeView state={state} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
-        {view === "social" && <SocialView user={user} state={state} />}
-        {view === "analytics" && <AnalyticsView state={state} />}
-        {view === "tools" && (
-          <ToolsView
+        {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} />}
+        {view === "forge" && <ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
+        {view === "profile" && (
+          <ProfileView
             state={state}
             user={user}
             pomodoro={pomodoro}
             onReset={resetApp}
             onOpenNotifications={() => setModal("notifications")}
-            onOpenJournal={() => setView("journal")}
+            onOpenJournal={() => { setJournalText(state.journal?.[day] || ""); setSelectedMood(state.moods?.[day] ?? null); setView("journal"); }}
           />
         )}
       </div>

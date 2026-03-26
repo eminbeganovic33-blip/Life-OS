@@ -124,6 +124,19 @@ const S = {
     fontSize: 18,
     color: "#4285F4",
   },
+  skipBtn: {
+    width: "100%",
+    padding: 14,
+    fontSize: 13,
+    fontWeight: 600,
+    border: "none",
+    borderRadius: 14,
+    cursor: "pointer",
+    background: "transparent",
+    color: "rgba(226,226,238,0.4)",
+    marginTop: 12,
+    transition: "color 0.2s",
+  },
   errorText: {
     color: "#FF5A5A",
     fontSize: 13,
@@ -138,7 +151,7 @@ const S = {
   },
 };
 
-export default function AuthScreen({ onAuth }) {
+export default function AuthScreen({ onAuth, onSkip }) {
   const { user, login, signup, loginWithGoogle, resetPassword, error } =
     useAuth();
 
@@ -328,6 +341,14 @@ export default function AuthScreen({ onAuth }) {
         <button style={S.googleBtn} onClick={handleGoogle} disabled={busy}>
           <span style={S.googleIcon}>G</span>
           Continue with Google
+        </button>
+
+        {/* Skip login */}
+        <button
+          style={S.skipBtn}
+          onClick={() => onSkip?.()}
+        >
+          Continue without account →
         </button>
       </div>
     </div>
