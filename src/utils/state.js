@@ -63,8 +63,8 @@ export const defaultState = () => {
 
   // Some workout data
   const workoutLogs = {};
-  workoutLogs[daysAgo(5)] = [{ exercise: "bench", sets: [{ weight: 60, reps: 10 }, { weight: 60, reps: 8 }], time: Date.now() - 86400000 * 5 }];
-  workoutLogs[daysAgo(3)] = [{ exercise: "squat", sets: [{ weight: 80, reps: 8 }, { weight: 80, reps: 6 }], time: Date.now() - 86400000 * 3 }];
+  workoutLogs[daysAgo(5)] = [{ exercise: "bench_press", sets: [{ weight: 60, reps: 10 }, { weight: 60, reps: 8 }], time: Date.now() - 86400000 * 5 }];
+  workoutLogs[daysAgo(3)] = [{ exercise: "barbell_squat", sets: [{ weight: 80, reps: 8 }, { weight: 80, reps: 6 }], time: Date.now() - 86400000 * 3 }];
   workoutLogs[daysAgo(1)] = [{ exercise: "deadlift", sets: [{ weight: 100, reps: 5 }, { weight: 100, reps: 5 }], time: Date.now() - 86400000 }];
 
   // Custom quests (unlocked at day 4)

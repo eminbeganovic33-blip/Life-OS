@@ -81,7 +81,7 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ parts: [{ text: userPrompt }] }],
         generationConfig: {
-          maxOutputTokens: 500,
+          maxOutputTokens: 1200,
           temperature: 0.8,
         },
       }),

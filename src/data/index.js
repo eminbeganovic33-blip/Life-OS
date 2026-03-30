@@ -9,3 +9,4 @@ export { QUEST_GUIDES, findGuideForQuest } from "./questGuides";
 export { EXERCISE_PROGRAMS } from "./exercisePrograms";
 export { FORGE_PROGRAMS, getProgramDay } from "./forgePrograms";
 export { PREMIUM_FEATURES, PREMIUM_PLANS, FREE_LIMITS, isPremiumFeature, FEATURE_IDS } from "./premium";
+export { EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES, getExerciseById, getExercisesByMuscle } from "./exerciseLibrary";

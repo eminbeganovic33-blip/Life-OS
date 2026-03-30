@@ -27,9 +27,15 @@ const CATEGORY_KEYWORDS = {
   sleep: ["sleep", "bed", "bedtime", "wake", "alarm", "nap", "rest", "pillow"],
   water: ["water", "hydrat", "drink", "glass", "bottle", "liquid"],
   exercise: ["run", "walk", "steps", "workout", "gym", "exercise", "lift", "push-up", "pull-up", "squat", "stretch", "yoga", "swim", "bike", "cycle", "jog", "sprint", "plank", "pushup", "pullup"],
-  mind: ["read", "meditat", "journal", "mindful", "book", "learn", "study", "focus", "breath", "gratitude", "write"],
+  mind: ["meditat", "mindful", "focus", "breath", "gratitude"],
   screen: ["screen", "phone", "social media", "digital", "doomscroll", "tv", "netflix", "scroll", "tiktok", "instagram"],
-  shower: ["cold", "shower", "ice", "bath"],
+  shower: ["cold", "shower", "ice", "bath", "skincare", "groom"],
+  nutrition: ["food", "eat", "diet", "meal", "calorie", "junk", "cook", "protein", "vegetable", "fruit", "sugar", "fast food", "snack", "prep"],
+  reading: ["read", "book", "audiobook", "pages", "chapter", "library", "novel"],
+  work: ["work", "task", "email", "inbox", "deadline", "project", "meeting", "productivity", "deep work", "procrastinat"],
+  social: ["call", "friend", "family", "social", "conversation", "reconnect", "network", "relationship"],
+  finance: ["money", "budget", "save", "invest", "expense", "spend", "subscription", "financial"],
+  creative: ["draw", "paint", "art", "music", "instrument", "creative", "design", "photograph", "write", "journal", "story", "blog"],
 };
 
 function detectCategory(text) {

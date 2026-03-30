@@ -187,7 +187,7 @@ export default function LifeOS() {
   // Feature Set 3: Custom quests unlock after Day 3 — all categories open at once
   const customQuestsUnlocked = day >= 4; // Completed 3 days
   const unlockedCustomCategories = customQuestsUnlocked
-    ? ["sleep", "water", "exercise", "mind", "screen", "shower"]
+    ? ["sleep", "water", "exercise", "mind", "screen", "shower", "nutrition", "reading", "work", "social", "finance", "creative"]
     : [];
 
   // Feature Set 4: Quests now include custom quests
