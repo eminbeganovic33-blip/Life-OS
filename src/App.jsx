@@ -362,6 +362,36 @@ export default function LifeOS() {
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
   }
 
+  // ── Dojo: Edit/Delete logged exercises ──
+  function updateWorkoutEntry(index, newSets) {
+    const todayKey = getTodayStr();
+    const existing = [...(state.workoutLogs[todayKey] || [])];
+    if (index < 0 || index >= existing.length) return;
+    const oldVol = existing[index].sets.reduce((a, s) => a + s.weight * s.reps, 0);
+    const newVol = newSets.reduce((a, s) => a + s.weight * s.reps, 0);
+    const xpDiff = Math.floor(newVol / 100) - Math.floor(oldVol / 100);
+    existing[index] = { ...existing[index], sets: newSets, time: Date.now() };
+    save({
+      ...state,
+      workoutLogs: { ...state.workoutLogs, [todayKey]: existing },
+      xp: Math.max(0, state.xp + xpDiff),
+    });
+  }
+
+  function deleteWorkoutEntry(index) {
+    const todayKey = getTodayStr();
+    const existing = [...(state.workoutLogs[todayKey] || [])];
+    if (index < 0 || index >= existing.length) return;
+    const removedVol = existing[index].sets.reduce((a, s) => a + s.weight * s.reps, 0);
+    const xpLoss = 20 + Math.floor(removedVol / 100);
+    existing.splice(index, 1);
+    save({
+      ...state,
+      workoutLogs: { ...state.workoutLogs, [todayKey]: existing },
+      xp: Math.max(0, state.xp - xpLoss),
+    });
+  }
+
   // ── Academy ──
   // Check a course step (one-way — unchecking uses uncheckCourseStep)
   function checkCourseStep(courseId, stepIdx) {
@@ -557,6 +587,8 @@ export default function LifeOS() {
           startSobriety={startSobriety} triggerRelapse={triggerRelapse}
           user={user} pomodoro={pomodoro} resetApp={resetApp}
           doSaveWorkout={doSaveWorkout}
+          updateWorkoutEntry={updateWorkoutEntry}
+          deleteWorkoutEntry={deleteWorkoutEntry}
         />
       </PremiumProvider>
     </ThemeProvider>
@@ -569,7 +601,7 @@ function LifeOSInner({
   calendarDay, setModal, removeCustomQuest, unlockedCustomCategories,
   journalText, setJournalText, selectedMood, setSelectedMood, saveJournal,
   checkCourseStep, uncheckCourseStep, ALL_COURSES, startSobriety, triggerRelapse,
-  user, pomodoro, resetApp, doSaveWorkout,
+  user, pomodoro, resetApp, doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
 }) {
   const { showUpgrade, setShowUpgrade } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
@@ -626,7 +658,7 @@ function LifeOSInner({
             allCourses={ALL_COURSES}
           />
         )}
-        {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} />}
+        {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} onUpdateEntry={updateWorkoutEntry} onDeleteEntry={deleteWorkoutEntry} />}
         {view === "forge" && <ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
         {view === "profile" && (
           <ProfileView

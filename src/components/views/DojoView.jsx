@@ -34,7 +34,7 @@ const DIFFICULTY_COLORS = {
 
 // ── Main Component ──
 
-export default function DojoView({ state, onSaveWorkout }) {
+export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDeleteEntry }) {
   // Tab: "workout" | "library" | "programs"
   const [tab, setTab] = useState("workout");
 
@@ -57,6 +57,10 @@ export default function DojoView({ state, onSaveWorkout }) {
   // Template mode tracking
   const [templateExIndex, setTemplateExIndex] = useState(0);
   const [templateSets, setTemplateSets] = useState([{ weight: "", reps: "" }]);
+
+  // Edit logged exercise state
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editSets, setEditSets] = useState([]);
 
   // Library state
   const [libraryFilter, setLibraryFilter] = useState("all");
@@ -196,6 +200,39 @@ export default function DojoView({ state, onSaveWorkout }) {
     setAiSets([{ weight: "", reps: "" }]);
     setTemplateExIndex(0);
     setTemplateSets([{ weight: "", reps: "" }]);
+  }
+
+  // ── Edit/Delete logged exercises ──
+
+  function startEditEntry(index) {
+    const entry = todayLogs[index];
+    if (!entry) return;
+    setEditingIndex(index);
+    setEditSets(entry.sets.map((s) => ({ weight: String(s.weight), reps: String(s.reps) })));
+  }
+
+  function cancelEdit() {
+    setEditingIndex(null);
+    setEditSets([]);
+  }
+
+  function saveEditEntry() {
+    if (editingIndex === null) return;
+    const validSets = editSets
+      .filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0)
+      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+    if (validSets.length === 0) return;
+    onUpdateEntry(editingIndex, validSets);
+    setEditingIndex(null);
+    setEditSets([]);
+  }
+
+  function confirmDeleteEntry(index) {
+    onDeleteEntry(index);
+    if (editingIndex === index) {
+      setEditingIndex(null);
+      setEditSets([]);
+    }
   }
 
   // ── Filter Exercises ──
@@ -421,6 +458,56 @@ export default function DojoView({ state, onSaveWorkout }) {
             {todayLogs.map((entry, i) => {
               const exercise = getExerciseById(entry.exercise);
               const vol = (entry.sets || []).reduce((s, set) => s + set.weight * set.reps, 0);
+              const isEditing = editingIndex === i;
+
+              if (isEditing) {
+                return (
+                  <div key={i} style={styles.loggerCard}>
+                    <div style={styles.loggerHeader}>
+                      <span style={{ fontSize: 15, fontWeight: 800 }}>
+                        {exercise?.name || entry.exercise}
+                      </span>
+                      <span style={{ fontSize: 11, opacity: 0.4 }}>Editing</span>
+                    </div>
+
+                    {editSets.map((set, si) => (
+                      <div key={si} style={styles.setRow}>
+                        <div style={styles.setLabel}>Set {si + 1}</div>
+                        <input
+                          type="number"
+                          placeholder="kg"
+                          value={set.weight}
+                          onChange={(e) => handleSetChange(editSets, setEditSets, si, "weight", e.target.value)}
+                          style={S.setInput}
+                        />
+                        <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
+                        <input
+                          type="number"
+                          placeholder="reps"
+                          value={set.reps}
+                          onChange={(e) => handleSetChange(editSets, setEditSets, si, "reps", e.target.value)}
+                          style={S.setInput}
+                        />
+                        {editSets.length > 1 && (
+                          <button style={styles.removeSetBtn} onClick={() => handleRemoveSet(editSets, setEditSets, si)}>
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    <button style={styles.addSetLink} onClick={() => handleAddSet(editSets, setEditSets)}>
+                      + Add Set
+                    </button>
+
+                    <div style={styles.loggerActions}>
+                      <button style={S.timerBtnSec} onClick={cancelEdit}>Cancel</button>
+                      <button style={styles.doneBtn} onClick={saveEditEntry}>Save</button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={i} style={styles.summaryRow}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
@@ -429,13 +516,29 @@ export default function DojoView({ state, onSaveWorkout }) {
                     </span>
                     {exercise && <MuscleTag muscle={exercise.muscle} small />}
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 12, opacity: 0.5 }}>
-                      {entry.sets.length}&times;{entry.sets.map((s) => s.reps).join("/")}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 12, opacity: 0.5 }}>
+                        {entry.sets.length}&times;{entry.sets.map((s) => s.reps).join("/")}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>
+                        {vol.toLocaleString()} kg
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>
-                      {vol.toLocaleString()} kg
-                    </div>
+                    <button
+                      style={styles.editBtn}
+                      onClick={() => startEditEntry(i)}
+                      title="Edit"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      style={styles.deleteBtn}
+                      onClick={() => confirmDeleteEntry(i)}
+                      title="Delete"
+                    >
+                      🗑️
+                    </button>
                   </div>
                 </div>
               );
@@ -1116,6 +1219,32 @@ const styles = {
     padding: "3px 8px",
     borderRadius: 6,
     background: "rgba(255,255,255,0.04)",
+  },
+  editBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: "1px solid rgba(124,92,252,0.15)",
+    background: "rgba(124,92,252,0.06)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    flexShrink: 0,
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: "1px solid rgba(239,68,68,0.15)",
+    background: "rgba(239,68,68,0.06)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    flexShrink: 0,
   },
   // Library styles
   filterChip: {
