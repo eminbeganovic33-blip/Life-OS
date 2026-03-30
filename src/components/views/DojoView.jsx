@@ -81,12 +81,98 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     .filter((d) => d !== today)
     .slice(0, 7);
 
-  // ── AI Workout Generation ──
+  // ── Smart Workout Generator (local fallback + AI enhancement) ──
+
+  function generateLocalWorkout() {
+    // Determine recently worked muscles (last 3 sessions)
+    const recentMuscles = {};
+    sortedDates.slice(0, 3).forEach((d) => {
+      (workoutLogs[d] || []).forEach((entry) => {
+        const ex = getExerciseById(entry.exercise);
+        if (ex) {
+          recentMuscles[ex.muscle] = (recentMuscles[ex.muscle] || 0) + 1;
+          (ex.secondary || []).forEach((s) => { recentMuscles[s] = (recentMuscles[s] || 0) + 0.5; });
+        }
+      });
+    });
+
+    // Pick muscle groups that haven't been worked recently — ensure variety
+    const muscleOrder = ["chest", "back", "legs", "shoulders", "arms", "core"];
+    const sortedMuscles = [...muscleOrder].sort((a, b) => (recentMuscles[a] || 0) - (recentMuscles[b] || 0));
+    // Pick top 4 least-worked muscles but ensure at least one push, one pull, one lower
+    const pushMuscles = ["chest", "shoulders"];
+    const pullMuscles = ["back", "arms"];
+    const lowerMuscles = ["legs", "core"];
+    const targetMuscles = [];
+    const addBest = (group) => {
+      const best = sortedMuscles.find((m) => group.includes(m) && !targetMuscles.includes(m));
+      if (best) targetMuscles.push(best);
+    };
+    addBest(pushMuscles);
+    addBest(pullMuscles);
+    addBest(lowerMuscles);
+    // Fill remaining slot(s) with least-worked
+    for (const m of sortedMuscles) {
+      if (targetMuscles.length >= 4) break;
+      if (!targetMuscles.includes(m)) targetMuscles.push(m);
+    }
+
+    // Select exercises — shuffle candidates for variety
+    const strengthExercises = EXERCISE_LIBRARY.filter((e) => e.type === "strength");
+    const picked = [];
+    const usedIds = new Set();
+
+    const shuffle = (arr) => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    targetMuscles.forEach((muscle, idx) => {
+      const candidates = shuffle(strengthExercises.filter((e) => e.muscle === muscle && !usedIds.has(e.id)));
+      // First target gets 2 exercises, rest get 1
+      const count = idx === 0 ? 2 : 1;
+      // Prefer compound exercises first
+      const compound = candidates.filter((e) => (e.secondary || []).length > 0);
+      const isolation = candidates.filter((e) => (e.secondary || []).length === 0);
+      const picks = [...compound, ...isolation].slice(0, count);
+      picks.forEach((e) => { picked.push(e); usedIds.add(e.id); });
+    });
+
+    // Fill to 5-6 exercises from remaining muscles
+    if (picked.length < 5) {
+      const extras = shuffle(strengthExercises.filter((e) => !usedIds.has(e.id)));
+      extras.sort((a, b) => (recentMuscles[a.muscle] || 0) - (recentMuscles[b.muscle] || 0));
+      for (const e of extras) {
+        if (picked.length >= 6) break;
+        // Don't double up on an already-heavy muscle
+        const muscleCount = picked.filter((p) => p.muscle === e.muscle).length;
+        if (muscleCount < 2) {
+          picked.push(e);
+          usedIds.add(e.id);
+        }
+      }
+    }
+
+    return picked.slice(0, 6).map((e) => ({
+      exerciseId: e.id,
+      name: e.name,
+      sets: e.difficulty === "advanced" ? 4 : 3,
+      reps: e.muscle === "core" ? "30s" : e.difficulty === "advanced" ? "6-8" : "8-12",
+      suggestedWeight: e.equipment.includes("none") ? "bodyweight" : "moderate",
+    }));
+  }
 
   const generateAIWorkout = useCallback(async () => {
     setAiLoading(true);
     setAiError(null);
     setAiPlan(null);
+
+    // Always generate a local plan as fallback
+    const localPlan = generateLocalWorkout();
 
     const exerciseIds = EXERCISE_LIBRARY.filter((e) => e.type === "strength").map(
       (e) => `${e.id}(${e.name}/${e.muscle})`
@@ -102,24 +188,30 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
     try {
       const raw = await chatWithCoach(prompt, state);
-      if (!raw) {
-        setAiError("Could not generate workout. Check your connection and try again.");
-        setAiLoading(false);
-        return;
+      if (raw) {
+        const plan = parseAIPlan(raw);
+        if (plan && Array.isArray(plan) && plan.length > 0) {
+          // Validate exerciseIds exist
+          const validPlan = plan.filter((p) => getExerciseById(p.exerciseId));
+          if (validPlan.length >= 3) {
+            setAiPlan(validPlan);
+            setAiExerciseIndex(0);
+            setAiSets([{ weight: "", reps: "" }]);
+            setMode("ai");
+            setAiLoading(false);
+            return;
+          }
+        }
       }
-      const plan = parseAIPlan(raw);
-      if (!plan || !Array.isArray(plan)) {
-        setAiError("Invalid response from AI. Try again.");
-        setAiLoading(false);
-        return;
-      }
-      setAiPlan(plan);
-      setAiExerciseIndex(0);
-      setAiSets([{ weight: "", reps: "" }]);
-      setMode("ai");
     } catch {
-      setAiError("Network error. Check your connection.");
+      // Fall through to local plan
     }
+
+    // Fallback: use smart local generator
+    setAiPlan(localPlan);
+    setAiExerciseIndex(0);
+    setAiSets([{ weight: "", reps: "" }]);
+    setMode("ai");
     setAiLoading(false);
   }, [state, sortedDates, workoutLogs]);
 
