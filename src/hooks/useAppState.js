@@ -35,9 +35,34 @@ function reconcileStreaks(s) {
 
   const missedDays = daysBetween(lastActive);
 
-  // If more than 1 day has passed since last activity, break streaks
+  // If more than 1 day has passed since last activity, check for streak freeze
   if (missedDays > 1) {
-    s = { ...s, streak: 0 };
+    const freezes = s.streakFreezes || 0;
+    if (freezes > 0 && missedDays <= 2) {
+      s = {
+        ...s,
+        streakFreezes: freezes - 1,
+        streakFreezeUsedDate: today,
+        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak }],
+      };
+    } else {
+      s = { ...s, streak: 0 };
+    }
+  }
+
+  // Award streak freezes: 1 per 7-day milestone (max 3)
+  const MAX_FREEZES = 3;
+  const currentFreezes = s.streakFreezes || 0;
+  const lastFreezeAwardedAt = s.lastFreezeAwardedAtStreak || 0;
+  if (s.streak > 0 && s.streak >= lastFreezeAwardedAt + 7 && currentFreezes < MAX_FREEZES) {
+    const newMilestone = Math.floor(s.streak / 7) * 7;
+    if (newMilestone > lastFreezeAwardedAt) {
+      s = {
+        ...s,
+        streakFreezes: Math.min(currentFreezes + 1, MAX_FREEZES),
+        lastFreezeAwardedAtStreak: newMilestone,
+      };
+    }
   }
 
   // Break lifting streak if more than 1 day since last lift

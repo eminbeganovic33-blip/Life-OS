@@ -6,7 +6,7 @@ import { getPersonalizedQuote, getProactiveNudges } from "../../utils/intelligen
 import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../../data";
 import NudgeBanner from "../NudgeBanner";
 import Icon from "../Icon";
-import { Flame, Swords, Calendar, PenLine, Dumbbell, GraduationCap, BarChart3, Trophy, Quote, Play, Pause, RotateCcw } from "lucide-react";
+import { Flame, Swords, Calendar, PenLine, Dumbbell, GraduationCap, BarChart3, Trophy, Quote, Play, Pause, RotateCcw, Shield } from "lucide-react";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -114,7 +114,15 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
             <Flame size={18} color="#F97316" />
             <div>
               <div style={styles.statValue}>{state.streak}</div>
-              <div style={styles.statLabel}>Streak</div>
+              <div style={styles.statLabel}>
+                Streak
+                {(state.streakFreezes || 0) > 0 && (
+                  <span style={styles.freezeBadge}>
+                    <Shield size={8} color="#3B82F6" />
+                    {state.streakFreezes}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div style={styles.statPill}>
@@ -480,6 +488,21 @@ const styles = {
     fontSize: T.font.xs,
     color: C.textSecondary,
     lineHeight: 1.2,
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  },
+  freezeBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 2,
+    padding: "1px 4px",
+    borderRadius: 4,
+    background: "rgba(59,130,246,0.1)",
+    border: "1px solid rgba(59,130,246,0.15)",
+    fontSize: 9,
+    color: "#3B82F6",
+    fontWeight: T.weight.bold,
   },
 
   // Cards

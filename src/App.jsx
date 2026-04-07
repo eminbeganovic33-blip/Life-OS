@@ -17,6 +17,8 @@ import Onboarding from "./components/Onboarding";
 import BottomNav from "./components/BottomNav";
 import MotivationModal from "./components/modals/MotivationModal";
 import MorningBrief from "./components/MorningBrief";
+import Confetti from "./components/Confetti";
+import DayCompleteModal from "./components/modals/DayCompleteModal";
 import WorkoutModal from "./components/modals/WorkoutModal";
 import RelapseModal from "./components/modals/RelapseModal";
 import BossModal from "./components/modals/BossModal";
@@ -56,6 +58,10 @@ export default function LifeOS() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [xpPopup, setXpPopup] = useState(null);
 
+  // Celebration triggers (increment to fire)
+  const [confettiBurst, setConfettiBurst] = useState(0);
+  const [confettiPop, setConfettiPop] = useState(0);
+
   // Dojo state
   const [workoutExercise, setWorkoutExercise] = useState(null);
   const [workoutSets, setWorkoutSets] = useState([{ weight: "", reps: "" }]);
@@ -70,6 +76,9 @@ export default function LifeOS() {
   // Level-up detection
   const [levelUpIndex, setLevelUpIndex] = useState(null);
   const prevLevelRef = useRef(null);
+
+  // Day completion celebration
+  const [dayCompleteDay, setDayCompleteDay] = useState(null);
 
   // Forge success story
   const [forgeStory, setForgeStory] = useState(null);
@@ -87,6 +96,7 @@ export default function LifeOS() {
     if (prevLevelRef.current !== null && currentLvl > prevLevelRef.current) {
       setLevelUpIndex(currentLvl);
       setModal("levelup");
+      setConfettiBurst((c) => c + 1);
     }
     prevLevelRef.current = currentLvl;
   }, [state?.xp]);
@@ -251,6 +261,7 @@ export default function LifeOS() {
     const { unlocked, xpBonus } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    setConfettiPop((c) => c + 1);
   }
 
   // Uncheck a quest (called only via swipe gesture)
@@ -280,9 +291,14 @@ export default function LifeOS() {
     const { unlocked, xpBonus } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    setConfettiBurst((c) => c + 1);
     if (day === 21 || day === 66) {
       setBossDay(day);
       setModal("boss");
+    } else {
+      // Show day completion celebration (skip on boss days — boss modal takes priority)
+      setDayCompleteDay(day);
+      setModal("day_complete");
     }
   }
 
@@ -567,6 +583,15 @@ export default function LifeOS() {
         />
       );
     }
+    if (modal === "day_complete" && dayCompleteDay) {
+      return (
+        <DayCompleteModal
+          state={state}
+          completedDay={dayCompleteDay}
+          onDismiss={() => { setModal(null); setDayCompleteDay(null); }}
+        />
+      );
+    }
     if (modal === "notifications") {
       return (
         <NotificationSettingsModal
@@ -594,6 +619,7 @@ export default function LifeOS() {
     startSobriety, triggerRelapse,
     user, pomodoro, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
+    confettiBurst, confettiPop,
   };
 
   return (
@@ -621,6 +647,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary }) {
     startSobriety, triggerRelapse,
     user, pomodoro, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
+    confettiBurst, confettiPop,
   } = useLifeOS();
   const { showUpgrade, setShowUpgrade } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
@@ -639,6 +666,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary }) {
 
   return (
     <div style={themed("app")}>
+      <Confetti trigger={confettiBurst} type="burst" />
+      <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       <div style={S.content}>
