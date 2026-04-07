@@ -2,11 +2,11 @@ import { S } from "../styles/theme";
 import { useTheme } from "../hooks";
 
 const NAV = [
+  { id: "dashboard", icon: "🏠", label: "Home" },
   { id: "home", icon: "⚔️", label: "Quests" },
-  { id: "academy", icon: "📚", label: "Academy" },
   { id: "dojo", icon: "🥋", label: "Dojo" },
   { id: "forge", icon: "🔥", label: "Forge" },
-  { id: "profile", icon: "👤", label: "Profile" },
+  { id: "academy", icon: "📚", label: "Academy" },
 ];
 
 export default function BottomNav({ view, setView }) {
@@ -22,7 +22,7 @@ export default function BottomNav({ view, setView }) {
           onClick={() => setView(n.id)}
         >
           <div style={{ fontSize: 18 }}>{n.icon}</div>
-          <div style={{ fontSize: 9, marginTop: 1, fontWeight: view === n.id ? 700 : 400 }}>{n.label}</div>
+          <div style={{ fontSize: 11, marginTop: 1, fontWeight: view === n.id ? 700 : 400 }}>{n.label}</div>
           {view === n.id && <div style={S.navDot} />}
         </div>
       ))}

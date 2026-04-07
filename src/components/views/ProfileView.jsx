@@ -1,115 +1,144 @@
 import { useState } from "react";
-import { S } from "../../styles/theme";
+import { motion, AnimatePresence } from "framer-motion";
+import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
-import { getTotalVolume } from "../../utils";
+import { getTotalVolume, getLevel, getNextLevel, getLevelIndex } from "../../utils";
 import { useAuth } from "../../hooks/useAuth";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
+import AvatarPicker from "../AvatarPicker";
+import { renderAnimalAvatar } from "../AnimalAvatars";
 
-export default function ProfileView({ state, user, pomodoro, onReset, onOpenNotifications, onOpenJournal }) {
+const T = TOKENS;
+const C = DARK_COLORS;
+
+export default function ProfileView({ state, save, user, pomodoro, onReset, onOpenNotifications, onNavigate }) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showTimer, setShowTimer] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const { logout } = useAuth();
   const { isPremium, setShowUpgrade } = usePremium();
   const { theme, toggleTheme, colors } = useTheme();
   const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer } = pomodoro;
+
+  const isDark = theme === "dark";
   const pomodoroMins = Math.floor(pomodoroTime / 60);
   const pomodoroSecs = pomodoroTime % 60;
   const pomProg = 1 - pomodoroTime / ((state.pomodoroMinutes || 25) * 60);
   const totalVolume = getTotalVolume(state.workoutLogs);
   const workoutCount = Object.values(state.workoutLogs || {}).reduce((a, b) => a + b.length, 0);
   const day = state.currentDay;
-  const isDark = theme === "dark";
+
+  const level = getLevel(state.xp);
+  const nextLevel = getNextLevel(state.xp);
+  const levelIdx = getLevelIndex(state.xp);
+  const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
+
+  const unlockedTrophyCount = Object.keys(state.unlockedTrophies || {}).length;
+  const totalTrophies = TROPHIES.length;
+
+  const displayName = (user && user.displayName) || state.userName || "Warrior";
+  const displayEmail = user ? user.email : null;
+  const avatarLetter = displayName[0].toUpperCase();
+  const avatar = state.avatar; // { type: "letter"|"animal"|"photo", value: ... }
+
+  const handleAvatarSave = (newAvatar) => {
+    save({ ...state, avatar: newAvatar });
+  };
 
   return (
-    <div style={S.vc}>
-      {/* Profile Card */}
-      <div style={profileCard}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={avatar}>
-            {user && user.photoURL ? (
-              <img src={user.photoURL} alt="" style={{ width: 48, height: 48, borderRadius: "50%" }} />
-            ) : (
-              <span style={{ fontSize: 20 }}>
-                {((user && (user.displayName || user.email)) || state.userName || "W")[0].toUpperCase()}
-              </span>
+    <div style={{ paddingTop: T.space.md, paddingBottom: 80 }}>
+
+      {/* ── Hero Identity Card ── */}
+      <div style={heroCard}>
+        {/* Avatar — tap to change */}
+        <div style={{ ...avatarWrap, cursor: "pointer" }} onClick={() => setShowAvatarPicker(true)}>
+          {avatar?.type === "photo" ? (
+            <img src={avatar.value} alt="" style={avatarImg} />
+          ) : avatar?.type === "animal" ? (
+            <div style={avatarAnimal}>{renderAnimalAvatar(avatar.value, 58)}</div>
+          ) : user?.photoURL ? (
+            <img src={user.photoURL} alt="" style={avatarImg} />
+          ) : (
+            <div style={avatarCircle}>{avatarLetter}</div>
+          )}
+          <div style={levelDot}>Lv.{levelIdx + 1}</div>
+          <div style={editBadge}>✏️</div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={heroName}>{displayName}</div>
+          {displayEmail && <div style={heroEmail}>{displayEmail}</div>}
+          <div style={levelRow}>
+            <span style={levelPill}>{level.name}</span>
+            {state.streak > 0 && (
+              <span style={streakPill}>🔥 {state.streak} day streak</span>
             )}
           </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>
-              {(user && user.displayName) || state.userName || "Warrior"}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.4, marginTop: 2 }}>
-              {user ? user.email : "Local Warrior"}
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Premium Status */}
-      <div style={premiumCard} onClick={() => !isPremium && setShowUpgrade(true)}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 24 }}>{isPremium ? "\u{1F451}" : "\u2B50"}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: isPremium ? "#FFD700" : colors.text }}>
-              {isPremium ? "Premium Active" : "Free Plan"}
-            </div>
-            <div style={{ fontSize: 11, opacity: 0.4 }}>
-              {isPremium ? "All features unlocked" : "Upgrade for full access"}
-            </div>
-          </div>
+      {/* XP Progress */}
+      <div style={xpSection}>
+        <div style={xpTop}>
+          <span style={xpLabel}>{state.xp} XP</span>
+          <span style={xpNext}>{nextLevel ? `${nextLevel.xpReq - state.xp} to ${nextLevel.name}` : "Max level"}</span>
         </div>
-        {!isPremium && (
-          <span style={{ fontSize: 12, color: "#FFD700", fontWeight: 700 }}>Upgrade</span>
-        )}
+        <div style={xpTrack}>
+          <motion.div
+            style={xpFill}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.round(xpProgress * 100)}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        </div>
       </div>
 
-      {/* Theme Toggle */}
-      <div style={themeRow}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 20 }}>{isDark ? "\uD83C\uDF19" : "\u2600\uFE0F"}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>Appearance</div>
-            <div style={{ fontSize: 11, opacity: 0.4 }}>{isDark ? "Dark Mode" : "Light Mode"}</div>
-          </div>
-        </div>
-        <button style={toggleTrack(isDark)} onClick={toggleTheme} aria-label="Toggle theme">
-          <span style={toggleIcon(true, isDark)}>{"\u2600\uFE0F"}</span>
-          <span style={toggleIcon(false, isDark)}>{"\uD83C\uDF19"}</span>
-          <div style={toggleThumb(isDark)} />
-        </button>
+      {/* ── Primary Stats ── */}
+      <div style={primaryStats}>
+        <StatBig value={state.streak} label="Streak" color="#F97316" icon="🔥" />
+        <StatBig value={day} label="Day" color="#7C5CFC" icon="📅" />
+        <StatBig value={Object.keys(state.completedDays).length} label="Done" color="#22C55E" icon="✅" />
       </div>
 
-      {/* Stats */}
-      <div style={S.secTitle}>Stats</div>
-      <div style={S.statsGrid}>
+      {/* ── Secondary Stats Grid ── */}
+      <div style={secGrid}>
         {[
-          { v: day, l: "Day" },
-          { v: state.xp, l: "Total XP" },
-          { v: state.streak, l: "Streak" },
-          { v: state.bestStreak, l: "Best Streak" },
-          { v: Object.keys(state.completedDays).length, l: "Days Done" },
           { v: workoutCount, l: "Workouts" },
           { v: `${Math.round(totalVolume / 1000)}t`, l: "Vol. Moved" },
-          { v: Object.values(state.courseProgress || {}).filter((p) => p.completed).length, l: "Courses" },
-          { v: Object.keys(state.unlockedTrophies || {}).length, l: "Trophies" },
+          { v: Object.values(state.courseProgress || {}).filter(p => p.completed).length, l: "Courses" },
+          { v: state.bestStreak, l: "Best Streak" },
+          { v: unlockedTrophyCount, l: "Trophies" },
+          { v: state.liftingStreak || 0, l: "Lift Streak" },
         ].map((s, i) => (
-          <div key={i} style={S.statCard}>
-            <div style={S.statVal}>{s.v}</div>
-            <div style={S.statLbl}>{s.l}</div>
+          <div key={i} style={secStat}>
+            <div style={secStatVal}>{s.v}</div>
+            <div style={secStatLbl}>{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* Trophy Room */}
-      <div style={{ ...S.secTitle, marginTop: 20 }}>Trophy Room</div>
-      <div style={S.trophyGrid}>
+      {/* ── Trophy Room ── */}
+      <SectionHeader title="Trophy Room" sub={`${unlockedTrophyCount} / ${totalTrophies} unlocked`} />
+      {/* Progress bar */}
+      <div style={trophyProgressWrap}>
+        <div style={trophyProgressTrack}>
+          <motion.div
+            style={{ ...trophyProgressFill, width: `${(unlockedTrophyCount / totalTrophies) * 100}%` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${(unlockedTrophyCount / totalTrophies) * 100}%` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+          />
+        </div>
+      </div>
+      <div style={trophyGrid}>
         {TROPHIES.map((t) => {
           const unlocked = !!state.unlockedTrophies?.[t.id];
           return (
-            <div key={t.id} style={{ ...S.trophyCard, ...(unlocked ? S.trophyUnlocked : {}), opacity: unlocked ? 1 : 0.35 }}>
-              <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)" }}>{t.icon}</div>
-              <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, textAlign: "center" }}>{t.name}</div>
-              <div style={{ fontSize: 9, opacity: 0.4, textAlign: "center", marginTop: 2 }}>
+            <div key={t.id} style={{ ...trophyCard, ...(unlocked ? trophyUnlocked : trophyLocked) }}>
+              <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)", marginBottom: 4 }}>{t.icon}</div>
+              <div style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, textAlign: "center", lineHeight: 1.2 }}>{t.name}</div>
+              <div style={{ fontSize: 10, opacity: unlocked ? 0.7 : 0.3, textAlign: "center", marginTop: 2 }}>
                 {unlocked ? `+${t.xpReward} XP` : t.desc}
               </div>
             </div>
@@ -117,294 +146,635 @@ export default function ProfileView({ state, user, pomodoro, onReset, onOpenNoti
         })}
       </div>
 
-      {/* Journey Map */}
-      <div style={{ ...S.secTitle, marginTop: 20 }}>
-        Journey Map
-        {day > 66 && <span style={{ fontSize: 11, opacity: 0.4, fontWeight: 400, marginLeft: 6 }}>Mastery</span>}
-      </div>
-      <div style={S.dayGrid}>
+      {/* ── Journey Map ── */}
+      <SectionHeader title="Journey Map" sub={day > 66 ? "Mastery Mode" : `Day ${day} of 66`} />
+      <div style={dayGrid}>
         {Array.from({ length: Math.max(66, day) }, (_, i) => {
           const d = i + 1;
           const done = state.completedDays[d];
           const cur = d === day;
           const isBoss = d === 21 || d === 66;
           return (
-            <div
-              key={d}
-              style={{
-                ...S.dayDot,
-                background: done
-                  ? "linear-gradient(135deg,#7C5CFC,#EC4899)"
-                  : cur
-                    ? "rgba(124,92,252,0.25)"
-                    : isBoss
-                      ? "rgba(249,115,22,0.12)"
-                      : isDark
-                        ? "rgba(255,255,255,0.04)"
-                        : "rgba(0,0,0,0.04)",
-                border: cur
-                  ? "2px solid #7C5CFC"
-                  : isBoss && !done
-                    ? "2px solid rgba(249,115,22,0.3)"
-                    : "2px solid transparent",
-                color: done
-                  ? "#fff"
-                  : cur
-                    ? "#7C5CFC"
-                    : isBoss
-                      ? "#F97316"
-                      : isDark
-                        ? "rgba(255,255,255,0.2)"
-                        : "rgba(0,0,0,0.2)",
-                fontWeight: cur || isBoss ? 700 : 400,
-                fontSize: isBoss && !done ? 11 : 10,
-              }}
-            >
-              {isBoss && !done ? "\u2694\uFE0F" : d}
+            <div key={d} style={{
+              ...dayDot,
+              background: done ? "linear-gradient(135deg,#7C5CFC,#EC4899)" : cur ? "rgba(124,92,252,0.25)" : isBoss ? "rgba(249,115,22,0.12)" : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+              border: cur ? "2px solid #7C5CFC" : isBoss && !done ? "2px solid rgba(249,115,22,0.3)" : "2px solid transparent",
+              color: done ? "#fff" : cur ? "#7C5CFC" : isBoss ? "#F97316" : isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+              fontWeight: cur || isBoss ? 700 : 400,
+              fontSize: isBoss && !done ? 11 : 10,
+            }}>
+              {isBoss && !done ? "⚔️" : d}
             </div>
           );
         })}
       </div>
 
-      {/* Focus Timer */}
-      <div style={{ ...S.secTitle, marginTop: 20 }}>Focus Timer</div>
-      <div style={S.pomCard}>
-        <div style={{ position: "relative" }}>
-          <svg viewBox="0 0 120 120" style={{ width: 140, height: 140 }}>
-            <circle cx="60" cy="60" r="52" fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"} strokeWidth="5" />
-            <circle
-              cx="60" cy="60" r="52" fill="none" stroke="#7C5CFC" strokeWidth="5"
-              strokeDasharray={`${pomProg * 327} 327`} strokeLinecap="round"
-              transform="rotate(-90 60 60)" style={{ transition: "stroke-dasharray 0.5s" }}
-            />
-          </svg>
-          <div style={S.timerText}>
-            {String(pomodoroMins).padStart(2, "0")}:{String(pomodoroSecs).padStart(2, "0")}
+      {/* ── Settings ── */}
+      <SectionHeader title="Settings" />
+      <div style={settingsSection}>
+        {/* Theme toggle */}
+        <div style={settingsRow}>
+          <div style={settingsRowLeft}>
+            <span style={{ fontSize: 20 }}>{isDark ? "🌙" : "☀️"}</span>
+            <div>
+              <div style={settingsRowTitle}>Appearance</div>
+              <div style={settingsRowSub}>{isDark ? "Dark Mode" : "Light Mode"}</div>
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button style={S.timerBtn} onClick={toggle}>
-            {pomodoroActive ? "Pause" : pomodoroTime === 0 ? "Again" : "Start"}
+          <button style={toggleTrack(isDark)} onClick={toggleTheme} aria-label="Toggle theme">
+            <span style={toggleIcon(true, isDark)}>☀️</span>
+            <span style={toggleIcon(false, isDark)}>🌙</span>
+            <div style={toggleThumb(isDark)} />
           </button>
-          <button style={S.timerBtnSec} onClick={resetTimer}>Reset</button>
         </div>
-        {pomodoroTime === 0 && (
-          <div style={{ marginTop: 10, fontSize: 13, color: "#10B981", fontWeight: 700 }}>Session complete!</div>
+
+        {/* Social */}
+        <div style={{ ...settingsRow, cursor: "pointer" }} onClick={() => onNavigate?.("social")}>
+          <div style={settingsRowLeft}>
+            <span style={{ fontSize: 20 }}>👥</span>
+            <div>
+              <div style={settingsRowTitle}>Community</div>
+              <div style={settingsRowSub}>Leaderboard, friends &amp; challenges</div>
+            </div>
+          </div>
+          <span style={settingsChevron}>›</span>
+        </div>
+
+        {/* Notifications */}
+        <div style={{ ...settingsRow, cursor: "pointer" }} onClick={onOpenNotifications}>
+          <div style={settingsRowLeft}>
+            <span style={{ fontSize: 20 }}>🔔</span>
+            <div>
+              <div style={settingsRowTitle}>Notifications</div>
+              <div style={settingsRowSub}>Reminders and alerts</div>
+            </div>
+          </div>
+          <span style={settingsChevron}>›</span>
+        </div>
+
+        {/* Focus Timer — collapsible, last row so no bottom border */}
+        <div style={{ ...settingsRow, borderBottom: "none", cursor: "pointer" }} onClick={() => setShowTimer(v => !v)}>
+          <div style={settingsRowLeft}>
+            <span style={{ fontSize: 20 }}>⏱️</span>
+            <div>
+              <div style={settingsRowTitle}>Focus Timer</div>
+              <div style={settingsRowSub}>{pomodoroActive ? "Running..." : `${String(pomodoroMins).padStart(2,"0")}:${String(pomodoroSecs).padStart(2,"0")}`}</div>
+            </div>
+          </div>
+          <span style={settingsChevron}>{showTimer ? "▲" : "▼"}</span>
+        </div>
+
+        <AnimatePresence>
+          {showTimer && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ overflow: "hidden" }}
+            >
+              <div style={timerExpanded}>
+                <div style={{ position: "relative" }}>
+                  <svg viewBox="0 0 120 120" style={{ width: 120, height: 120 }}>
+                    <circle cx="60" cy="60" r="52" fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"} strokeWidth="5" />
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="#7C5CFC" strokeWidth="5"
+                      strokeDasharray={`${pomProg * 327} 327`} strokeLinecap="round"
+                      transform="rotate(-90 60 60)" style={{ transition: "stroke-dasharray 0.5s" }} />
+                  </svg>
+                  <div style={timerText}>
+                    {String(pomodoroMins).padStart(2, "0")}:{String(pomodoroSecs).padStart(2, "0")}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                  <button style={timerBtn} onClick={toggle}>
+                    {pomodoroActive ? "Pause" : pomodoroTime === 0 ? "Again" : "Start"}
+                  </button>
+                  <button style={timerBtnSec} onClick={resetTimer}>Reset</button>
+                </div>
+                {pomodoroTime === 0 && <div style={{ marginTop: 8, fontSize: T.font.sm, color: "#10B981", fontWeight: T.weight.bold }}>Session complete!</div>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Premium ── */}
+      {!isPremium && (
+        <div style={premiumBanner} onClick={() => setShowUpgrade(true)}>
+          <div style={{ display: "flex", alignItems: "center", gap: T.space.md }}>
+            <span style={{ fontSize: 24 }}>⭐</span>
+            <div>
+              <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, color: "#FFD700" }}>Upgrade to Premium</div>
+              <div style={{ fontSize: T.font.xs, opacity: 0.55, marginTop: 2 }}>Unlock AI coaching, unlimited custom quests & more</div>
+            </div>
+          </div>
+          <span style={{ fontSize: T.font.sm, color: "#FFD700", fontWeight: T.weight.bold, flexShrink: 0 }}>Upgrade →</span>
+        </div>
+      )}
+
+      {/* Avatar Picker Sheet */}
+      <AvatarPicker
+        open={showAvatarPicker}
+        onClose={() => setShowAvatarPicker(false)}
+        currentAvatar={avatar}
+        onSave={handleAvatarSave}
+      />
+
+      {/* ── Account / Danger Zone ── */}
+      <SectionHeader title="Account" />
+      <div style={dangerSection}>
+        {user && (
+          <button style={logoutBtn} onClick={logout}>
+            Sign Out
+          </button>
+        )}
+        {!confirmReset ? (
+          <button style={resetBtn} onClick={() => setConfirmReset(true)}>
+            Reset All Progress
+          </button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={resetConfirm}
+          >
+            <div style={{ fontSize: T.font.sm, fontWeight: T.weight.bold, color: "#EF4444", marginBottom: T.space.md }}>
+              ⚠️ This will permanently erase all your progress. Are you sure?
+            </div>
+            <div style={{ display: "flex", gap: T.space.sm }}>
+              <button style={{ ...resetBtn, flex: 1 }} onClick={() => { onReset(); setConfirmReset(false); }}>
+                Yes, erase everything
+              </button>
+              <button style={{ ...timerBtnSec, flex: 1 }} onClick={() => setConfirmReset(false)}>
+                Cancel
+              </button>
+            </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Settings */}
-      <div style={{ ...S.secTitle, marginTop: 20 }}>Settings</div>
-      <div style={settingsGrid}>
-        <button style={settingsBtn} onClick={onOpenNotifications}>
-          <span style={settingsIcon}>🔔</span>
-          <span>Notifications</span>
-        </button>
-        <button style={settingsBtn} onClick={onOpenJournal}>
-          <span style={settingsIcon}>📖</span>
-          <span>Journal</span>
-        </button>
-      </div>
-
-      {!confirmReset ? (
-        <button style={resetBtn} onClick={() => setConfirmReset(true)}>
-          Reset All Data
-        </button>
-      ) : (
-        <div style={resetConfirmBox}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#EF4444", marginBottom: 10 }}>
-            Are you sure? This will erase all your progress permanently.
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              style={{ ...resetBtn, flex: 1, background: "rgba(239,68,68,0.1)", margin: 0 }}
-              onClick={() => { onReset(); setConfirmReset(false); }}
-            >
-              Yes, Reset Everything
-            </button>
-            <button
-              style={{ ...S.timerBtnSec, flex: 1 }}
-              onClick={() => setConfirmReset(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {user && (
-        <button style={logoutBtn} onClick={logout}>
-          Log out
-        </button>
-      )}
-
-      <div style={{ height: 20 }} />
     </div>
   );
 }
 
-/* ── Inline style objects ── */
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-const profileCard = {
+function SectionHeader({ title, sub }) {
+  return (
+    <div style={sectionHeader}>
+      <span style={sectionTitle}>{title}</span>
+      {sub && <span style={sectionSub}>{sub}</span>}
+    </div>
+  );
+}
+
+function StatBig({ value, label, color, icon }) {
+  return (
+    <div style={{ ...primaryStat, borderColor: `${color}22` }}>
+      <span style={{ fontSize: 22 }}>{icon}</span>
+      <div style={{ ...primaryStatVal, color }}>{value}</div>
+      <div style={primaryStatLbl}>{label}</div>
+    </div>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const heroCard = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
-  padding: "18px 16px",
-  margin: "0 14px 12px",
-  borderRadius: 16,
-  background: "linear-gradient(135deg,rgba(124,92,252,0.08),rgba(236,72,153,0.04))",
+  gap: T.space.lg,
+  margin: `0 ${T.space.lg}px ${T.space.md}px`,
+  padding: T.space.xl,
+  borderRadius: T.radii.xl,
+  background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))",
   border: "1px solid rgba(124,92,252,0.12)",
 };
 
-const avatar = {
-  width: 48,
-  height: 48,
+const avatarWrap = {
+  position: "relative",
+  flexShrink: 0,
+};
+
+const avatarCircle = {
+  width: 58,
+  height: 58,
   borderRadius: "50%",
   background: "linear-gradient(135deg, #7C5CFC, #EC4899)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontWeight: 800,
-  fontSize: 18,
-  flexShrink: 0,
+  fontSize: 22,
+  fontWeight: T.weight.black,
   color: "#fff",
 };
 
-const premiumCard = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "14px 16px",
-  margin: "0 14px 12px",
-  borderRadius: 14,
-  background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
-  border: "1px solid rgba(255,215,0,0.1)",
-  cursor: "pointer",
-};
-
-const themeRow = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "14px 16px",
-  margin: "0 14px 12px",
-  borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
-};
-
-const toggleTrack = (isDark) => ({
-  position: "relative",
-  width: 56,
-  height: 30,
-  borderRadius: 15,
-  border: "none",
-  background: isDark
-    ? "linear-gradient(135deg, #1A1A3E, #2D2B55)"
-    : "linear-gradient(135deg, #87CEEB, #FDB813)",
-  cursor: "pointer",
-  padding: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  boxShadow: isDark
-    ? "inset 0 1px 3px rgba(0,0,0,0.4), 0 0 8px rgba(124,92,252,0.15)"
-    : "inset 0 1px 3px rgba(0,0,0,0.15), 0 0 8px rgba(253,184,19,0.2)",
-  transition: "background 0.3s ease, box-shadow 0.3s ease",
-  flexShrink: 0,
-});
-
-const toggleIcon = (isSun, isDark) => ({
-  fontSize: 12,
-  lineHeight: 1,
-  position: "absolute",
-  top: "50%",
-  transform: "translateY(-50%)",
-  ...(isSun
-    ? { left: 7, opacity: isDark ? 0.3 : 0.9 }
-    : { right: 7, opacity: isDark ? 0.9 : 0.3 }),
-  transition: "opacity 0.3s ease",
-  pointerEvents: "none",
-  zIndex: 1,
-});
-
-const toggleThumb = (isDark) => ({
-  position: "absolute",
-  top: 3,
-  left: isDark ? 29 : 3,
-  width: 24,
-  height: 24,
+const avatarImg = {
+  width: 58,
+  height: 58,
   borderRadius: "50%",
-  background: isDark
-    ? "linear-gradient(135deg, #C4B5FD, #7C5CFC)"
-    : "linear-gradient(135deg, #FFF8DC, #FFD700)",
-  boxShadow: isDark
-    ? "0 2px 6px rgba(124,92,252,0.4)"
-    : "0 2px 6px rgba(255,215,0,0.4)",
-  transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease",
-  zIndex: 2,
-});
-
-const settingsGrid = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 8,
-  padding: "0 14px",
+  objectFit: "cover",
 };
 
-const settingsBtn = {
+const avatarAnimal = {
+  width: 58,
+  height: 58,
+  borderRadius: "50%",
+  overflow: "hidden",
+  flexShrink: 0,
+};
+
+const levelDot = {
+  position: "absolute",
+  bottom: -4,
+  right: -4,
+  background: "#7C5CFC",
+  color: "#fff",
+  fontSize: 9,
+  fontWeight: T.weight.black,
+  padding: "2px 5px",
+  borderRadius: 8,
+  border: "2px solid #0F172A",
+};
+
+const editBadge = {
+  position: "absolute",
+  top: -2,
+  right: -2,
+  width: 20,
+  height: 20,
+  borderRadius: "50%",
+  background: "#1E293B",
+  border: "2px solid #0F172A",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: 8,
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.06)",
-  background: "rgba(255,255,255,0.025)",
-  color: "#E2E2EE",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
+  fontSize: 10,
+  lineHeight: 1,
 };
 
-const settingsIcon = {
-  fontSize: 16,
+const heroName = {
+  fontSize: T.font.xl,
+  fontWeight: T.weight.black,
+  letterSpacing: -0.3,
 };
 
-const resetBtn = {
-  display: "block",
-  width: "calc(100% - 28px)",
-  margin: "12px 14px 0",
-  padding: "12px 14px",
-  borderRadius: 10,
-  border: "1px solid rgba(239,68,68,0.15)",
-  background: "transparent",
-  color: "#EF4444",
-  fontSize: 13,
-  fontWeight: 700,
-  cursor: "pointer",
+const heroEmail = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+  marginTop: 2,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const levelRow = {
+  display: "flex",
+  gap: T.space.sm,
+  marginTop: T.space.sm,
+  flexWrap: "wrap",
+};
+
+const levelPill = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  padding: "3px 10px",
+  borderRadius: 20,
+  background: "rgba(124,92,252,0.12)",
+  color: "#7C5CFC",
+};
+
+const streakPill = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  padding: "3px 10px",
+  borderRadius: 20,
+  background: "rgba(249,115,22,0.12)",
+  color: "#F97316",
+};
+
+const xpSection = {
+  margin: `0 ${T.space.lg}px ${T.space.lg}px`,
+};
+
+const xpTop = {
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: T.font.xs,
+  marginBottom: T.space.xs,
+};
+
+const xpLabel = {
+  fontWeight: T.weight.bold,
+  color: "#7C5CFC",
+};
+
+const xpNext = {
+  color: C.textSecondary,
+};
+
+const xpTrack = {
+  height: 6,
+  borderRadius: 3,
+  background: C.surface,
+  overflow: "hidden",
+};
+
+const xpFill = {
+  height: "100%",
+  borderRadius: 3,
+  background: "linear-gradient(90deg, #7C5CFC, #EC4899)",
+};
+
+const primaryStats = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: T.space.sm,
+  margin: `0 ${T.space.lg}px ${T.space.md}px`,
+};
+
+const primaryStat = {
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: "1px solid",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: T.space.xs,
+};
+
+const primaryStatVal = {
+  fontSize: T.font.xxl,
+  fontWeight: T.weight.black,
+  lineHeight: 1,
+};
+
+const primaryStatLbl = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+};
+
+const secGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: T.space.sm,
+  margin: `0 ${T.space.lg}px ${T.space.xl}px`,
+};
+
+const secStat = {
+  padding: T.space.md,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
   textAlign: "center",
 };
 
-const resetConfirmBox = {
-  margin: "12px 14px 0",
-  padding: "14px",
-  borderRadius: 12,
-  background: "rgba(239,68,68,0.06)",
-  border: "1px solid rgba(239,68,68,0.15)",
+const secStatVal = {
+  fontSize: T.font.lg,
+  fontWeight: T.weight.black,
+};
+
+const secStatLbl = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+  marginTop: 2,
+};
+
+const sectionHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: `0 ${T.space.xl}px`,
+  marginBottom: T.space.md,
+  marginTop: T.space.xl,
+};
+
+const sectionTitle = {
+  fontSize: T.font.lg,
+  fontWeight: T.weight.black,
+  letterSpacing: -0.2,
+};
+
+const sectionSub = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+};
+
+const trophyProgressWrap = {
+  margin: `0 ${T.space.lg}px ${T.space.md}px`,
+};
+
+const trophyProgressTrack = {
+  height: 4,
+  borderRadius: 2,
+  background: C.surface,
+  overflow: "hidden",
+};
+
+const trophyProgressFill = {
+  height: "100%",
+  borderRadius: 2,
+  background: "linear-gradient(90deg, #7C5CFC, #EC4899)",
+};
+
+const trophyGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3,1fr)",
+  gap: T.space.sm,
+  padding: `0 ${T.space.lg}px`,
+  marginBottom: T.space.md,
+};
+
+const trophyCard = {
+  padding: T.space.md,
+  borderRadius: T.radii.md,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+};
+
+const trophyUnlocked = {
+  background: "rgba(124,92,252,0.07)",
+  border: "1px solid rgba(124,92,252,0.18)",
+  boxShadow: "0 0 16px rgba(124,92,252,0.07)",
+};
+
+const trophyLocked = {
+  background: C.surface,
+  border: `1px solid ${C.cardBorder}`,
+  opacity: 0.4,
+};
+
+const dayGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(11,1fr)",
+  gap: 3,
+  padding: `0 ${T.space.lg}px`,
+  marginBottom: T.space.md,
+};
+
+const dayDot = {
+  aspectRatio: "1",
+  borderRadius: T.radii.sm,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 10,
+  fontWeight: 400,
+  transition: `all 0.15s ease`,
+};
+
+const settingsSection = {
+  margin: `0 ${T.space.lg}px`,
+  borderRadius: T.radii.lg,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
+  overflow: "hidden",
+};
+
+const settingsRow = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: `${T.space.lg}px ${T.space.lg}px`,
+  borderBottom: `1px solid ${C.cardBorder}`,
+};
+
+const settingsRowLeft = {
+  display: "flex",
+  alignItems: "center",
+  gap: T.space.md,
+};
+
+const settingsRowTitle = {
+  fontSize: T.font.md,
+  fontWeight: T.weight.medium,
+};
+
+const settingsRowSub = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+  marginTop: 1,
+};
+
+const settingsChevron = {
+  fontSize: T.font.xl,
+  color: C.textSecondary,
+};
+
+const timerExpanded = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  padding: `${T.space.lg}px ${T.space.lg}px ${T.space.xl}px`,
+  borderBottom: `1px solid ${C.cardBorder}`,
+};
+
+const timerText = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%,-50%)",
+  fontSize: 26,
+  fontWeight: T.weight.black,
+  fontVariantNumeric: "tabular-nums",
+  letterSpacing: 2,
+};
+
+const timerBtn = {
+  padding: `${T.space.md}px ${T.space.xxl}px`,
+  borderRadius: T.radii.md,
+  border: "none",
+  background: "linear-gradient(135deg,#7C5CFC,#6D28D9)",
+  color: "#fff",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  boxShadow: "0 3px 12px rgba(124,92,252,0.2)",
+};
+
+const timerBtnSec = {
+  padding: `${T.space.md}px ${T.space.xxl}px`,
+  borderRadius: T.radii.md,
+  border: `1px solid ${C.inputBorder}`,
+  background: "transparent",
+  color: C.textSecondary,
+  fontSize: T.font.sm,
+  fontWeight: T.weight.medium,
+  cursor: "pointer",
+};
+
+const premiumBanner = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  margin: `${T.space.xl}px ${T.space.lg}px 0`,
+  padding: T.space.lg,
+  borderRadius: T.radii.lg,
+  background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
+  border: "1px solid rgba(255,215,0,0.12)",
+  cursor: "pointer",
+};
+
+const dangerSection = {
+  margin: `0 ${T.space.lg}px`,
+  display: "flex",
+  flexDirection: "column",
+  gap: T.space.sm,
 };
 
 const logoutBtn = {
-  display: "block",
-  width: "calc(100% - 28px)",
-  margin: "10px 14px 0",
-  padding: "12px 14px",
-  borderRadius: 10,
-  border: "1px solid rgba(239,68,68,0.2)",
+  width: "100%",
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: `1px solid ${C.cardBorder}`,
   background: "transparent",
-  color: "#EF4444",
-  fontSize: 13,
-  fontWeight: 700,
+  color: C.textSecondary,
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
   cursor: "pointer",
   textAlign: "center",
 };
+
+const resetBtn = {
+  width: "100%",
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: "1px solid rgba(239,68,68,0.2)",
+  background: "transparent",
+  color: "#EF4444",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  textAlign: "center",
+};
+
+const resetConfirm = {
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: "rgba(239,68,68,0.05)",
+  border: "1px solid rgba(239,68,68,0.15)",
+};
+
+// Toggle styles
+const toggleTrack = (isDark) => ({
+  position: "relative", width: 56, height: 30, borderRadius: 15, border: "none",
+  background: isDark ? "linear-gradient(135deg, #1A1A3E, #2D2B55)" : "linear-gradient(135deg, #87CEEB, #FDB813)",
+  cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+  boxShadow: isDark ? "inset 0 1px 3px rgba(0,0,0,0.4)" : "inset 0 1px 3px rgba(0,0,0,0.15)",
+  transition: "background 0.3s ease", flexShrink: 0,
+});
+
+const toggleIcon = (isSun, isDark) => ({
+  fontSize: 12, lineHeight: 1, position: "absolute", top: "50%", transform: "translateY(-50%)",
+  ...(isSun ? { left: 7, opacity: isDark ? 0.3 : 0.9 } : { right: 7, opacity: isDark ? 0.9 : 0.3 }),
+  transition: "opacity 0.3s ease", pointerEvents: "none", zIndex: 1,
+});
+
+const toggleThumb = (isDark) => ({
+  position: "absolute", top: 3, left: isDark ? 29 : 3, width: 24, height: 24, borderRadius: "50%",
+  background: isDark ? "linear-gradient(135deg, #C4B5FD, #7C5CFC)" : "linear-gradient(135deg, #FFF8DC, #FFD700)",
+  boxShadow: isDark ? "0 2px 6px rgba(124,92,252,0.4)" : "0 2px 6px rgba(255,215,0,0.4)",
+  transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)", zIndex: 2,
+});

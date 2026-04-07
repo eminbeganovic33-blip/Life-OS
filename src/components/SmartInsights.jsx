@@ -312,7 +312,7 @@ const s = {
     flex: 1,
   },
   badge: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 700,
     textTransform: "uppercase",
     padding: "2px 7px",
@@ -383,7 +383,7 @@ const s = {
   barLabels: {
     display: "flex",
     justifyContent: "space-between",
-    fontSize: 9,
+    fontSize: 11,
     color: "rgba(226,226,238,0.3)",
     marginTop: 2,
   },

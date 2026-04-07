@@ -1,9 +1,11 @@
-// AI Service Layer — uses Gemini API with built-in key
-// No user configuration needed — AI coach is always available
+// AI Service Layer — uses Gemini API via environment variable
+// Key is loaded from VITE_GEMINI_API_KEY in .env (never hardcoded)
 
-const GEMINI_API_KEY = "AIzaSyCyD5_WJz8V6h5vIQbdcTD3JaioHslnCQc";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = GEMINI_API_KEY
+  ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
+  : "";
 
 const AI_CACHE_KEY = "life-os-ai-cache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -13,7 +15,7 @@ export function loadAISettings() {
   return { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL };
 }
 export function saveAISettings() {} // no-op
-export function isAIConfigured() { return true; } // always configured
+export function isAIConfigured() { return !!GEMINI_API_KEY; }
 
 // --- Cache ---
 
@@ -67,6 +69,8 @@ function hashInput(prefix, data) {
 // --- Core Gemini API Call ---
 
 async function callAI(systemPrompt, userPrompt, cacheKey) {
+  if (!GEMINI_URL) return null; // no API key configured
+
   // Check cache
   if (cacheKey) {
     const cached = getCached(cacheKey);
@@ -251,6 +255,70 @@ export async function chatWithCoach(message, state) {
     `${SYSTEM_BASE}\n\nThe user is asking you a question in a chat. You have full context about their habits and progress. Answer specifically and helpfully. Keep responses to 2-4 sentences unless the question requires more detail.`,
     `User state:\n${summary}\n\nUser's question: ${message}`,
     null
+  );
+}
+
+// --- Multi-turn Journal Chat ---
+
+export async function chatJournal(messages, state) {
+  if (!GEMINI_URL) return null;
+
+  const summary = buildStateSummary(state);
+  const systemPrompt = `${SYSTEM_BASE}
+
+You are having a reflective journal conversation with the user. Your role is to be a thoughtful, empathetic journal companion — NOT a therapist, NOT a chatbot. Think of yourself as a wise friend who asks the right questions.
+
+Rules:
+- Ask ONE follow-up question at a time, never more
+- Keep responses to 2-3 sentences max
+- Reference their actual data (streak, habits, mood) when relevant
+- Don't repeat what they said back to them
+- Be warm but not saccharine
+- If they share something difficult, acknowledge it genuinely before asking more
+- Vary your question style: sometimes reflective, sometimes forward-looking, sometimes playful
+- After 4+ exchanges, offer a brief insight or observation about patterns you notice
+
+User context:
+${summary}`;
+
+  // Build multi-turn contents array for Gemini
+  const contents = messages.map((m) => ({
+    role: m.role === "user" ? "user" : "model",
+    parts: [{ text: m.text }],
+  }));
+
+  try {
+    const res = await fetch(GEMINI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig: {
+          maxOutputTokens: 300,
+          temperature: 0.85,
+        },
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getJournalStarter(state) {
+  const summary = buildStateSummary(state);
+  const cacheKey = hashInput("jstart", {
+    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
+  });
+
+  return callAI(
+    `${SYSTEM_BASE}\n\nGenerate an opening message for a reflective journal conversation. Make it personal based on the user's current data — mention their streak, recent mood, or today's progress. Ask ONE specific question to get them writing. Keep it to 2 sentences. Be warm and specific, not generic.`,
+    `User state:\n${summary}\n\nGenerate the opening journal prompt.`,
+    cacheKey
   );
 }
 

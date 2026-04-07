@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { S } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 import { LEVELS } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
@@ -10,6 +11,9 @@ const RATE_LIMIT_MS = 12 * 60 * 60 * 1000; // 12 hours in ms
 const MAX_FOCUS_SLOTS = 3;
 
 export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses }) {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const levelIdx = getLevelIndex(state.xp);
   const bossClears = state.bossClears || {};
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
@@ -177,8 +181,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     width: 10,
                     height: 10,
                     borderRadius: 3,
-                    background: i < focusedCount ? "#7C5CFC" : "rgba(255,255,255,0.08)",
-                    border: `1px solid ${i < focusedCount ? "#7C5CFC" : "rgba(255,255,255,0.12)"}`,
+                    background: i < focusedCount ? "#7C5CFC" : sub(0.08),
+                    border: `1px solid ${i < focusedCount ? "#7C5CFC" : sub(0.12)}`,
                     transition: "all 0.3s",
                   }}
                 />
@@ -209,14 +213,14 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
             style={{
               ...filterTab,
               background: filter === tab.id ? "rgba(124,92,252,0.15)" : "transparent",
-              color: filter === tab.id ? "#7C5CFC" : "rgba(255,255,255,0.4)",
-              borderColor: filter === tab.id ? "rgba(124,92,252,0.3)" : "rgba(255,255,255,0.06)",
+              color: filter === tab.id ? "#7C5CFC" : colors.textSecondary,
+              borderColor: filter === tab.id ? "rgba(124,92,252,0.3)" : sub(0.06),
             }}
             onClick={() => setFilter(tab.id)}
           >
             {tab.label}
             {tab.count > 0 && (
-              <span style={{ ...filterCount, background: filter === tab.id ? "#7C5CFC" : "rgba(255,255,255,0.1)" }}>
+              <span style={{ ...filterCount, background: filter === tab.id ? "#7C5CFC" : sub(0.1) }}>
                 {tab.count}
               </span>
             )}
@@ -274,12 +278,12 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                   ? "1px solid rgba(124,92,252,0.15)"
                   : isExpanded
                     ? "1px solid rgba(124,92,252,0.08)"
-                    : "1px solid rgba(255,255,255,0.04)",
+                    : `1px solid ${colors.cardBorder}`,
               background: isCompleted
                 ? "rgba(16,185,129,0.04)"
                 : isFocused
                   ? "rgba(124,92,252,0.03)"
-                  : "rgba(255,255,255,0.025)",
+                  : colors.cardBg,
             }}
             onClick={locked && premiumLocked ? () => setShowUpgrade(true) : undefined}
           >
@@ -396,7 +400,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                   const isStepAvailable = !isRateLocked && prevStepDone && !checked;
 
                   return (
-                    <div key={idx} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+                    <div key={idx} style={{ borderTop: `1px solid ${sub(0.03)}` }}>
                       <div
                         style={{
                           ...stepRow,
@@ -415,15 +419,15 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                             background: checked
                               ? "#10B981"
                               : isRateLocked || !prevStepDone
-                                ? "rgba(255,255,255,0.03)"
+                                ? sub(0.03)
                                 : "transparent",
                             borderColor: checked
                               ? "#10B981"
                               : isRateLocked
                                 ? "rgba(255,165,0,0.3)"
                                 : !prevStepDone
-                                  ? "rgba(255,255,255,0.08)"
-                                  : "rgba(255,255,255,0.15)",
+                                  ? sub(0.08)
+                                  : sub(0.2),
                             cursor: isStepAvailable ? "pointer" : checked ? "pointer" : "default",
                             flexShrink: 0,
                           }}
@@ -435,7 +439,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                         >
                           {checked && <span style={{ fontSize: 10 }}>&#x2713;</span>}
                           {isRateLocked && !checked && (
-                            <span style={{ fontSize: 8, color: "rgba(255,165,0,0.7)" }}>&#x1F512;</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,165,0,0.7)" }}>&#x1F512;</span>
                           )}
                         </div>
 
@@ -558,7 +562,7 @@ const filterCount = {
 };
 
 const skillBadgeStyle = {
-  fontSize: 9,
+  fontSize: 11,
   fontWeight: 700,
   padding: "1px 6px",
   borderRadius: 4,
@@ -568,7 +572,7 @@ const skillBadgeStyle = {
 };
 
 const focusBadge = {
-  fontSize: 8,
+  fontSize: 11,
   fontWeight: 800,
   padding: "2px 6px",
   borderRadius: 4,
@@ -579,7 +583,7 @@ const focusBadge = {
 };
 
 const masteredBadge = {
-  fontSize: 8,
+  fontSize: 11,
   fontWeight: 800,
   padding: "2px 6px",
   borderRadius: 4,
@@ -606,9 +610,9 @@ const removeFocusBtn = {
   fontWeight: 700,
   padding: "5px 12px",
   borderRadius: 8,
-  background: "rgba(255,255,255,0.04)",
-  color: "rgba(255,255,255,0.4)",
-  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(128,128,128,0.08)",
+  color: "rgba(128,128,128,0.6)",
+  border: "1px solid rgba(128,128,128,0.15)",
   cursor: "pointer",
   transition: "all 0.2s",
 };
@@ -641,7 +645,7 @@ const countdownStyle = {
 const progressBarOuter = {
   height: 3,
   borderRadius: 2,
-  background: "rgba(255,255,255,0.05)",
+  background: "rgba(128,128,128,0.12)",
   overflow: "hidden",
 };
 

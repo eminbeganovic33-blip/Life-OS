@@ -69,7 +69,7 @@ const statNum = {
   color: "#7C5CFC",
 };
 const statLabel = {
-  fontSize: 9,
+  fontSize: 11,
   opacity: 0.4,
   marginTop: 2,
   textTransform: "uppercase",

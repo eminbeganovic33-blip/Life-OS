@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { S } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 import { SOBRIETY_DEFAULTS } from "../../data";
 import { getProgramDay } from "../../data/forgePrograms";
 import { daysBetween } from "../../utils";
@@ -39,6 +40,22 @@ function getStreakEmoji(daysClean) {
 // ── Main Component ──
 
 export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const fs = useMemo(() => {
+    if (isDark) return styles;
+    return {
+      ...styles,
+      tabBar: { ...styles.tabBar, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      tab: { ...styles.tab, color: colors.textSecondary },
+      goalBtn: { ...styles.goalBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.text },
+      customGoalInput: { ...styles.customGoalInput, background: colors.inputBg, color: colors.text, border: `1px solid ${colors.inputBorder}` },
+      tipCard: { ...styles.tipCard, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      miniJournalEntry: { ...styles.miniJournalEntry, background: colors.cardBg },
+      filterBtn: { ...styles.filterBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.textSecondary },
+      journalEntry: { ...styles.journalEntry, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+    };
+  }, [isDark, colors]);
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasUnlimitedForge = checkFeatureAccess(FEATURE_IDS.UNLIMITED_FORGE);
 
@@ -84,24 +101,24 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
   return (
     <div style={S.vc}>
       <div style={S.secTitle}>The Forge</div>
-      <div style={styles.subtitle}>
+      <div style={fs.subtitle}>
         Track what you're breaking free from. Every day without is a victory.
       </div>
 
       {/* Tab Bar */}
-      <div style={styles.tabBar}>
+      <div style={fs.tabBar}>
         {["trackers", "journal"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              ...styles.tab,
-              ...(activeTab === tab ? styles.tabActive : {}),
+              ...fs.tab,
+              ...(activeTab === tab ? fs.tabActive : {}),
             }}
           >
             {tab === "trackers" ? "Trackers" : "Journal"}
             {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
-              <span style={styles.tabBadge}>{state.recoveryJournals.length}</span>
+              <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
             )}
           </button>
         ))}
@@ -138,7 +155,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
 
       {/* Premium upsell for free users */}
       {!hasUnlimitedForge && (
-        <div style={styles.upgradeBanner} onClick={() => setShowUpgrade(true)}>
+        <div style={fs.upgradeBanner} onClick={() => setShowUpgrade(true)}>
           <span style={{ fontSize: 16 }}>👑</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Custom Trackers</div>
@@ -519,7 +536,7 @@ const styles = {
     color: "#7C5CFC",
   },
   tabBadge: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 700,
     background: "rgba(124,92,252,0.25)",
     color: "#7C5CFC",
@@ -619,7 +636,7 @@ const styles = {
     border: "1px solid",
   },
   milestoneLabel: {
-    fontSize: 7,
+    fontSize: 11,
     fontWeight: 700,
   },
   tipCard: {

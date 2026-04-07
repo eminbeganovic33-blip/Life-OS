@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { S } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 import { getTodayStr } from "../../utils";
 import { chatWithCoach } from "../../utils/ai";
 import {
@@ -35,6 +36,35 @@ const DIFFICULTY_COLORS = {
 // ── Main Component ──
 
 export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDeleteEntry }) {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+
+  // Theme overrides for styles that use hardcoded rgba(255,255,255,...)
+  const ds = useMemo(() => {
+    if (isDark) return styles; // dark mode is the default, no overrides needed
+    return {
+      ...styles,
+      tabBtn: { ...styles.tabBtn, border: `1px solid ${colors.cardBorder}`, color: colors.textSecondary },
+      actionSection: { ...styles.actionSection, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      templateChip: { ...styles.templateChip, border: `1px solid ${colors.cardBorder}`, background: colors.cardBg },
+      planOverview: { ...styles.planOverview, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      planItem: { ...styles.planItem, borderBottom: `1px solid ${colors.cardBorder}` },
+      searchInput: { ...styles.searchInput, border: `1px solid ${colors.inputBorder}`, background: colors.inputBg, color: colors.text },
+      exerciseList: { ...styles.exerciseList, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      exerciseItem: { ...styles.exerciseItem, borderBottom: `1px solid ${colors.cardBorder}` },
+      summaryRow: { ...styles.summaryRow, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      historyDay: { ...styles.historyDay, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      historyExercise: { ...styles.historyExercise, background: `rgba(0,0,0,0.04)` },
+      filterChip: { ...styles.filterChip, border: `1px solid ${colors.cardBorder}`, color: colors.textSecondary },
+      libraryItem: { ...styles.libraryItem, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      detailCard: { ...styles.detailCard, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      equipmentTag: { ...styles.equipmentTag, background: `rgba(0,0,0,0.04)`, border: `1px solid ${colors.cardBorder}` },
+      programCard: { ...styles.programCard, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      programExercise: { ...styles.programExercise, borderBottom: `1px solid ${colors.cardBorder}` },
+    };
+  }, [isDark, colors]);
+
   // Tab: "workout" | "library" | "programs"
   const [tab, setTab] = useState("workout");
 
@@ -372,7 +402,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const color = DIFFICULTY_COLORS[level] || "#888";
     return (
       <span style={{
-        fontSize: 8, fontWeight: 700, textTransform: "uppercase",
+        fontSize: 11, fontWeight: 700, textTransform: "uppercase",
         color, opacity: 0.8,
       }}>
         {level}
@@ -382,15 +412,15 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   function renderSetLogger(setsList, setFn, onSave, exerciseName, hint) {
     return (
-      <div style={styles.loggerCard}>
-        <div style={styles.loggerHeader}>
+      <div style={ds.loggerCard}>
+        <div style={ds.loggerHeader}>
           <span style={{ fontSize: 15, fontWeight: 800 }}>{exerciseName}</span>
           {hint && <span style={{ fontSize: 11, opacity: 0.4 }}>{hint}</span>}
         </div>
 
         {setsList.map((set, i) => (
-          <div key={i} style={styles.setRow}>
-            <div style={styles.setLabel}>Set {i + 1}</div>
+          <div key={i} style={ds.setRow}>
+            <div style={ds.setLabel}>Set {i + 1}</div>
             <input
               type="number"
               placeholder="kg"
@@ -407,20 +437,20 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               style={S.setInput}
             />
             {setsList.length > 1 && (
-              <button style={styles.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
+              <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
                 &times;
               </button>
             )}
           </div>
         ))}
 
-        <button style={styles.addSetLink} onClick={() => handleAddSet(setsList, setFn)}>
+        <button style={ds.addSetLink} onClick={() => handleAddSet(setsList, setFn)}>
           + Add Set
         </button>
 
-        <div style={styles.loggerActions}>
+        <div style={ds.loggerActions}>
           <button style={S.timerBtnSec} onClick={resetWorkout}>Cancel</button>
-          <button style={styles.doneBtn} onClick={onSave}>Done</button>
+          <button style={ds.doneBtn} onClick={onSave}>Done</button>
         </div>
       </div>
     );
@@ -433,19 +463,19 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       <>
         {/* Start Session */}
         {!mode && todayLogs.length === 0 && (
-          <div style={styles.actionSection}>
+          <div style={ds.actionSection}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, opacity: 0.5 }}>
               Start Today's Session
             </div>
-            <div style={styles.actionButtons}>
-              <button style={styles.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
+            <div style={ds.actionButtons}>
+              <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
                 {aiLoading ? "Generating..." : "🤖 AI Workout"}
               </button>
-              <button style={styles.customButton} onClick={() => setMode("custom")}>
+              <button style={ds.customButton} onClick={() => setMode("custom")}>
                 ✏️ Custom
               </button>
             </div>
-            {aiError && <div style={styles.errorText}>{aiError}</div>}
+            {aiError && <div style={ds.errorText}>{aiError}</div>}
           </div>
         )}
 
@@ -459,7 +489,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               {WORKOUT_TEMPLATES.map((t) => (
                 <button
                   key={t.id}
-                  style={styles.templateChip}
+                  style={ds.templateChip}
                   onClick={() => startTemplate(t)}
                 >
                   <span style={{ fontSize: 16 }}>{t.icon}</span>
@@ -475,8 +505,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {/* AI Loading */}
         {aiLoading && (
-          <div style={styles.loadingCard}>
-            <div style={styles.loadingPulse} />
+          <div style={ds.loadingCard}>
+            <div style={ds.loadingPulse} />
             <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.6 }}>Generating your workout...</div>
           </div>
         )}
@@ -494,23 +524,23 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {/* Custom Exercise Picker */}
         {mode === "custom" && !activeExercise && (
-          <div style={styles.pickerSection}>
+          <div style={ds.pickerSection}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 13, fontWeight: 800 }}>Choose Exercise</span>
-              <button style={styles.backLink} onClick={resetWorkout}>Back</button>
+              <button style={ds.backLink} onClick={resetWorkout}>Back</button>
             </div>
             <input
               type="text"
               placeholder="Search exercises..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={styles.searchInput}
+              style={ds.searchInput}
             />
-            <div style={styles.exerciseList}>
+            <div style={ds.exerciseList}>
               {filteredCustomExercises.map((ex) => (
                 <div
                   key={ex.id}
-                  style={styles.exerciseItem}
+                  style={ds.exerciseItem}
                   onClick={() => { setActiveExercise(ex.id); setSets([{ weight: "", reps: "" }]); }}
                 >
                   <div style={{ flex: 1 }}>
@@ -554,8 +584,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
               if (isEditing) {
                 return (
-                  <div key={i} style={styles.loggerCard}>
-                    <div style={styles.loggerHeader}>
+                  <div key={i} style={ds.loggerCard}>
+                    <div style={ds.loggerHeader}>
                       <span style={{ fontSize: 15, fontWeight: 800 }}>
                         {exercise?.name || entry.exercise}
                       </span>
@@ -563,8 +593,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                     </div>
 
                     {editSets.map((set, si) => (
-                      <div key={si} style={styles.setRow}>
-                        <div style={styles.setLabel}>Set {si + 1}</div>
+                      <div key={si} style={ds.setRow}>
+                        <div style={ds.setLabel}>Set {si + 1}</div>
                         <input
                           type="number"
                           placeholder="kg"
@@ -581,27 +611,27 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                           style={S.setInput}
                         />
                         {editSets.length > 1 && (
-                          <button style={styles.removeSetBtn} onClick={() => handleRemoveSet(editSets, setEditSets, si)}>
+                          <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(editSets, setEditSets, si)}>
                             &times;
                           </button>
                         )}
                       </div>
                     ))}
 
-                    <button style={styles.addSetLink} onClick={() => handleAddSet(editSets, setEditSets)}>
+                    <button style={ds.addSetLink} onClick={() => handleAddSet(editSets, setEditSets)}>
                       + Add Set
                     </button>
 
-                    <div style={styles.loggerActions}>
+                    <div style={ds.loggerActions}>
                       <button style={S.timerBtnSec} onClick={cancelEdit}>Cancel</button>
-                      <button style={styles.doneBtn} onClick={saveEditEntry}>Save</button>
+                      <button style={ds.doneBtn} onClick={saveEditEntry}>Save</button>
                     </div>
                   </div>
                 );
               }
 
               return (
-                <div key={i} style={styles.summaryRow}>
+                <div key={i} style={ds.summaryRow}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>
                       {exercise?.name || entry.exercise}
@@ -618,14 +648,14 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                       </div>
                     </div>
                     <button
-                      style={styles.editBtn}
+                      style={ds.editBtn}
                       onClick={() => startEditEntry(i)}
                       title="Edit"
                     >
                       ✏️
                     </button>
                     <button
-                      style={styles.deleteBtn}
+                      style={ds.deleteBtn}
                       onClick={() => confirmDeleteEntry(i)}
                       title="Delete"
                     >
@@ -635,7 +665,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                 </div>
               );
             })}
-            <div style={styles.totalRow}>
+            <div style={ds.totalRow}>
               <span style={{ opacity: 0.5, fontSize: 12 }}>Total Volume</span>
               <span style={{ fontWeight: 800, fontSize: 14, color: "#7C5CFC" }}>
                 {todayVolume.toLocaleString()} kg
@@ -643,11 +673,11 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             </div>
 
             {!mode && (
-              <div style={{ ...styles.actionButtons, marginTop: 10 }}>
-                <button style={styles.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
+              <div style={{ ...ds.actionButtons, marginTop: 10 }}>
+                <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
                   {aiLoading ? "..." : "🤖 AI Workout"}
                 </button>
-                <button style={styles.customButton} onClick={() => setMode("custom")}>
+                <button style={ds.customButton} onClick={() => setMode("custom")}>
                   + Add Exercise
                 </button>
               </div>
@@ -666,8 +696,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                   (sum, entry) => sum + entry.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
                 );
                 return (
-                  <div key={date} style={styles.historyDay}>
-                    <div style={styles.historyHeader}>
+                  <div key={date} style={ds.historyDay}>
+                    <div style={ds.historyHeader}>
                       <span style={{ fontSize: 12, fontWeight: 700 }}>{formatDate(date)}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>
                         {dayVolume.toLocaleString()} kg
@@ -677,7 +707,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                       {entries.map((entry, i) => {
                         const exercise = getExerciseById(entry.exercise);
                         return (
-                          <span key={i} style={styles.historyExercise}>
+                          <span key={i} style={ds.historyExercise}>
                             {exercise?.name || entry.exercise}
                             <span style={{ opacity: 0.4, marginLeft: 4 }}>{entry.sets.length}s</span>
                           </span>
@@ -698,18 +728,18 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title) {
     return (
-      <div style={styles.planSection}>
-        <div style={styles.planHeader}>
+      <div style={ds.planSection}>
+        <div style={ds.planHeader}>
           <span style={{ fontSize: 13, fontWeight: 800 }}>{title}</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 11, opacity: 0.4 }}>
               {currentIndex + 1} / {exercises.length}
             </span>
-            <button style={styles.backLink} onClick={resetWorkout}>Exit</button>
+            <button style={ds.backLink} onClick={resetWorkout}>Exit</button>
           </div>
         </div>
 
-        <div style={styles.planOverview}>
+        <div style={ds.planOverview}>
           {exercises.map((ex, i) => {
             const done = i < currentIndex;
             const active = i === currentIndex;
@@ -718,7 +748,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               <div
                 key={i}
                 style={{
-                  ...styles.planItem,
+                  ...ds.planItem,
                   opacity: done ? 0.4 : 1,
                   borderLeft: active ? "3px solid #7C5CFC" : "3px solid transparent",
                   background: active ? "rgba(124,92,252,0.06)" : "transparent",
@@ -768,15 +798,15 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           placeholder="Search exercises..."
           value={librarySearch}
           onChange={(e) => setLibrarySearch(e.target.value)}
-          style={{ ...styles.searchInput, margin: "8px 14px", width: "calc(100% - 28px)" }}
+          style={{ ...ds.searchInput, margin: "8px 14px", width: "calc(100% - 28px)" }}
         />
 
         {/* Muscle Group Filters */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 14px", marginBottom: 10 }}>
           <button
             style={{
-              ...styles.filterChip,
-              ...(libraryFilter === "all" ? styles.filterChipActive : {}),
+              ...ds.filterChip,
+              ...(libraryFilter === "all" ? ds.filterChipActive : {}),
             }}
             onClick={() => setLibraryFilter("all")}
           >
@@ -789,7 +819,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               <button
                 key={mg.id}
                 style={{
-                  ...styles.filterChip,
+                  ...ds.filterChip,
                   ...(isActive ? {
                     background: `${mg.color}18`,
                     border: `1px solid ${mg.color}50`,
@@ -809,7 +839,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           {filteredLibrary.map((ex) => (
             <div
               key={ex.id}
-              style={styles.libraryItem}
+              style={ds.libraryItem}
               onClick={() => setSelectedExercise(ex)}
             >
               <div style={{ flex: 1 }}>
@@ -817,7 +847,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                 <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center" }}>
                   <MuscleTag muscle={ex.muscle} small />
                   <DifficultyBadge level={ex.difficulty} />
-                  <span style={{ fontSize: 9, opacity: 0.3 }}>
+                  <span style={{ fontSize: 11, opacity: 0.3 }}>
                     {ex.equipment.map((e) => EQUIPMENT[e]).join(", ")}
                   </span>
                 </div>
@@ -841,11 +871,11 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const mg = MUSCLE_GROUPS.find((m) => m.id === exercise.muscle);
     return (
       <div style={{ padding: "0 14px", paddingBottom: 20 }}>
-        <button style={styles.backLink} onClick={() => setSelectedExercise(null)}>
+        <button style={ds.backLink} onClick={() => setSelectedExercise(null)}>
           ← Back to Library
         </button>
 
-        <div style={styles.detailCard}>
+        <div style={ds.detailCard}>
           <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 4px", letterSpacing: -0.5 }}>
             {exercise.name}
           </h2>
@@ -856,19 +886,19 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           </div>
 
           {/* Equipment */}
-          <div style={styles.detailSection}>
-            <div style={styles.detailLabel}>Equipment</div>
+          <div style={ds.detailSection}>
+            <div style={ds.detailLabel}>Equipment</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {exercise.equipment.map((eq) => (
-                <span key={eq} style={styles.equipmentTag}>{EQUIPMENT[eq] || eq}</span>
+                <span key={eq} style={ds.equipmentTag}>{EQUIPMENT[eq] || eq}</span>
               ))}
             </div>
           </div>
 
           {/* Secondary Muscles */}
           {exercise.secondary?.length > 0 && (
-            <div style={styles.detailSection}>
-              <div style={styles.detailLabel}>Also Works</div>
+            <div style={ds.detailSection}>
+              <div style={ds.detailLabel}>Also Works</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {exercise.secondary.map((m) => <MuscleTag key={m} muscle={m} small />)}
               </div>
@@ -876,8 +906,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           )}
 
           {/* Instructions */}
-          <div style={styles.detailSection}>
-            <div style={styles.detailLabel}>How To Perform</div>
+          <div style={ds.detailSection}>
+            <div style={ds.detailLabel}>How To Perform</div>
             <ol style={{ margin: 0, paddingLeft: 18 }}>
               {exercise.instructions.map((step, i) => (
                 <li key={i} style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 4, opacity: 0.85 }}>
@@ -889,7 +919,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
           {/* Tips */}
           {exercise.tips && (
-            <div style={{ ...styles.detailSection, ...styles.tipBox }}>
+            <div style={{ ...ds.detailSection, ...ds.tipBox }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#22C55E", marginBottom: 4 }}>
                 💡 PRO TIP
               </div>
@@ -901,8 +931,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
           {/* Common Mistakes */}
           {exercise.commonMistakes?.length > 0 && (
-            <div style={styles.detailSection}>
-              <div style={styles.detailLabel}>Common Mistakes</div>
+            <div style={ds.detailSection}>
+              <div style={ds.detailLabel}>Common Mistakes</div>
               {exercise.commonMistakes.map((mistake, i) => (
                 <div key={i} style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.8, paddingLeft: 12 }}>
                   ⚠️ {mistake}
@@ -913,7 +943,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
           {/* Quick Log Button */}
           <button
-            style={{ ...styles.aiButton, marginTop: 16, width: "100%" }}
+            style={{ ...ds.aiButton, marginTop: 16, width: "100%" }}
             onClick={() => {
               setActiveExercise(exercise.id);
               setSets([{ weight: "", reps: "" }]);
@@ -943,7 +973,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           const muscleGroups = [...new Set(exercises.map((e) => e.muscle))];
 
           return (
-            <div key={t.id} style={styles.programCard}>
+            <div key={t.id} style={ds.programCard}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                 <span style={{ fontSize: 28 }}>{t.icon}</span>
                 <div style={{ flex: 1 }}>
@@ -963,7 +993,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               {t.exercises.map((ex, i) => {
                 const exercise = getExerciseById(ex.exerciseId);
                 return (
-                  <div key={i} style={styles.programExercise}>
+                  <div key={i} style={ds.programExercise}>
                     <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>
                       {exercise?.name || ex.exerciseId}
                     </span>
@@ -975,7 +1005,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               })}
 
               <button
-                style={{ ...styles.aiButton, marginTop: 10, width: "100%" }}
+                style={{ ...ds.aiButton, marginTop: 10, width: "100%" }}
                 onClick={() => { startTemplate(t); setTab("workout"); }}
               >
                 Start This Workout
@@ -992,9 +1022,9 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   return (
     <div style={S.vc}>
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerTitle}>The Dojo</div>
-        <div style={styles.headerSub}>Train hard. Log everything. Level up.</div>
+      <div style={ds.header}>
+        <div style={ds.headerTitle}>The Dojo</div>
+        <div style={ds.headerSub}>Train hard. Log everything. Level up.</div>
         {state.liftingStreak > 0 && (
           <div style={{ fontSize: 12, marginTop: 4 }}>
             🔥 <strong>{state.liftingStreak}</strong> day lifting streak
@@ -1004,7 +1034,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       </div>
 
       {/* Tabs */}
-      <div style={styles.tabBar}>
+      <div style={ds.tabBar}>
         {[
           { id: "workout", label: "Workout" },
           { id: "library", label: `Library (${EXERCISE_LIBRARY.length})` },
@@ -1013,8 +1043,8 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <button
             key={t.id}
             style={{
-              ...styles.tabBtn,
-              ...(tab === t.id ? styles.tabBtnActive : {}),
+              ...ds.tabBtn,
+              ...(tab === t.id ? ds.tabBtnActive : {}),
             }}
             onClick={() => { setTab(t.id); setSelectedExercise(null); }}
           >

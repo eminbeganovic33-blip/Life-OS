@@ -73,7 +73,7 @@ export default function ToolsView({ state, user, pomodoro, onReset, onOpenNotifi
             <div key={t.id} style={{ ...S.trophyCard, ...(unlocked ? S.trophyUnlocked : {}), opacity: unlocked ? 1 : 0.35 }}>
               <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)" }}>{t.icon}</div>
               <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, textAlign: "center" }}>{t.name}</div>
-              <div style={{ fontSize: 9, opacity: 0.4, textAlign: "center", marginTop: 2 }}>
+              <div style={{ fontSize: 11, opacity: 0.4, textAlign: "center", marginTop: 2 }}>
                 {unlocked ? `+${t.xpReward} XP` : t.desc}
               </div>
             </div>

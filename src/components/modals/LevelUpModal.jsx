@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { LEVELS } from "../../data";
 
@@ -19,12 +20,29 @@ export default function LevelUpModal({ levelIndex, onDismiss }) {
   const perk = LEVEL_PERKS[levelIndex];
 
   return (
-    <div style={S.overlay} onClick={onDismiss}>
-      <div style={levelUpCard} onClick={(e) => e.stopPropagation()}>
+    <motion.div
+      style={S.overlay}
+      onClick={onDismiss}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        style={levelUpCard}
+        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.7, rotate: -3 }}
+        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 250, damping: 20, delay: 0.1 }}
+      >
         <div style={glowBg} />
-        <div style={{ fontSize: 56, position: "relative", zIndex: 2, marginBottom: 4 }}>
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 12, delay: 0.3 }}
+          style={{ fontSize: 56, position: "relative", zIndex: 2, marginBottom: 4 }}
+        >
           {levelIndex >= 6 ? "👑" : levelIndex >= 4 ? "⚔️" : "🔓"}
-        </div>
+        </motion.div>
         <div style={badge}>LEVEL UP</div>
         <div style={titleStyle}>
           Lv.{levelIndex + 1} {level.name}
@@ -39,8 +57,8 @@ export default function LevelUpModal({ levelIndex, onDismiss }) {
           </div>
         )}
         <button style={{ ...S.motBtn, position: "relative", zIndex: 10 }} onClick={(e) => { e.stopPropagation(); onDismiss(); }}>Continue →</button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

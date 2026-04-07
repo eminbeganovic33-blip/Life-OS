@@ -1,5 +1,6 @@
 import { CATEGORIES, QUESTS_TEMPLATE, LEVELS } from "../data";
 import { calculateQuestXP } from "./xpEngine";
+import { getCategoryCompletionRates, getAdaptiveDifficulty, ADAPTIVE_QUESTS } from "./intelligence";
 
 export function getLevel(xp) {
   let l = LEVELS[0];
@@ -34,14 +35,28 @@ export function getTodayStr() {
  * Feature Set 4: Quests now use calculateQuestXP for dynamic XP.
  * Custom quests from state are merged in when provided.
  */
-export function getDayQuests(day, customQuests) {
-  const coreQuests = CATEGORIES.map((cat) => ({
-    id: `${cat.id}-${day}`,
-    category: cat.id,
-    text: QUESTS_TEMPLATE[cat.id][(day - 1) % QUESTS_TEMPLATE[cat.id].length],
-    xp: 0, // placeholder, calculated below
-    isCore: true,
-  }));
+export function getDayQuests(day, customQuests, state) {
+  // When state is provided, use adaptive difficulty to pick quest text
+  const rates = state ? getCategoryCompletionRates(state) : null;
+
+  const coreQuests = CATEGORIES.map((cat) => {
+    let text = QUESTS_TEMPLATE[cat.id][(day - 1) % QUESTS_TEMPLATE[cat.id].length];
+
+    // Adaptive quest text: if user has enough history, swap in difficulty-appropriate quest
+    if (rates && state.currentDay > 7 && ADAPTIVE_QUESTS[cat.id]) {
+      const difficulty = getAdaptiveDifficulty(rates[cat.id] || 0);
+      text = ADAPTIVE_QUESTS[cat.id][difficulty] || text;
+    }
+
+    return {
+      id: `${cat.id}-${day}`,
+      category: cat.id,
+      text,
+      xp: 0,
+      isCore: true,
+      difficulty: rates && state.currentDay > 7 ? getAdaptiveDifficulty(rates[cat.id] || 0) : undefined,
+    };
+  });
 
   // Apply intelligent XP weighting
   coreQuests.forEach((q) => {

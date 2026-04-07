@@ -24,7 +24,7 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 // --- Helpers ---
 
-function getCategoryCompletionRates(state) {
+export function getCategoryCompletionRates(state) {
   const { completedQuests = {} } = state;
   const counts = {};
   const totals = {};
@@ -96,6 +96,48 @@ function scoreText(text) {
   return { score, sentiment, keywords };
 }
 
+// --- Adaptive Difficulty System ---
+// If completion rate < 30% → easy variant. 30-70% → standard. > 80% → hard.
+
+export const ADAPTIVE_QUESTS = {
+  sleep: {
+    easy: "Set a bedtime alarm for tonight — just getting the reminder counts",
+    standard: "Get to bed by 10:30 PM tonight",
+    hard: "No screens 1 hour before bed AND in bed by 10 PM",
+  },
+  water: {
+    easy: "Drink 3 glasses of water today — start with one right now",
+    standard: "Drink 8 glasses of water today",
+    hard: "Drink 3L of water and replace all sugary drinks today",
+  },
+  exercise: {
+    easy: "Go for a 10 minute walk outside",
+    standard: "Do a 20 minute bodyweight workout",
+    hard: "Complete a 45 minute intense training session",
+  },
+  mind: {
+    easy: "Close your eyes and take 10 deep breaths",
+    standard: "Read for 15 minutes or meditate for 10",
+    hard: "Meditate for 20 minutes AND read 30 pages of non-fiction",
+  },
+  screen: {
+    easy: "Put your phone in another room for 30 minutes",
+    standard: "No phone for the first hour after waking",
+    hard: "Complete a 4-hour digital detox — no social media, no news",
+  },
+  shower: {
+    easy: "End your regular shower with 15 seconds of cool water",
+    standard: "Take a cold shower for at least 60 seconds",
+    hard: "Full 3-minute cold shower — no warm water at all",
+  },
+};
+
+export function getAdaptiveDifficulty(rate) {
+  if (rate < 0.3) return "easy";
+  if (rate > 0.8) return "hard";
+  return "standard";
+}
+
 // --- 1. Quest Suggestions ---
 
 export function getQuestSuggestions(state) {
@@ -113,25 +155,21 @@ export function getQuestSuggestions(state) {
   const todayQuests = completedQuests[currentDay] || [];
   const yesterdayQuests = completedQuests[yesterday] || [];
 
-  // Find weakest category
+  // Find weakest category — use adaptive difficulty
   const sortedCats = CATEGORIES_LIST
     .map((cat) => ({ cat, rate: rates[cat] }))
     .sort((a, b) => a.rate - b.rate);
 
   const weakest = sortedCats[0];
   if (weakest && weakest.rate < 0.7) {
-    const templates = {
-      sleep: "Get to bed by 10:30 PM tonight",
-      water: "Drink 8 glasses of water today",
-      exercise: "Do a 20 minute bodyweight workout",
-      mind: "Read for 15 minutes or meditate for 10",
-      screen: "No phone for the first hour after waking",
-      shower: "Take a cold shower for at least 60 seconds",
-    };
+    const difficulty = getAdaptiveDifficulty(weakest.rate);
+    const questText = ADAPTIVE_QUESTS[weakest.cat]?.[difficulty] || ADAPTIVE_QUESTS[weakest.cat]?.standard;
+    const diffLabel = difficulty === "easy" ? "easier version" : difficulty === "hard" ? "upgraded challenge" : "quest";
     suggestions.push({
-      text: templates[weakest.cat],
+      text: questText,
       category: weakest.cat,
-      reason: `Your ${weakest.cat} completion rate is only ${Math.round(weakest.rate * 100)}% — your weakest area`,
+      reason: `Your ${weakest.cat} rate is ${Math.round(weakest.rate * 100)}% — here's an ${diffLabel} to build momentum`,
+      difficulty,
     });
   }
 
@@ -172,20 +210,18 @@ export function getQuestSuggestions(state) {
     });
   }
 
-  // Strong mind category → harder variants
-  if (rates.mind >= 0.8) {
-    const hardMind = [
-      "Meditate for 20 minutes without any background noise",
-      "Write a full-page journal entry reflecting on your growth",
-      "Read 30 pages of a non-fiction book today",
-      "Do a complete digital detox for 3 hours",
-    ];
-    const pick = hardMind[currentDay % hardMind.length];
-    suggestions.push({
-      text: pick,
-      category: "mind",
-      reason: "You're crushing the mind category — here's a harder challenge",
-    });
+  // Strongest category → auto-upgrade difficulty
+  const strongest = sortedCats[sortedCats.length - 1];
+  if (strongest && strongest.rate >= 0.8 && strongest.cat !== weakest?.cat) {
+    const hardQuest = ADAPTIVE_QUESTS[strongest.cat]?.hard;
+    if (hardQuest) {
+      suggestions.push({
+        text: hardQuest,
+        category: strongest.cat,
+        reason: `You're at ${Math.round(strongest.rate * 100)}% in ${strongest.cat} — upgraded challenge unlocked`,
+        difficulty: "hard",
+      });
+    }
   }
 
   // Active forge trackers → complementary quests
@@ -403,7 +439,118 @@ export function getPersonalizedQuote(state, allQuotes) {
   };
 }
 
-// --- 4. Trigger Map ---
+// --- 4. Proactive AI Nudges ---
+// Surfaces context-aware insights without user having to ask
+
+export function getProactiveNudges(state) {
+  const nudges = [];
+  const {
+    currentDay = 1, streak = 0, moods = {}, journal = {},
+    completedQuests = {}, sobrietyDates = {}, liftingStreak = 0,
+  } = state;
+
+  const rates = getCategoryCompletionRates(state);
+  const latestMood = getLatestMood(state);
+
+  // 1. Mood decline detection — if last 3 moods trend downward
+  const moodDays = Object.keys(moods).map(Number).sort((a, b) => b - a).slice(0, 3);
+  if (moodDays.length >= 3) {
+    const recentMoods = moodDays.map((d) => moods[d]);
+    const declining = recentMoods[0] < recentMoods[1] && recentMoods[1] < recentMoods[2];
+    if (declining) {
+      nudges.push({
+        type: "mood_decline",
+        icon: "💙",
+        title: "Mood check-in",
+        message: "Your mood has been dipping the last few days. Want to write about what's going on? Sometimes naming it helps.",
+        action: "journal",
+        priority: 3,
+      });
+    }
+  }
+
+  // 2. Journal gap — haven't journaled in 3+ days
+  const journalDays = Object.keys(journal).map(Number).sort((a, b) => b - a);
+  const daysSinceJournal = journalDays.length > 0 ? currentDay - journalDays[0] : currentDay;
+  if (daysSinceJournal >= 3 && currentDay > 3) {
+    nudges.push({
+      type: "journal_gap",
+      icon: "📝",
+      title: "Haven't journaled in a while",
+      message: `It's been ${daysSinceJournal} days since your last entry. Even a quick sentence helps track your progress.`,
+      action: "journal",
+      priority: 2,
+    });
+  }
+
+  // 3. Forge milestone approaching
+  for (const [trackerId, startDate] of Object.entries(sobrietyDates)) {
+    if (!startDate) continue;
+    const daysClean = Math.floor((Date.now() - new Date(startDate).getTime()) / 86400000);
+    const milestones = [7, 14, 21, 30, 60, 90];
+    for (const m of milestones) {
+      if (daysClean >= m - 2 && daysClean < m) {
+        const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
+        nudges.push({
+          type: "forge_milestone",
+          icon: "🔥",
+          title: `${m}-day milestone incoming`,
+          message: `You're ${m - daysClean} day${m - daysClean === 1 ? "" : "s"} away from ${m} days clean of ${labels[trackerId] || trackerId}. Stay focused — you're almost there.`,
+          action: "forge",
+          priority: 3,
+        });
+        break; // only one milestone nudge per tracker
+      }
+    }
+  }
+
+  // 4. Weak category nudge — if a category drops below 30% over 7+ days
+  if (currentDay > 7) {
+    for (const cat of CATEGORIES_LIST) {
+      if (rates[cat] < 0.3) {
+        const difficulty = "easy";
+        const easyQuest = ADAPTIVE_QUESTS[cat]?.easy;
+        nudges.push({
+          type: "weak_category",
+          icon: "🎯",
+          title: `${cat.charAt(0).toUpperCase() + cat.slice(1)} needs attention`,
+          message: `Your ${cat} completion is only ${Math.round(rates[cat] * 100)}%. Try an easier version: "${easyQuest}"`,
+          action: "home",
+          priority: 1,
+        });
+        break; // only nudge about 1 weak category at a time
+      }
+    }
+  }
+
+  // 5. Streak celebration / motivation
+  if (streak > 0 && streak % 7 === 0) {
+    nudges.push({
+      type: "streak_celebration",
+      icon: "🎉",
+      title: `${streak}-day streak!`,
+      message: `You've been consistent for ${streak} days straight. That puts you ahead of 90% of users who start habit-building apps.`,
+      priority: 2,
+    });
+  }
+
+  // 6. Lifting gap — if they were lifting but stopped
+  if (liftingStreak === 0 && (state.bestLiftingStreak || 0) >= 3) {
+    nudges.push({
+      type: "lifting_gap",
+      icon: "🏋️",
+      title: "Miss the Dojo?",
+      message: `You had a ${state.bestLiftingStreak}-day lifting streak. Even a light session keeps the habit alive.`,
+      action: "dojo",
+      priority: 1,
+    });
+  }
+
+  // Sort by priority (highest first) and return top 3
+  return nudges.sort((a, b) => b.priority - a.priority).slice(0, 3);
+}
+
+// --- 5. Trigger Map ---
 
 export function getTriggerMap(state) {
   const { recoveryJournals = [] } = state;

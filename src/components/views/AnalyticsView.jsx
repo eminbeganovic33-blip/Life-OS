@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { S } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 import { CATEGORIES, MOODS } from "../../data";
 import {
   getWeeklyXpData,
@@ -13,6 +14,9 @@ import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
 
 export default function AnalyticsView({ state }) {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const [tab, setTab] = useState("overview"); // overview | heatmap | insights
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasAdvancedAnalytics = checkFeatureAccess(FEATURE_IDS.ADVANCED_ANALYTICS);
@@ -57,7 +61,7 @@ export default function AnalyticsView({ state }) {
             key={t.id}
             style={{
               ...tabItem,
-              color: tab === t.id ? "#7C5CFC" : "rgba(255,255,255,0.35)",
+              color: tab === t.id ? "#7C5CFC" : colors.textSecondary,
               borderBottomColor: tab === t.id ? "#7C5CFC" : "transparent",
             }}
             onClick={() => setTab(t.id)}
@@ -212,7 +216,7 @@ export default function AnalyticsView({ state }) {
                   <div key={c.category} style={streakRow}>
                     <span>{c.icon}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{c.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: streakDays > 0 ? "#10B981" : "rgba(255,255,255,0.2)" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: streakDays > 0 ? "#10B981" : sub(0.2) }}>
                       {streakDays > 0 ? `${streakDays}d streak` : "—"}
                     </span>
                   </div>
@@ -271,16 +275,16 @@ const recordsGrid = {
 const recordCard = {
   padding: 14,
   borderRadius: 12,
-  background: "rgba(255,255,255,0.025)",
-  border: "1px solid rgba(255,255,255,0.04)",
+  background: "rgba(128,128,128,0.06)",
+  border: "1px solid rgba(128,128,128,0.1)",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   gap: 2,
 };
-const recordVal = { fontSize: 22, fontWeight: 800, color: "#E2E2EE" };
-const recordLabel = { fontSize: 9, opacity: 0.4, textTransform: "uppercase", letterSpacing: 0.5 };
+const recordVal = { fontSize: 22, fontWeight: 800 };
+const recordLabel = { fontSize: 11, opacity: 0.4, textTransform: "uppercase", letterSpacing: 0.5 };
 const consistentBadge = {
   margin: "8px 14px 0",
   padding: "8px 14px",
@@ -307,12 +311,12 @@ const barCol = {
   alignItems: "center",
   height: "100%",
 };
-const barValue = { fontSize: 9, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, minHeight: 12 };
+const barValue = { fontSize: 11, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, minHeight: 12 };
 const barTrack = {
   flex: 1,
   width: "100%",
   borderRadius: 6,
-  background: "rgba(255,255,255,0.04)",
+  background: "rgba(128,128,128,0.1)",
   position: "relative",
   overflow: "hidden",
   display: "flex",
@@ -326,7 +330,7 @@ const barFill = {
   transition: "height 0.5s ease",
   minHeight: 2,
 };
-const barLabel = { fontSize: 9, opacity: 0.4, marginTop: 4 };
+const barLabel = { fontSize: 11, opacity: 0.4, marginTop: 4 };
 
 // Category bars
 const catContainer = { padding: "0 14px", display: "flex", flexDirection: "column", gap: 8 };
@@ -336,7 +340,7 @@ const catBarOuter = {
   flex: 1,
   height: 8,
   borderRadius: 4,
-  background: "rgba(255,255,255,0.04)",
+  background: "rgba(128,128,128,0.1)",
   overflow: "hidden",
 };
 const catBarInner = {
@@ -361,7 +365,7 @@ const moodCol = {
   gap: 2,
   minWidth: 28,
 };
-const moodDayLabel = { fontSize: 8, opacity: 0.3 };
+const moodDayLabel = { fontSize: 11, opacity: 0.3 };
 
 // Heatmap
 const heatmapGrid = {
@@ -377,7 +381,7 @@ const heatCell = {
   minWidth: 8,
 };
 const heatColors = [
-  "rgba(255,255,255,0.04)",
+  "rgba(128,128,128,0.08)",
   "rgba(124,92,252,0.2)",
   "rgba(124,92,252,0.4)",
   "rgba(124,92,252,0.65)",
@@ -407,7 +411,7 @@ const emptyState = {
   margin: "0 14px",
   padding: 20,
   borderRadius: 12,
-  background: "rgba(255,255,255,0.02)",
+  background: "rgba(128,128,128,0.06)",
   textAlign: "center",
   fontSize: 12,
   opacity: 0.4,
@@ -420,8 +424,8 @@ const streakRow = {
   margin: "0 14px",
   padding: "10px 14px",
   borderRadius: 10,
-  background: "rgba(255,255,255,0.02)",
-  border: "1px solid rgba(255,255,255,0.03)",
+  background: "rgba(128,128,128,0.06)",
+  border: "1px solid rgba(128,128,128,0.1)",
   marginBottom: 6,
 };
 

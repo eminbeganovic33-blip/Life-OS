@@ -6,7 +6,7 @@ export function injectGlobalStyles() {
     @keyframes fadeUp { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-120%) scale(1.3)} }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     ::-webkit-scrollbar{width:0}
-    body{margin:0;background:var(--los-bg,#08080F);transition:background 0.3s ease}
+    body{margin:0;background:var(--los-bg,#0F172A);transition:background 0.3s ease}
     input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
     input[type=number]{-moz-appearance:textfield}
     @keyframes swipeHintSlide { 0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)} }

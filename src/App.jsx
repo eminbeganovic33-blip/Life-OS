@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
 import { getPersonalizedQuote } from "./utils/intelligence";
@@ -6,7 +7,7 @@ import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
   getCalendarDay, getCategoryStreak, defaultState,
 } from "./utils";
-import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme } from "./hooks";
+import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -15,6 +16,7 @@ import AuthScreen from "./components/AuthScreen";
 import Onboarding from "./components/Onboarding";
 import BottomNav from "./components/BottomNav";
 import MotivationModal from "./components/modals/MotivationModal";
+import MorningBrief from "./components/MorningBrief";
 import WorkoutModal from "./components/modals/WorkoutModal";
 import RelapseModal from "./components/modals/RelapseModal";
 import BossModal from "./components/modals/BossModal";
@@ -22,12 +24,15 @@ import LevelUpModal from "./components/modals/LevelUpModal";
 import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
+import DashboardView from "./components/views/DashboardView";
 import HomeView from "./components/views/HomeView";
 import JournalView from "./components/views/JournalView";
 import AcademyView from "./components/views/AcademyView";
 import ForgeView from "./components/views/ForgeView";
 import DojoView from "./components/views/DojoView";
 import ProfileView from "./components/views/ProfileView";
+import AnalyticsView from "./components/views/AnalyticsView";
+import SocialView from "./components/views/SocialView";
 import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
@@ -44,7 +49,7 @@ export default function LifeOS() {
   const { checkTrophies } = useTrophies();
   const pomodoro = usePomodoro(state?.pomodoroMinutes || 25);
 
-  const [view, setView] = useState("home");
+  const [view, setView] = useState("dashboard");
   const [modal, setModal] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [journalText, setJournalText] = useState("");
@@ -86,14 +91,12 @@ export default function LifeOS() {
     prevLevelRef.current = currentLvl;
   }, [state?.xp]);
 
-  // Daily Motivation Card — personalized based on user state
+  // Morning Brief — shows full-screen brief on first daily open
   useEffect(() => {
-    if (state && !modal && view === "home") {
+    if (state && !modal && (view === "home" || view === "dashboard")) {
       const today = getTodayStr();
       if (!state.motivationSeen?.includes(today)) {
-        const personalized = getPersonalizedQuote(state, MOTIVATION_CARDS);
-        setCurrentCard(personalized);
-        setTimeout(() => setModal("motivation"), 500);
+        setTimeout(() => setModal("morning_brief"), 500);
       }
     }
   }, [state?.currentDay, view]);
@@ -139,13 +142,14 @@ export default function LifeOS() {
     if (!user || !state) return;
     updatePublicProfile(user.uid, {
       displayName: user.displayName || state.userName || "Warrior",
-      photoURL: user.photoURL || null,
+      photoURL: state.avatar?.type === "photo" ? state.avatar.value : (user.photoURL || null),
+      avatar: state.avatar || null,
       xp: state.xp,
       streak: state.streak,
       level: getLevelIndex(state.xp),
       currentDay: state.currentDay,
     });
-  }, [user?.uid, state?.xp, state?.streak, state?.currentDay]);
+  }, [user?.uid, state?.xp, state?.streak, state?.currentDay, state?.avatar]);
 
   const [skipAuth, setSkipAuth] = useState(false);
 
@@ -191,7 +195,7 @@ export default function LifeOS() {
     : [];
 
   // Feature Set 4: Quests now include custom quests
-  const quests = getDayQuests(day, state.customQuests);
+  const quests = getDayQuests(day, state.customQuests, state);
   const completed = state.completedQuests[day] || [];
   const allDone = completed.length === quests.length && quests.length > 0;
 
@@ -325,6 +329,15 @@ export default function LifeOS() {
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
     setView("home");
+  }
+
+  // Save raw journal content (used by chat journal for auto-save)
+  function saveJournalRaw(rawContent) {
+    save({
+      ...state,
+      journal: { ...state.journal, [day]: rawContent },
+      moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
+    });
   }
 
   // ── Dojo ──
@@ -490,7 +503,7 @@ export default function LifeOS() {
 
   function resetApp() {
     save(defaultState());
-    setView("home");
+    setView("dashboard");
   }
 
   // ── Modal Rendering ──
@@ -498,6 +511,9 @@ export default function LifeOS() {
     if (!modal) return null;
     if (modal === "motivation") {
       return <MotivationModal card={currentCard} onDismiss={dismissMotivation} />;
+    }
+    if (modal === "morning_brief") {
+      return <MorningBrief state={state} onDismiss={dismissMotivation} />;
     }
     if (modal === "workout") {
       return (
@@ -569,52 +585,64 @@ export default function LifeOS() {
     setModal("workout");
   }
 
+  const lifeOSValue = {
+    state, save, view, setView, xpPopup,
+    checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
+    openDojo, setModal, removeCustomQuest, unlockedCustomCategories,
+    journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    checkCourseStep, uncheckCourseStep, ALL_COURSES,
+    startSobriety, triggerRelapse,
+    user, pomodoro, resetApp,
+    doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
+  };
+
   return (
     <ThemeProvider>
       <PremiumProvider state={state} save={save}>
-        <LifeOSInner
-          state={state} save={save} view={view} setView={setView}
-          renderModal={renderModal} showWeeklySummary={showWeeklySummary}
-          setShowWeeklySummary={setShowWeeklySummary} xpPopup={xpPopup}
-          checkQuest={checkQuest} uncheckQuest={uncheckQuest}
-          completeDay={completeDay} openDojo={openDojo} canCompleteDay={canCompleteDay}
-          calendarDay={calendarDay} setModal={setModal}
-          removeCustomQuest={removeCustomQuest} unlockedCustomCategories={unlockedCustomCategories}
-          journalText={journalText} setJournalText={setJournalText}
-          selectedMood={selectedMood} setSelectedMood={setSelectedMood}
-          saveJournal={saveJournal} checkCourseStep={checkCourseStep}
-          uncheckCourseStep={uncheckCourseStep} ALL_COURSES={ALL_COURSES}
-          startSobriety={startSobriety} triggerRelapse={triggerRelapse}
-          user={user} pomodoro={pomodoro} resetApp={resetApp}
-          doSaveWorkout={doSaveWorkout}
-          updateWorkoutEntry={updateWorkoutEntry}
-          deleteWorkoutEntry={deleteWorkoutEntry}
-        />
+        <LifeOSProvider value={lifeOSValue}>
+          <LifeOSInner
+            renderModal={renderModal}
+            showWeeklySummary={showWeeklySummary}
+            setShowWeeklySummary={setShowWeeklySummary}
+          />
+        </LifeOSProvider>
       </PremiumProvider>
     </ThemeProvider>
   );
 }
 
-function LifeOSInner({
-  state, save, view, setView, renderModal, showWeeklySummary, setShowWeeklySummary,
-  xpPopup, checkQuest, uncheckQuest, completeDay, openDojo, canCompleteDay,
-  calendarDay, setModal, removeCustomQuest, unlockedCustomCategories,
-  journalText, setJournalText, selectedMood, setSelectedMood, saveJournal,
-  checkCourseStep, uncheckCourseStep, ALL_COURSES, startSobriety, triggerRelapse,
-  user, pomodoro, resetApp, doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
-}) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary }) {
+  const {
+    state, save, view, setView, xpPopup,
+    checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
+    openDojo, setModal, removeCustomQuest, unlockedCustomCategories,
+    journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    checkCourseStep, uncheckCourseStep, ALL_COURSES,
+    startSobriety, triggerRelapse,
+    user, pomodoro, resetApp,
+    doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
+  } = useLifeOS();
   const { showUpgrade, setShowUpgrade } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
   const { themed } = useTheme();
 
   const day = state.currentDay;
 
+  // Centralized view change handler — initializes state for views that need it
+  function handleViewChange(v) {
+    if (v === "journal") {
+      setJournalText(state.journal?.[day] || "");
+      setSelectedMood(state.moods?.[day] ?? null);
+    }
+    setView(v);
+  }
+
   return (
     <div style={themed("app")}>
       {renderModal()}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       <div style={S.content}>
-        {view === "home" && showWeeklySummary && (
+        {(view === "home" || view === "dashboard") && showWeeklySummary && (
           <WeeklySummaryBanner
             summary={computeWeeklySummary(state)}
             onDismiss={() => {
@@ -623,55 +651,72 @@ function LifeOSInner({
             }}
           />
         )}
-        {view === "home" && (
-          <HomeView
-            state={state}
-            xpPopup={xpPopup}
-            onCheckQuest={checkQuest}
-            onUncheckQuest={uncheckQuest}
-            onCompleteDay={completeDay}
-            onOpenDojo={openDojo}
-            canCompleteDay={canCompleteDay}
-            calendarDay={calendarDay}
-            onOpenCustomQuest={() => setModal("custom_quest")}
-            onRemoveCustomQuest={removeCustomQuest}
-            unlockedCustomCategories={unlockedCustomCategories}
-            onNavigate={(v) => { if (v === "journal") { setView("home"); setJournalText(state.journal?.[day] || ""); setSelectedMood(state.moods?.[day] ?? null); } setView(v === "journal" ? "journal" : v); }}
-          />
-        )}
-        {view === "journal" && (
-          <JournalView
-            state={state}
-            journalText={journalText}
-            setJournalText={setJournalText}
-            selectedMood={selectedMood}
-            setSelectedMood={setSelectedMood}
-            onSave={saveJournal}
-          />
-        )}
-        {view === "academy" && (
-          <AcademyView
-            state={state}
-            save={save}
-            onCheckStep={checkCourseStep}
-            onUncheckStep={uncheckCourseStep}
-            allCourses={ALL_COURSES}
-          />
-        )}
-        {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} onUpdateEntry={updateWorkoutEntry} onDeleteEntry={deleteWorkoutEntry} />}
-        {view === "forge" && <ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
-        {view === "profile" && (
-          <ProfileView
-            state={state}
-            user={user}
-            pomodoro={pomodoro}
-            onReset={resetApp}
-            onOpenNotifications={() => setModal("notifications")}
-            onOpenJournal={() => { setJournalText(state.journal?.[day] || ""); setSelectedMood(state.moods?.[day] ?? null); setView("journal"); }}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {view === "dashboard" && (
+              <DashboardView state={state} onNavigate={handleViewChange} pomodoro={pomodoro} />
+            )}
+            {view === "home" && (
+              <HomeView
+                state={state}
+                xpPopup={xpPopup}
+                onCheckQuest={checkQuest}
+                onUncheckQuest={uncheckQuest}
+                onCompleteDay={completeDay}
+                onOpenDojo={openDojo}
+                canCompleteDay={canCompleteDay}
+                calendarDay={calendarDay}
+                onOpenCustomQuest={() => setModal("custom_quest")}
+                onRemoveCustomQuest={removeCustomQuest}
+                unlockedCustomCategories={unlockedCustomCategories}
+                onNavigate={handleViewChange}
+              />
+            )}
+            {view === "journal" && (
+              <JournalView
+                state={state}
+                journalText={journalText}
+                setJournalText={setJournalText}
+                selectedMood={selectedMood}
+                setSelectedMood={setSelectedMood}
+                onSave={saveJournal}
+                onSaveRaw={saveJournalRaw}
+              />
+            )}
+            {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} onUpdateEntry={updateWorkoutEntry} onDeleteEntry={deleteWorkoutEntry} />}
+            {view === "forge" && <ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
+            {view === "analytics" && <AnalyticsView state={state} />}
+            {view === "social" && <SocialView user={user} state={state} onNavigate={handleViewChange} />}
+            {view === "academy" && (
+              <AcademyView
+                state={state}
+                save={save}
+                onCheckStep={checkCourseStep}
+                onUncheckStep={uncheckCourseStep}
+                allCourses={ALL_COURSES}
+              />
+            )}
+            {view === "profile" && (
+              <ProfileView
+                state={state}
+                save={save}
+                user={user}
+                pomodoro={pomodoro}
+                onReset={resetApp}
+                onOpenNotifications={() => setModal("notifications")}
+                onNavigate={handleViewChange}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
-      <BottomNav view={view} setView={setView} />
+      <BottomNav view={view} setView={handleViewChange} />
     </div>
   );
 }

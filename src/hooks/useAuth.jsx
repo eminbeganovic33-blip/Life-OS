@@ -8,7 +8,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { auth, googleProvider, firebaseConfigured } from "../firebase";
+import { auth, googleProvider, facebookProvider, firebaseConfigured } from "../firebase";
 
 const AuthContext = createContext(null);
 
@@ -66,6 +66,16 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginWithFacebook = async () => {
+    setError(null);
+    try {
+      await signInWithPopup(auth, facebookProvider);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
   const logout = async () => {
     setError(null);
     try {
@@ -105,6 +115,7 @@ export function AuthProvider({ children }) {
     login,
     signup,
     loginWithGoogle,
+    loginWithFacebook,
     logout,
     resetPassword,
     updateDisplayName,

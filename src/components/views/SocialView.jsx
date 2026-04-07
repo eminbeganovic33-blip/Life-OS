@@ -1,52 +1,104 @@
-import React, { useState, useEffect } from "react";
-import { S } from "../../styles/theme";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { TOKENS, DARK_COLORS } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 import {
-  getLeaderboard,
-  searchUsers,
-  sendFriendRequest,
-  getPendingRequests,
-  acceptFriendRequest,
-  declineFriendRequest,
-  getFriends,
-  getActiveChallenges,
-  createChallenge,
-  getPublicChallenges,
-  joinChallenge,
+  getLeaderboard, searchUsers, sendFriendRequest,
+  getPendingRequests, acceptFriendRequest, declineFriendRequest,
+  getFriends, getActiveChallenges, createChallenge,
+  getPublicChallenges, joinChallenge,
 } from "../../utils/social";
+import { renderAnimalAvatar } from "../AnimalAvatars";
 
-const TABS = ["Leaderboard", "Friends", "Challenges"];
+const T = TOKENS;
+const C = DARK_COLORS;
 
-export default function SocialView({ user, state }) {
+const TABS = [
+  { id: "Leaderboard", icon: "🏆" },
+  { id: "Friends", icon: "👥" },
+  { id: "Challenges", icon: "⚔️" },
+];
+
+// ── Sign-in gate ───────────────────────────────────────────────────────────────
+function SignInGate({ onNavigate }) {
+  const previews = [
+    { icon: "🏆", title: "Global Leaderboard", desc: "See how you rank against warriors worldwide" },
+    { icon: "👥", title: "Add Friends", desc: "Keep each other accountable on the journey" },
+    { icon: "⚔️", title: "Challenges", desc: "Create and join 30-day challenges with others" },
+  ];
+
+  return (
+    <div style={gateWrap}>
+      <div style={gateHero}>
+        <span style={{ fontSize: 40 }}>🌍</span>
+        <h2 style={gateTitle}>Join the Community</h2>
+        <p style={gateSub}>Sign in to compete, connect, and stay accountable with other Life OS warriors.</p>
+      </div>
+
+      <div style={gateFeatures}>
+        {previews.map((p, i) => (
+          <motion.div
+            key={i}
+            style={gateFeatureCard}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+          >
+            <span style={{ fontSize: 24 }}>{p.icon}</span>
+            <div>
+              <div style={gateFeatureTitle}>{p.title}</div>
+              <div style={gateFeatureDesc}>{p.desc}</div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <button
+        style={gateSignInBtn}
+        onClick={() => onNavigate?.("auth")}
+      >
+        Sign In to Continue
+      </button>
+      <p style={gateNote}>Free · No spam · Sync your progress across devices</p>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+export default function SocialView({ user, state, onNavigate }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [activeTab, setActiveTab] = useState("Leaderboard");
 
   if (!user) {
-    return (
-      <div style={S.vc}>
-        <div style={tabBar}>
-          {TABS.map((t) => (
-            <button key={t} style={t === activeTab ? tabActive : tab} onClick={() => setActiveTab(t)}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <div style={signInCard}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Sign in to access social features</div>
-          <div style={{ fontSize: 12, opacity: 0.4 }}>Connect your account to compete on leaderboards, add friends, and join challenges.</div>
-        </div>
-      </div>
-    );
+    return <SignInGate onNavigate={onNavigate} />;
   }
 
   return (
-    <div style={S.vc}>
+    <div style={{ paddingTop: T.space.md, paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={header}>
+        <div>
+          <h2 style={headerTitle}>Community</h2>
+          <p style={headerSub}>Compete, connect, and stay accountable</p>
+        </div>
+        <Avatar name={user.displayName} photoURL={user.photoURL} avatar={state?.avatar} size={38} />
+      </div>
+
+      {/* Tab bar */}
       <div style={tabBar}>
         {TABS.map((t) => (
-          <button key={t} style={t === activeTab ? tabActive : tab} onClick={() => setActiveTab(t)}>
-            {t}
+          <button
+            key={t.id}
+            style={t.id === activeTab ? tabActive : tabStyle}
+            onClick={() => setActiveTab(t.id)}
+          >
+            <span style={{ fontSize: 14 }}>{t.icon}</span>
+            <span>{t.id}</span>
           </button>
         ))}
       </div>
+
       {activeTab === "Leaderboard" && <LeaderboardTab user={user} state={state} />}
       {activeTab === "Friends" && <FriendsTab user={user} />}
       {activeTab === "Challenges" && <ChallengesTab user={user} />}
@@ -54,245 +106,201 @@ export default function SocialView({ user, state }) {
   );
 }
 
-// ── Leaderboard Tab ────────────────────────────────────────────────────────────
-
+// ── Leaderboard ────────────────────────────────────────────────────────────────
 function LeaderboardTab({ user, state }) {
   const [board, setBoard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchBoard = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getLeaderboard("xp", 20);
-      setBoard(data || []);
-    } catch (err) {
-      setError("Failed to load leaderboard");
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError(null);
+    try { setBoard((await getLeaderboard("xp", 20)) || []); }
+    catch { setError("Couldn't load leaderboard. Check your connection."); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchBoard(); }, []);
 
-  if (loading) return <LoadingSpinner text="Loading leaderboard..." />;
-  if (error) return <ErrorMsg text={error} onRetry={fetchBoard} />;
-
-  if (board.length === 0) {
-    return (
-      <div style={emptyCard}>
-        <div style={{ fontSize: 28, marginBottom: 8 }}>🏆</div>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Connect to Firebase to see the global leaderboard</div>
-        <div style={{ fontSize: 11, opacity: 0.35 }}>Leaderboard data will appear here once Firebase is configured.</div>
-      </div>
-    );
-  }
-
-  const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
+  const myRank = board.findIndex(e => e.uid === user.uid) + 1;
 
   return (
-    <div style={{ padding: "0 14px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={S.secTitle}>Top Players</div>
-        <button style={refreshBtn} onClick={fetchBoard}>↻</button>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {board.map((entry, i) => {
-          const isMe = entry.uid === user.uid;
-          return (
-            <div key={entry.uid} style={{ ...lbRow, ...(isMe ? lbRowHighlight : {}) }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <div style={{ ...rankBadge, color: i < 3 ? medalColors[i] : "rgba(255,255,255,0.3)" }}>
-                  {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
+    <div style={tabContent}>
+      {/* My rank banner */}
+      {myRank > 0 && (
+        <div style={myRankBanner}>
+          <span style={{ fontSize: T.font.xs, color: C.textSecondary }}>Your rank</span>
+          <span style={{ fontSize: T.font.xl, fontWeight: T.weight.black, color: "#7C5CFC" }}>#{myRank}</span>
+          <span style={{ fontSize: T.font.xs, color: C.textSecondary }}>out of {board.length}</span>
+        </div>
+      )}
+
+      <div style={sectionLabel}>Top Warriors</div>
+
+      {loading && <Spinner />}
+      {error && <ErrorState text={error} onRetry={fetchBoard} />}
+      {!loading && !error && board.length === 0 && (
+        <EmptyState
+          icon="🏆"
+          title="No one on the board yet"
+          desc="Be the first — complete your daily quests to appear here."
+        />
+      )}
+      {!loading && !error && board.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
+          {board.map((entry, i) => {
+            const isMe = entry.uid === user.uid;
+            const medals = ["🥇", "🥈", "🥉"];
+            return (
+              <motion.div
+                key={entry.uid}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                style={{ ...lbRow, ...(isMe ? lbRowMe : {}) }}
+              >
+                <div style={{ width: 32, textAlign: "center", fontSize: i < 3 ? 18 : T.font.sm, fontWeight: T.weight.black, color: i < 3 ? undefined : C.textSecondary, flexShrink: 0 }}>
+                  {i < 3 ? medals[i] : i + 1}
                 </div>
-                <Avatar name={entry.displayName} photoURL={entry.photoURL} size={32} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {entry.displayName || "Anonymous"}{isMe ? " (You)" : ""}
+                <Avatar name={entry.displayName} photoURL={entry.photoURL} avatar={entry.avatar} size={34} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {entry.displayName || "Warrior"}{isMe ? " (You)" : ""}
                   </div>
+                  <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>Day {entry.currentDay || 1}</div>
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span style={xpBadge}>⚡ {entry.xp || 0}</span>
-                <span style={streakBadge}>🔥 {entry.streak || 0}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                <div style={{ display: "flex", gap: T.space.sm, flexShrink: 0 }}>
+                  <span style={xpChip}>⚡ {entry.xp || 0}</span>
+                  <span style={streakChip}>🔥 {entry.streak || 0}</span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Friends Tab ────────────────────────────────────────────────────────────────
-
+// ── Friends ────────────────────────────────────────────────────────────────────
 function FriendsTab({ user }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [pending, setPending] = useState([]);
-  const [pendingLoading, setPendingLoading] = useState(true);
   const [friends, setFriends] = useState([]);
-  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [sentIds, setSentIds] = useState(new Set());
 
-  useEffect(() => {
-    loadPending();
-    loadFriends();
-  }, [user.uid]);
+  useEffect(() => { loadAll(); }, [user.uid]);
 
-  const loadPending = async () => {
-    setPendingLoading(true);
-    try {
-      const data = await getPendingRequests(user.uid);
-      setPending(data || []);
-    } catch { setPending([]); }
-    finally { setPendingLoading(false); }
-  };
-
-  const loadFriends = async () => {
-    setFriendsLoading(true);
-    try {
-      const data = await getFriends(user.uid);
-      setFriends(data || []);
-    } catch { setFriends([]); }
-    finally { setFriendsLoading(false); }
+  const loadAll = async () => {
+    setLoading(true);
+    const [p, f] = await Promise.all([
+      getPendingRequests(user.uid).catch(() => []),
+      getFriends(user.uid).catch(() => []),
+    ]);
+    setPending(p || []); setFriends(f || []);
+    setLoading(false);
   };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
     setSearchLoading(true);
-    try {
-      const data = await searchUsers(searchTerm.trim());
-      setSearchResults((data || []).filter((u) => u.uid !== user.uid));
-    } catch { setSearchResults([]); }
+    try { setSearchResults(((await searchUsers(searchTerm.trim())) || []).filter(u => u.uid !== user.uid)); }
+    catch { setSearchResults([]); }
     finally { setSearchLoading(false); }
   };
 
-  const handleAddFriend = async (target) => {
+  const handleAdd = async (target) => {
     setActionLoading(target.uid);
-    try {
-      await sendFriendRequest(user.uid, user.displayName || "User", target.uid, target.displayName || "User");
-    } catch { /* noop */ }
-    finally { setActionLoading(null); }
+    await sendFriendRequest(user.uid, user.displayName || "User", target.uid, target.displayName || "User").catch(() => {});
+    setSentIds(s => new Set([...s, target.uid]));
+    setActionLoading(null);
   };
 
   const handleAccept = async (req) => {
     setActionLoading(req.id);
-    try {
-      await acceptFriendRequest(req.id, user.uid, req.from);
-      await loadPending();
-      await loadFriends();
-    } catch { /* noop */ }
-    finally { setActionLoading(null); }
+    await acceptFriendRequest(req.id, user.uid, req.from).catch(() => {});
+    await loadAll();
+    setActionLoading(null);
   };
 
   const handleDecline = async (req) => {
     setActionLoading(req.id);
-    try {
-      await declineFriendRequest(req.id);
-      await loadPending();
-    } catch { /* noop */ }
-    finally { setActionLoading(null); }
+    await declineFriendRequest(req.id).catch(() => {});
+    await loadAll();
+    setActionLoading(null);
   };
 
   return (
-    <div style={{ padding: "0 14px" }}>
+    <div style={tabContent}>
       {/* Search */}
-      <div style={S.secTitle}>Find Friends</div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={sectionLabel}>Find Friends</div>
+      <div style={searchRow}>
         <input
-          style={inputStyle}
-          placeholder="Search by name..."
+          style={searchInput}
+          placeholder="Search by display name..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          onChange={e => setSearchTerm(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSearch()}
         />
-        <button style={smallBtn} onClick={handleSearch} disabled={searchLoading}>
+        <button style={searchBtn} onClick={handleSearch} disabled={searchLoading}>
           {searchLoading ? "..." : "Search"}
         </button>
       </div>
+
       {searchResults.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {searchResults.map((u) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
+          {searchResults.map(u => (
             <div key={u.uid} style={friendRow}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <Avatar name={u.displayName} photoURL={u.photoURL} size={30} />
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{u.displayName || "User"}</span>
-              </div>
-              <button
-                style={accentBtn}
-                onClick={() => handleAddFriend(u)}
-                disabled={actionLoading === u.uid}
-              >
-                {actionLoading === u.uid ? "..." : "Add Friend"}
-              </button>
+              <Avatar name={u.displayName} photoURL={u.photoURL} avatar={u.avatar} size={34} />
+              <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{u.displayName || "User"}</span>
+              {sentIds.has(u.uid) ? (
+                <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold }}>Sent ✓</span>
+              ) : (
+                <button style={accentBtn} onClick={() => handleAdd(u)} disabled={actionLoading === u.uid}>
+                  {actionLoading === u.uid ? "..." : "Add"}
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Pending Requests */}
-      <div style={S.secTitle}>Pending Requests</div>
-      {pendingLoading ? (
-        <LoadingSpinner text="Loading requests..." />
-      ) : pending.length === 0 ? (
-        <div style={{ fontSize: 12, opacity: 0.35, padding: "0 4px", marginBottom: 16 }}>No pending requests</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {pending.map((req) => (
-            <div key={req.id} style={friendRow}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <Avatar name={req.fromName} size={30} />
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{req.fromName || "Someone"}</span>
+      {/* Pending */}
+      {pending.length > 0 && (
+        <>
+          <div style={{ ...sectionLabel, color: "#F59E0B" }}>Pending Requests · {pending.length}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
+            {pending.map(req => (
+              <div key={req.id} style={friendRow}>
+                <Avatar name={req.fromName} size={34} />
+                <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{req.fromName || "Someone"}</span>
+                <button style={accentBtn} onClick={() => handleAccept(req)} disabled={actionLoading === req.id}>Accept</button>
+                <button style={declineBtn} onClick={() => handleDecline(req)} disabled={actionLoading === req.id}>✕</button>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  style={accentBtn}
-                  onClick={() => handleAccept(req)}
-                  disabled={actionLoading === req.id}
-                >
-                  Accept
-                </button>
-                <button
-                  style={declineBtn}
-                  onClick={() => handleDecline(req)}
-                  disabled={actionLoading === req.id}
-                >
-                  Decline
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Friends List */}
-      <div style={S.secTitle}>Friends</div>
-      {friendsLoading ? (
-        <LoadingSpinner text="Loading friends..." />
-      ) : friends.length === 0 ? (
-        <div style={emptyCard}>
-          <div style={{ fontSize: 24, marginBottom: 6 }}>👋</div>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Add friends to keep each other accountable!</div>
-        </div>
+      {/* Friends list */}
+      <div style={sectionLabel}>Friends · {friends.length}</div>
+      {loading ? <Spinner /> : friends.length === 0 ? (
+        <EmptyState icon="👋" title="No friends yet" desc="Search for friends above to start holding each other accountable." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {friends.map((f) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
+          {friends.map(f => (
             <div key={f.uid} style={friendRow}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <Avatar name={f.displayName} photoURL={f.photoURL} size={32} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {f.displayName || "Friend"}
-                  </div>
-                  <div style={{ fontSize: 10, opacity: 0.4 }}>Day {f.currentDay || 1}</div>
-                </div>
+              <Avatar name={f.displayName} photoURL={f.photoURL} avatar={f.avatar} size={34} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: T.font.md, fontWeight: T.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.displayName || "Friend"}</div>
+                <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>Day {f.currentDay || 1}</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={xpBadge}>⚡ {f.xp || 0}</span>
-                <span style={streakBadge}>🔥 {f.streak || 0}</span>
+              <div style={{ display: "flex", gap: T.space.sm }}>
+                <span style={xpChip}>⚡ {f.xp || 0}</span>
+                <span style={streakChip}>🔥 {f.streak || 0}</span>
               </div>
             </div>
           ))}
@@ -302,322 +310,529 @@ function FriendsTab({ user }) {
   );
 }
 
-// ── Challenges Tab ─────────────────────────────────────────────────────────────
-
+// ── Challenges ─────────────────────────────────────────────────────────────────
 function ChallengesTab({ user }) {
   const [active, setActive] = useState([]);
-  const [activeLoading, setActiveLoading] = useState(true);
   const [publicList, setPublicList] = useState([]);
-  const [publicLoading, setPublicLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(null);
   const [form, setForm] = useState({ title: "", type: "streak", target: "", duration: "" });
 
-  useEffect(() => {
-    loadActive();
-    loadPublic();
-  }, [user.uid]);
+  useEffect(() => { loadAll(); }, [user.uid]);
 
-  const loadActive = async () => {
-    setActiveLoading(true);
-    try {
-      const data = await getActiveChallenges(user.uid);
-      setActive(data || []);
-    } catch { setActive([]); }
-    finally { setActiveLoading(false); }
-  };
-
-  const loadPublic = async () => {
-    setPublicLoading(true);
-    try {
-      const data = await getPublicChallenges(10);
-      setPublicList(data || []);
-    } catch { setPublicList([]); }
-    finally { setPublicLoading(false); }
+  const loadAll = async () => {
+    setLoading(true);
+    const [a, p] = await Promise.all([
+      getActiveChallenges(user.uid).catch(() => []),
+      getPublicChallenges(10).catch(() => []),
+    ]);
+    setActive(a || []); setPublicList(p || []);
+    setLoading(false);
   };
 
   const handleCreate = async () => {
     if (!form.title.trim() || !form.target || !form.duration) return;
     setCreateLoading(true);
-    try {
-      await createChallenge({
-        title: form.title.trim(),
-        description: "",
-        creatorUid: user.uid,
-        creatorName: user.displayName || "User",
-        type: form.type,
-        target: Number(form.target),
-        durationDays: Number(form.duration),
-      });
-      setForm({ title: "", type: "streak", target: "", duration: "" });
-      setShowCreate(false);
-      await loadActive();
-      await loadPublic();
-    } catch { /* noop */ }
-    finally { setCreateLoading(false); }
+    await createChallenge({ title: form.title.trim(), description: "", creatorUid: user.uid, creatorName: user.displayName || "User", type: form.type, target: Number(form.target), durationDays: Number(form.duration) }).catch(() => {});
+    setForm({ title: "", type: "streak", target: "", duration: "" });
+    setShowCreate(false);
+    await loadAll();
+    setCreateLoading(false);
   };
 
-  const handleJoin = async (challengeId) => {
-    setJoinLoading(challengeId);
-    try {
-      await joinChallenge(challengeId, user.uid);
-      await loadActive();
-      await loadPublic();
-    } catch { /* noop */ }
-    finally { setJoinLoading(null); }
+  const handleJoin = async (id) => {
+    setJoinLoading(id);
+    await joinChallenge(id, user.uid).catch(() => {});
+    await loadAll();
+    setJoinLoading(null);
   };
 
-  const typeBadgeColors = {
-    streak: { bg: "rgba(249,115,22,0.12)", color: "#F97316" },
-    xp: { bg: "rgba(124,92,252,0.12)", color: "#7C5CFC" },
-    quest: { bg: "rgba(16,185,129,0.12)", color: "#10B981" },
+  const typeColors = {
+    streak: { bg: "rgba(249,115,22,0.1)", color: "#F97316" },
+    xp: { bg: "rgba(124,92,252,0.1)", color: "#7C5CFC" },
+    quest: { bg: "rgba(34,197,94,0.1)", color: "#22C55E" },
   };
 
-  const getDaysRemaining = (endDate) => {
-    if (!endDate) return 0;
-    const diff = new Date(endDate) - new Date();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  };
+  const daysLeft = (end) => Math.max(0, Math.ceil((new Date(end) - new Date()) / 86400000));
 
   return (
-    <div style={{ padding: "0 14px" }}>
-      {/* Active Challenges */}
-      <div style={S.secTitle}>Active Challenges</div>
-      {activeLoading ? (
-        <LoadingSpinner text="Loading challenges..." />
-      ) : active.length === 0 ? (
-        <div style={{ fontSize: 12, opacity: 0.35, padding: "0 4px", marginBottom: 16 }}>No active challenges. Join or create one below!</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {active.map((ch) => {
-            const myProgress = ch.progress?.[user.uid] || 0;
-            const pct = ch.target ? Math.min(100, (myProgress / ch.target) * 100) : 0;
-            const days = getDaysRemaining(ch.endDate);
-            const tColors = typeBadgeColors[ch.type] || typeBadgeColors.quest;
-            return (
-              <div key={ch.id} style={challengeCard}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{ch.title}</div>
-                  <span style={{ ...typeBadge, background: tColors.bg, color: tColors.color }}>{ch.type}</span>
-                </div>
-                <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.05)", overflow: "hidden", marginBottom: 8 }}>
-                  <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg,#7C5CFC,#EC4899)", width: `${pct}%`, transition: "width 0.4s ease" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, opacity: 0.5 }}>
-                  <span>{myProgress} / {ch.target || "?"}</span>
-                  <span>{days}d remaining</span>
-                  <span>{(ch.participants || []).length} participants</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Create Challenge */}
-      <div
-        style={{ ...S.secTitle, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-        onClick={() => setShowCreate(!showCreate)}
-      >
-        Create Challenge <span style={{ fontSize: 11, opacity: 0.4 }}>{showCreate ? "▲" : "▼"}</span>
-      </div>
-      {showCreate && (
-        <div style={{ ...card, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10, padding: 14 }}>
-          <input
-            style={inputStyle}
-            placeholder="Challenge title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-          <select
-            style={inputStyle}
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-          >
-            <option value="streak">Streak</option>
-            <option value="xp">XP</option>
-            <option value="quest">Quest</option>
-          </select>
-          <input
-            style={inputStyle}
-            placeholder="Target (number)"
-            type="number"
-            value={form.target}
-            onChange={(e) => setForm({ ...form, target: e.target.value })}
-          />
-          <input
-            style={inputStyle}
-            placeholder="Duration (days)"
-            type="number"
-            value={form.duration}
-            onChange={(e) => setForm({ ...form, duration: e.target.value })}
-          />
-          <button style={S.primaryBtn} onClick={handleCreate} disabled={createLoading}>
-            {createLoading ? "Creating..." : "Create Challenge"}
-          </button>
-        </div>
-      )}
-
-      {/* Browse Public Challenges */}
-      <div style={S.secTitle}>Browse Challenges</div>
-      {publicLoading ? (
-        <LoadingSpinner text="Loading challenges..." />
-      ) : publicList.length === 0 ? (
-        <div style={{ fontSize: 12, opacity: 0.35, padding: "0 4px" }}>No public challenges available yet.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {publicList.map((ch) => {
-            const alreadyJoined = (ch.participants || []).includes(user.uid);
-            return (
-              <div key={ch.id} style={friendRow}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{ch.title}</div>
-                  <div style={{ fontSize: 10, opacity: 0.4 }}>
-                    by {ch.creatorName || "Unknown"} · {(ch.participants || []).length} joined
+    <div style={tabContent}>
+      {loading ? <Spinner /> : (
+        <>
+          {/* Active */}
+          <div style={sectionLabel}>Your Challenges · {active.length}</div>
+          {active.length === 0 ? (
+            <EmptyState icon="⚔️" title="No active challenges" desc="Join a public challenge or create your own below." />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
+              {active.map(ch => {
+                const myProg = ch.progress?.[user.uid] || 0;
+                const pct = ch.target ? Math.min(100, (myProg / ch.target) * 100) : 0;
+                const tc = typeColors[ch.type] || typeColors.quest;
+                return (
+                  <div key={ch.id} style={challengeCard}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: T.space.sm }}>
+                      <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{ch.title}</div>
+                      <span style={{ ...typeBadge, background: tc.bg, color: tc.color }}>{ch.type}</span>
+                    </div>
+                    <div style={progressTrack}>
+                      <div style={{ ...progressFill, width: `${pct}%`, background: tc.color }} />
+                    </div>
+                    <div style={challengeMeta}>
+                      <span>{myProg} / {ch.target}</span>
+                      <span>{daysLeft(ch.endDate)}d left</span>
+                      <span>{(ch.participants || []).length} joined</span>
+                    </div>
                   </div>
-                </div>
-                {alreadyJoined ? (
-                  <span style={{ fontSize: 11, color: "#10B981", fontWeight: 600 }}>Joined</span>
-                ) : (
-                  <button
-                    style={accentBtn}
-                    onClick={() => handleJoin(ch.id)}
-                    disabled={joinLoading === ch.id}
-                  >
-                    {joinLoading === ch.id ? "..." : "Join"}
-                  </button>
-                )}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Create */}
+          <button style={createToggleBtn} onClick={() => setShowCreate(v => !v)}>
+            {showCreate ? "Cancel" : "+ Create a Challenge"}
+          </button>
+          {showCreate && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={createForm}
+            >
+              <input style={formInput} placeholder="Challenge title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+              <select style={formInput} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                <option value="streak">Streak</option>
+                <option value="xp">XP</option>
+                <option value="quest">Quests</option>
+              </select>
+              <div style={{ display: "flex", gap: T.space.sm }}>
+                <input style={{ ...formInput, flex: 1 }} placeholder="Target" type="number" value={form.target} onChange={e => setForm({ ...form, target: e.target.value })} />
+                <input style={{ ...formInput, flex: 1 }} placeholder="Days" type="number" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} />
               </div>
-            );
-          })}
-        </div>
+              <button style={submitBtn} onClick={handleCreate} disabled={createLoading}>
+                {createLoading ? "Creating..." : "Create Challenge"}
+              </button>
+            </motion.div>
+          )}
+
+          {/* Browse */}
+          <div style={{ ...sectionLabel, marginTop: T.space.xl }}>Browse Public Challenges</div>
+          {publicList.length === 0 ? (
+            <EmptyState icon="🌐" title="No public challenges yet" desc="Create one above and invite others to join." />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
+              {publicList.map(ch => {
+                const joined = (ch.participants || []).includes(user.uid);
+                const tc = typeColors[ch.type] || typeColors.quest;
+                return (
+                  <div key={ch.id} style={friendRow}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{ch.title}</div>
+                      <div style={{ fontSize: T.font.xs, color: C.textSecondary, marginTop: 2 }}>
+                        by {ch.creatorName} · <span style={{ color: tc.color }}>{ch.type}</span> · {(ch.participants || []).length} joined
+                      </div>
+                    </div>
+                    {joined ? (
+                      <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold }}>Joined ✓</span>
+                    ) : (
+                      <button style={accentBtn} onClick={() => handleJoin(ch.id)} disabled={joinLoading === ch.id}>
+                        {joinLoading === ch.id ? "..." : "Join"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 // ── Shared components ──────────────────────────────────────────────────────────
-
-function Avatar({ name, photoURL, size = 32 }) {
+function Avatar({ name, photoURL, avatar, size = 32 }) {
   const letter = (name || "?")[0].toUpperCase();
+  if (avatar?.type === "photo") {
+    return <img src={avatar.value} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
+  }
+  if (avatar?.type === "animal") {
+    return (
+      <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden" }}>
+        {renderAnimalAvatar(avatar.value, size)}
+      </div>
+    );
+  }
   return photoURL ? (
-    <img
-      src={photoURL}
-      alt=""
-      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-    />
+    <img src={photoURL} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
   ) : (
-    <div style={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: "rgba(124,92,252,0.15)", color: "#7C5CFC",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.42, fontWeight: 700,
-    }}>
+    <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, background: "rgba(124,92,252,0.15)", color: "#7C5CFC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.42, fontWeight: 700 }}>
       {letter}
     </div>
   );
 }
 
-function LoadingSpinner({ text }) {
+function Spinner() {
+  return <div style={{ textAlign: "center", padding: `${T.space.xxxl}px 0`, fontSize: T.font.sm, color: C.textSecondary }}>Loading...</div>;
+}
+
+function ErrorState({ text, onRetry }) {
   return (
-    <div style={{ textAlign: "center", padding: "24px 0", opacity: 0.4, fontSize: 12 }}>
-      {text || "Loading..."}
+    <div style={{ textAlign: "center", padding: `${T.space.xl}px 0` }}>
+      <div style={{ fontSize: T.font.sm, color: "#EF4444", marginBottom: T.space.md }}>{text}</div>
+      {onRetry && <button style={accentBtn} onClick={onRetry}>Retry</button>}
     </div>
   );
 }
 
-function ErrorMsg({ text, onRetry }) {
+function EmptyState({ icon, title, desc }) {
   return (
-    <div style={{ textAlign: "center", padding: "24px 14px" }}>
-      <div style={{ fontSize: 13, color: "#EF4444", marginBottom: 8 }}>{text}</div>
-      {onRetry && (
-        <button style={smallBtn} onClick={onRetry}>Retry</button>
-      )}
+    <div style={emptyWrap}>
+      <span style={{ fontSize: 32 }}>{icon}</span>
+      <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, marginTop: T.space.sm }}>{title}</div>
+      <div style={{ fontSize: T.font.sm, color: C.textSecondary, marginTop: T.space.xs, lineHeight: 1.4 }}>{desc}</div>
     </div>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
-const tabBar = { display: "flex", gap: 4, padding: "0 14px", marginBottom: 16 };
-const tab = { padding: "8px 16px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" };
-const tabActive = { ...tab, background: "rgba(124,92,252,0.2)", color: "#7C5CFC" };
+// Sign-in gate
+const gateWrap = {
+  padding: `${T.space.xxl}px ${T.space.lg}px`,
+  display: "flex",
+  flexDirection: "column",
+  gap: T.space.lg,
+};
 
-const card = { borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" };
+const gateHero = {
+  textAlign: "center",
+  padding: `${T.space.xl}px 0`,
+};
+
+const gateTitle = {
+  fontSize: T.font.hero,
+  fontWeight: T.weight.black,
+  margin: `${T.space.md}px 0 ${T.space.sm}px`,
+  letterSpacing: -0.5,
+};
+
+const gateSub = {
+  fontSize: T.font.sm,
+  color: C.textSecondary,
+  lineHeight: 1.5,
+  margin: 0,
+};
+
+const gateFeatures = {
+  display: "flex",
+  flexDirection: "column",
+  gap: T.space.sm,
+};
+
+const gateFeatureCard = {
+  display: "flex",
+  alignItems: "center",
+  gap: T.space.lg,
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
+};
+
+const gateFeatureTitle = {
+  fontSize: T.font.md,
+  fontWeight: T.weight.bold,
+  marginBottom: 2,
+};
+
+const gateFeatureDesc = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+};
+
+const gateSignInBtn = {
+  width: "100%",
+  padding: `${T.space.lg}px`,
+  borderRadius: T.radii.md,
+  border: "none",
+  background: "linear-gradient(135deg, #7C5CFC, #6D28D9)",
+  color: "#fff",
+  fontSize: T.font.md,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  boxShadow: "0 4px 16px rgba(124,92,252,0.25)",
+  marginTop: T.space.sm,
+};
+
+const gateNote = {
+  textAlign: "center",
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+  margin: 0,
+};
+
+// Main layout
+const header = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: `0 ${T.space.lg}px`,
+  marginBottom: T.space.lg,
+};
+
+const headerTitle = {
+  fontSize: T.font.hero,
+  fontWeight: T.weight.black,
+  margin: 0,
+  letterSpacing: -0.5,
+};
+
+const headerSub = {
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+  margin: `${T.space.xs}px 0 0`,
+};
+
+const tabBar = {
+  display: "flex",
+  gap: T.space.sm,
+  padding: `0 ${T.space.lg}px`,
+  marginBottom: T.space.lg,
+};
+
+const tabStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: T.space.xs,
+  padding: `${T.space.sm}px ${T.space.md}px`,
+  borderRadius: T.radii.sm,
+  fontSize: T.font.sm,
+  fontWeight: T.weight.medium,
+  cursor: "pointer",
+  border: `1px solid ${C.cardBorder}`,
+  background: C.cardBg,
+  color: C.textSecondary,
+  fontFamily: "inherit",
+  transition: "all 0.15s ease",
+};
+
+const tabActive = {
+  ...tabStyle,
+  background: "rgba(124,92,252,0.12)",
+  border: "1px solid rgba(124,92,252,0.25)",
+  color: "#7C5CFC",
+};
+
+const tabContent = {
+  padding: `0 ${T.space.lg}px`,
+};
+
+const sectionLabel = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  color: C.textSecondary,
+  textTransform: "uppercase",
+  letterSpacing: 0.5,
+  marginBottom: T.space.sm,
+};
+
+const myRankBanner = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: T.space.md,
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: "rgba(124,92,252,0.06)",
+  border: "1px solid rgba(124,92,252,0.12)",
+  marginBottom: T.space.lg,
+};
 
 const lbRow = {
-  display: "flex", justifyContent: "space-between", alignItems: "center",
-  padding: "10px 12px", borderRadius: 12,
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
+  display: "flex",
+  alignItems: "center",
+  gap: T.space.sm,
+  padding: `${T.space.md}px ${T.space.md}px`,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
 };
-const lbRowHighlight = {
-  border: "1px solid rgba(124,92,252,0.35)",
+
+const lbRowMe = {
   background: "rgba(124,92,252,0.06)",
+  border: "1px solid rgba(124,92,252,0.2)",
 };
 
-const rankBadge = { width: 24, textAlign: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 };
-
-const xpBadge = {
-  fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 10,
-  background: "rgba(124,92,252,0.12)", color: "#7C5CFC",
+const xpChip = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  padding: "3px 8px",
+  borderRadius: 10,
+  background: "rgba(124,92,252,0.1)",
+  color: "#7C5CFC",
 };
-const streakBadge = {
-  fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 10,
-  background: "rgba(249,115,22,0.12)", color: "#F97316",
+
+const streakChip = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  padding: "3px 8px",
+  borderRadius: 10,
+  background: "rgba(249,115,22,0.1)",
+  color: "#F97316",
+};
+
+const searchRow = {
+  display: "flex",
+  gap: T.space.sm,
+  marginBottom: T.space.md,
+};
+
+const searchInput = {
+  flex: 1,
+  padding: `${T.space.md}px ${T.space.md}px`,
+  borderRadius: T.radii.md,
+  fontSize: T.font.sm,
+  border: `1px solid ${C.inputBorder}`,
+  background: C.inputBg,
+  color: "inherit",
+  outline: "none",
+  fontFamily: "inherit",
+};
+
+const searchBtn = {
+  padding: `${T.space.md}px ${T.space.lg}px`,
+  borderRadius: T.radii.md,
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  border: "none",
+  background: "rgba(124,92,252,0.15)",
+  color: "#7C5CFC",
+  cursor: "pointer",
+  fontFamily: "inherit",
 };
 
 const friendRow = {
-  display: "flex", justifyContent: "space-between", alignItems: "center",
-  padding: "10px 12px", borderRadius: 12,
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
-};
-
-const challengeCard = {
-  padding: 14, borderRadius: 12,
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
-};
-
-const typeBadge = {
-  fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 10, textTransform: "uppercase",
-};
-
-const inputStyle = {
-  flex: 1, padding: "10px 12px", borderRadius: 10, fontSize: 13,
-  border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)",
-  color: "#E2E2EE", outline: "none", fontFamily: "inherit",
-};
-
-const smallBtn = {
-  padding: "8px 16px", borderRadius: 10, fontSize: 12, fontWeight: 600,
-  border: "none", cursor: "pointer",
-  background: "rgba(124,92,252,0.15)", color: "#7C5CFC",
+  display: "flex",
+  alignItems: "center",
+  gap: T.space.md,
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
 };
 
 const accentBtn = {
-  padding: "6px 14px", borderRadius: 10, fontSize: 11, fontWeight: 700,
-  border: "none", cursor: "pointer",
-  background: "rgba(124,92,252,0.18)", color: "#7C5CFC",
+  padding: `${T.space.sm}px ${T.space.md}px`,
+  borderRadius: T.radii.sm,
+  fontSize: T.font.xs,
+  fontWeight: T.weight.bold,
+  border: "none",
+  background: "rgba(124,92,252,0.15)",
+  color: "#7C5CFC",
+  cursor: "pointer",
+  fontFamily: "inherit",
+  flexShrink: 0,
 };
 
 const declineBtn = {
-  padding: "6px 14px", borderRadius: 10, fontSize: 11, fontWeight: 700,
-  border: "none", cursor: "pointer",
-  background: "rgba(239,68,68,0.12)", color: "#EF4444",
+  ...accentBtn,
+  background: "rgba(239,68,68,0.1)",
+  color: "#EF4444",
 };
 
-const refreshBtn = {
-  width: 32, height: 32, borderRadius: 10, border: "none", cursor: "pointer",
-  background: "rgba(255,255,255,0.05)", color: "#E2E2EE", fontSize: 16,
-  display: "flex", alignItems: "center", justifyContent: "center",
+const challengeCard = {
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
 };
 
-const signInCard = {
-  margin: "40px 14px", padding: 28, borderRadius: 16, textAlign: "center",
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+const progressTrack = {
+  height: 5,
+  borderRadius: 3,
+  background: C.surface,
+  overflow: "hidden",
+  marginBottom: T.space.sm,
 };
 
-const emptyCard = {
-  margin: "0 0 16px", padding: 24, borderRadius: 14, textAlign: "center",
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
+const progressFill = {
+  height: "100%",
+  borderRadius: 3,
+  transition: "width 0.4s ease",
+};
+
+const challengeMeta = {
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: T.font.xs,
+  color: C.textSecondary,
+};
+
+const typeBadge = {
+  fontSize: 10,
+  fontWeight: T.weight.bold,
+  padding: "3px 10px",
+  borderRadius: 10,
+  textTransform: "uppercase",
+  letterSpacing: 0.3,
+};
+
+const createToggleBtn = {
+  width: "100%",
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: `1px dashed ${C.inputBorder}`,
+  background: "transparent",
+  color: "#7C5CFC",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  marginBottom: T.space.sm,
+};
+
+const createForm = {
+  display: "flex",
+  flexDirection: "column",
+  gap: T.space.sm,
+  padding: T.space.lg,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
+  marginBottom: T.space.md,
+};
+
+const formInput = {
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.sm,
+  fontSize: T.font.sm,
+  border: `1px solid ${C.inputBorder}`,
+  background: C.inputBg,
+  color: "inherit",
+  outline: "none",
+  fontFamily: "inherit",
+};
+
+const submitBtn = {
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: "none",
+  background: "linear-gradient(135deg, #7C5CFC, #6D28D9)",
+  color: "#fff",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+const emptyWrap = {
+  textAlign: "center",
+  padding: `${T.space.xxl}px ${T.space.lg}px`,
+  borderRadius: T.radii.md,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
+  marginBottom: T.space.md,
 };

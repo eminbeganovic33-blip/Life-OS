@@ -1,18 +1,34 @@
 import { S } from "../../styles/theme";
+import { useTheme } from "../../hooks/useTheme";
 
 export default function ForgeSuccessModal({ story, trackerLabel, daysClean, onDismiss }) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   if (!story) return null;
   return (
     <div style={S.overlay} onClick={onDismiss}>
-      <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
+      <div style={{
+        ...cardStyle,
+        ...(isLight ? {
+          background: "linear-gradient(145deg,#F0FDF4,#ECFDF5)",
+          border: "1px solid rgba(16,185,129,0.25)",
+          color: "#1A1A2E",
+        } : {}),
+      }} onClick={(e) => e.stopPropagation()}>
         <div style={glowBg} />
         <div style={{ fontSize: 48, position: "relative", zIndex: 2 }}>{story.icon}</div>
         <div style={badge}>{trackerLabel} · Day {daysClean}</div>
         <div style={titleStyle}>{story.title}</div>
-        <div style={factBox}>
+        <div style={{
+          ...factBox,
+          ...(isLight ? {
+            background: "rgba(16,185,129,0.08)",
+            border: "1px solid rgba(16,185,129,0.15)",
+          } : {}),
+        }}>
           <div style={{ fontSize: 13, lineHeight: 1.7, opacity: 0.85 }}>{story.fact}</div>
         </div>
-        <div style={keepGoing}>Your body is healing. Keep going.</div>
+        <div style={{ ...keepGoing, color: isLight ? "#374151" : undefined }}>Your body is healing. Keep going.</div>
         <button style={{ ...S.motBtn, position: "relative", zIndex: 10 }} onClick={(e) => { e.stopPropagation(); onDismiss(); }}>Continue →</button>
       </div>
     </div>
@@ -30,6 +46,7 @@ const cardStyle = {
   position: "relative",
   overflow: "hidden",
   boxShadow: "0 20px 80px rgba(16,185,129,0.12)",
+  color: "#E2E2EE",
 };
 
 const glowBg = {

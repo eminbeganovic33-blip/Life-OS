@@ -218,7 +218,7 @@ const s = {
     color: "#E2E2EE",
   },
   aiBadge: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 700,
     padding: "1px 6px",
     borderRadius: 4,

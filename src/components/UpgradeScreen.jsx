@@ -374,7 +374,7 @@ const compFeature = {
 const compFreeVal = {
   width: 72,
   textAlign: "center",
-  fontSize: 9,
+  fontSize: 11,
   opacity: 0.35,
   lineHeight: 1.3,
   flexShrink: 0,
@@ -383,7 +383,7 @@ const compFreeVal = {
 const compPremVal = {
   width: 72,
   textAlign: "center",
-  fontSize: 9,
+  fontSize: 11,
   color: "#FFD700",
   fontWeight: 600,
   lineHeight: 1.3,
@@ -445,7 +445,7 @@ const savingsBadge = {
   borderRadius: 8,
   background: "linear-gradient(135deg, #10B981, #059669)",
   color: "#fff",
-  fontSize: 9,
+  fontSize: 11,
   fontWeight: 800,
   letterSpacing: 0.3,
 };

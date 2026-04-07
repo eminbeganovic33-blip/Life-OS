@@ -191,7 +191,7 @@ const s = {
     letterSpacing: 0.2,
   },
   badge: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 700,
     padding: "1px 6px",
     borderRadius: 4,
