@@ -6,6 +6,7 @@ import { getPersonalizedQuote, getProactiveNudges, getCategoryCompletionRates } 
 import { getDayQuests, daysBetween } from "../utils";
 import { getAICoachMessage } from "../utils/ai";
 import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../data";
+import { Sparkles, ArrowRight, Quote } from "lucide-react";
 
 const T = TOKENS;
 
@@ -89,7 +90,7 @@ export default function MorningBrief({ state, onDismiss }) {
   const briefText = aiBrief || localBrief;
 
   const bg = isDark
-    ? "linear-gradient(180deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)"
+    ? "linear-gradient(180deg, #0C0F1A 0%, #161233 50%, #0C0F1A 100%)"
     : "linear-gradient(180deg, #FAFAF9 0%, #EDE9FE 50%, #FAFAF9 100%)";
 
   const s = getStyles(isDark, colors);
@@ -156,7 +157,8 @@ export default function MorningBrief({ state, onDismiss }) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.65, duration: 0.5 }}
         >
-          <p style={s.quoteText}>&ldquo;{quote.quote}&rdquo;</p>
+          <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.4, marginBottom: 6 }} />
+          <p style={s.quoteText}>{quote.quote}</p>
           <p style={s.quoteAuthor}>&mdash; {quote.author}</p>
         </motion.div>
 
@@ -169,7 +171,9 @@ export default function MorningBrief({ state, onDismiss }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.4 }}
         >
-          Start Your Day
+          <span style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+            Start Your Day <ArrowRight size={16} />
+          </span>
         </motion.button>
       </motion.div>
     </motion.div>

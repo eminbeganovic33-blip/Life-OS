@@ -8,6 +8,8 @@ import { getQuestSuggestions, getProactiveNudges } from "../../utils/intelligenc
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import QuestGuidePanel from "../QuestGuidePanel";
 import SmartInsights from "../SmartInsights";
+import { CategoryIcon } from "../Icon";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck } from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
 
@@ -15,23 +17,23 @@ const SWIPE_THRESHOLD = 60;
 const TIME_BLOCKS = {
   morning: {
     label: "Morning Ritual",
-    icon: "🌅",
+    LucideIcon: Sunrise,
     categories: ["sleep", "water", "shower", "nutrition"],
-    gradient: "linear-gradient(135deg, rgba(251,191,36,0.08), rgba(249,115,22,0.04))",
+    gradient: "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.02))",
     accent: "#FBBF24",
   },
   afternoon: {
     label: "Daily Challenges",
-    icon: "⚡",
+    LucideIcon: Zap,
     categories: ["exercise", "work", "reading", "finance"],
-    gradient: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(59,130,246,0.04))",
+    gradient: "linear-gradient(135deg, rgba(124,92,252,0.06), rgba(59,130,246,0.02))",
     accent: "#7C5CFC",
   },
   evening: {
     label: "Evening Growth",
-    icon: "🌙",
+    LucideIcon: Moon,
     categories: ["mind", "screen", "social", "creative"],
-    gradient: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(236,72,153,0.04))",
+    gradient: "linear-gradient(135deg, rgba(139,92,246,0.06), rgba(236,72,153,0.02))",
     accent: "#A78BFA",
   },
 };
@@ -226,7 +228,7 @@ export default function HomeView({
                 {q.text}
               </div>
               <div style={ts.questMeta}>
-                <span style={{ color: cat?.color, fontSize: 11 }}>{cat?.icon}</span>
+                <CategoryIcon id={q.category} size={12} color={cat?.color} />
                 <span style={{ color: cat?.color, fontSize: 10, fontWeight: 600 }}>{cat?.label}</span>
                 {streak > 0 && !done && (
                   <span style={{ ...ts.streakPill, color: cat?.color, borderColor: `${cat?.color}30` }}>
@@ -312,7 +314,10 @@ export default function HomeView({
           onClick={() => toggleBlock(key)}
         >
           <div style={ts.blockLeft}>
-            <span style={{ fontSize: 16 }}>{blockDone ? "✅" : block.icon}</span>
+            {blockDone
+              ? <CircleCheck size={16} color="#22C55E" />
+              : <block.LucideIcon size={16} color={block.accent} />
+            }
             <div>
               <div style={{
                 ...ts.blockTitle,
@@ -423,7 +428,7 @@ export default function HomeView({
               if (!cat) return null;
               return (
                 <div key={catId} style={{ ...ts.streakItem, borderColor: `${cat.color}25` }}>
-                  <span style={{ fontSize: 11 }}>{cat.icon}</span>
+                  <CategoryIcon id={catId} size={11} color={cat.color} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: cat.color }}>{streak}d</span>
                 </div>
               );

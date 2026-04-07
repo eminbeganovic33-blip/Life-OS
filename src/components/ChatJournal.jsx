@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS } from "../styles/theme";
 import { useTheme } from "../hooks/useTheme";
 import { chatJournal, getJournalStarter, isAIConfigured } from "../utils/ai";
+import { Send, Sparkles } from "lucide-react";
 
 const T = TOKENS;
 
@@ -133,7 +134,7 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <div style={s.avatarDot}>&#10024;</div>
+              <div style={s.avatarDot}><Sparkles size={12} color="#fff" /></div>
               <div style={s.typingBubble}>
                 <span style={s.typingDot} />
                 <span style={{ ...s.typingDot, animationDelay: "0.15s" }} />
@@ -164,7 +165,7 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <div style={s.avatarDot}>&#10024;</div>
+              <div style={s.avatarDot}><Sparkles size={12} color="#fff" /></div>
               <div style={s.typingBubble}>
                 <span style={s.typingDot} />
                 <span style={{ ...s.typingDot, animationDelay: "0.15s" }} />
@@ -195,7 +196,7 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
           onClick={sendMessage}
           disabled={!input.trim() || loading}
         >
-          &#10148;
+          <Send size={16} />
         </motion.button>
       </div>
 

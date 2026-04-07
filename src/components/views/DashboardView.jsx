@@ -5,6 +5,8 @@ import { getLevel, getNextLevel, getLevelIndex, getDayQuests, getTodayStr, daysB
 import { getPersonalizedQuote, getProactiveNudges } from "../../utils/intelligence";
 import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../../data";
 import NudgeBanner from "../NudgeBanner";
+import Icon from "../Icon";
+import { Flame, Swords, Calendar, PenLine, Dumbbell, GraduationCap, BarChart3, Trophy, Quote, Play, Pause, RotateCcw } from "lucide-react";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -77,7 +79,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
           >
             <div style={styles.greetRow}>
               <div style={styles.greetAvatar}>
-                <span style={{ fontSize: 18, lineHeight: 1 }}>&#9889;</span>
+                <Flame size={18} color="#fff" strokeWidth={2} />
               </div>
               <div style={{ flex: 1 }}>
                 <p style={styles.dateText}>{formatDate()}</p>
@@ -109,21 +111,21 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
         {/* Stats Row */}
         <motion.div variants={fadeUp} style={styles.statsRow}>
           <div style={styles.statPill}>
-            <span style={styles.statIcon}>&#128293;</span>
+            <Flame size={18} color="#F97316" />
             <div>
               <div style={styles.statValue}>{state.streak}</div>
               <div style={styles.statLabel}>Streak</div>
             </div>
           </div>
           <div style={styles.statPill}>
-            <span style={styles.statIcon}>&#9876;&#65039;</span>
+            <Swords size={18} color="#7C5CFC" />
             <div>
               <div style={styles.statValue}>{questsDone}/{questsTotal}</div>
               <div style={styles.statLabel}>Quests</div>
             </div>
           </div>
           <div style={styles.statPill}>
-            <span style={styles.statIcon}>&#128197;</span>
+            <Calendar size={18} color="#3B82F6" />
             <div>
               <div style={styles.statValue}>Day {day}</div>
               <div style={styles.statLabel}>Journey</div>
@@ -145,13 +147,13 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
             onClick={() => onNavigate("home")}
           >
             <div style={styles.cardHeader}>
-              <span style={{ fontSize: 18 }}>&#9876;&#65039;</span>
+              <Swords size={18} color="#7C5CFC" />
               <span style={styles.cardTitle}>Today's Quests</span>
               <span style={styles.cardArrow}>&#8250;</span>
             </div>
             {allDone ? (
               <div style={styles.allDoneBanner}>
-                <span style={{ fontSize: 20 }}>&#127942;</span>
+                <Trophy size={18} color="#22C55E" />
                 <span>All quests completed! You're crushing it.</span>
               </div>
             ) : (
@@ -188,7 +190,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
         {/* Quick Actions Grid */}
         <motion.div variants={fadeUp} style={styles.quickActions}>
           <QuickAction
-            icon="&#128221;"
+            lucideIcon={<PenLine size={22} />}
             label="Journal"
             sub={hasJournaledToday ? (latestMood != null ? `Mood: ${moodEmojis[latestMood]}` : "Done") : "Not yet"}
             color="#22C55E"
@@ -196,7 +198,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
             done={hasJournaledToday}
           />
           <QuickAction
-            icon="&#127947;&#65039;"
+            lucideIcon={<Dumbbell size={22} />}
             label="Dojo"
             sub={todayWorkouts > 0 ? `${todayWorkouts} logged` : "No lifts yet"}
             color="#F97316"
@@ -204,14 +206,14 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
             done={todayWorkouts > 0}
           />
           <QuickAction
-            icon="&#128218;"
+            lucideIcon={<GraduationCap size={22} />}
             label="Academy"
             sub="Learn"
             color="#3B82F6"
             onClick={() => onNavigate("academy")}
           />
           <QuickAction
-            icon="&#128202;"
+            lucideIcon={<BarChart3 size={22} />}
             label="Insights"
             sub="Analytics"
             color="#8B5CF6"
@@ -227,7 +229,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
               onClick={() => onNavigate("forge")}
             >
               <div style={styles.cardHeader}>
-                <span style={{ fontSize: 18 }}>&#128293;</span>
+                <Flame size={18} color="#F97316" />
                 <span style={styles.cardTitle}>Forge Trackers</span>
                 <span style={styles.cardArrow}>&#8250;</span>
               </div>
@@ -275,7 +277,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
         {/* Daily Quote */}
         <motion.div variants={fadeUp}>
           <div style={styles.quoteCard}>
-            <div style={styles.quoteMark}>&ldquo;</div>
+            <div style={styles.quoteMark}><Quote size={24} color="#7C5CFC" strokeWidth={1.5} /></div>
             <p style={styles.quoteText}>{quote.quote}</p>
             <p style={styles.quoteAuthor}>&mdash; {quote.author}</p>
             {quote.reason && quote.reason !== "Daily motivation pick" && (
@@ -331,10 +333,10 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
 
         <div style={styles.timerBtns}>
           <button style={styles.timerPlayBtn(pomodoroActive)} onClick={toggle}>
-            {pomodoroActive ? "⏸" : isDone ? "↩" : "▶"}
+            {pomodoroActive ? <Pause size={14} /> : isDone ? <RotateCcw size={14} /> : <Play size={14} />}
           </button>
           {!pomodoroActive && !isDone && (
-            <button style={styles.timerResetBtn} onClick={reset}>↺</button>
+            <button style={styles.timerResetBtn} onClick={reset}><RotateCcw size={14} /></button>
           )}
         </div>
       </div>
@@ -342,7 +344,7 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
   );
 }
 
-function QuickAction({ icon, label, sub, color, onClick, done }) {
+function QuickAction({ lucideIcon, label, sub, color, onClick, done }) {
   return (
     <motion.div
       style={{
@@ -353,7 +355,7 @@ function QuickAction({ icon, label, sub, color, onClick, done }) {
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
     >
-      <span style={{ fontSize: 22 }} dangerouslySetInnerHTML={{ __html: icon }} />
+      <div style={{ color: done ? color : C.textSecondary }}>{lucideIcon}</div>
       <div style={styles.qaLabel}>{label}</div>
       <div style={{ ...styles.qaSub, color: done ? color : C.textSecondary }}>{sub}</div>
     </motion.div>

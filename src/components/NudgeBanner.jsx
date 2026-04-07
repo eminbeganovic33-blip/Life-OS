@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../styles/theme";
+import { ChevronRight } from "lucide-react";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -40,7 +41,7 @@ export default function NudgeBanner({ nudge, onNavigate }) {
         <div style={{ ...styles.title, color: theme.accent }}>{nudge.title}</div>
         <div style={styles.message}>{nudge.message}</div>
       </div>
-      {nudge.action && <span style={styles.arrow}>&#8250;</span>}
+      {nudge.action && <ChevronRight size={16} color={C.textSecondary} />}
     </motion.div>
   );
 }

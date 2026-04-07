@@ -1,31 +1,35 @@
 import { S } from "../styles/theme";
 import { useTheme } from "../hooks";
+import { NavIcon } from "./Icon";
 
 const NAV = [
-  { id: "dashboard", icon: "🏠", label: "Home" },
-  { id: "home", icon: "⚔️", label: "Quests" },
-  { id: "dojo", icon: "🥋", label: "Dojo" },
-  { id: "forge", icon: "🔥", label: "Forge" },
-  { id: "academy", icon: "📚", label: "Academy" },
+  { id: "dashboard", label: "Home" },
+  { id: "home", label: "Quests" },
+  { id: "dojo", label: "Dojo" },
+  { id: "forge", label: "Forge" },
+  { id: "academy", label: "Academy" },
 ];
 
 export default function BottomNav({ view, setView }) {
   const { theme, themed } = useTheme();
-  const inactiveColor = theme === "light" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)";
+  const inactiveColor = theme === "light" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)";
 
   return (
     <div style={themed("bottomNav")}>
-      {NAV.map((n) => (
-        <div
-          key={n.id}
-          style={{ ...S.navItem, color: view === n.id ? "#7C5CFC" : inactiveColor }}
-          onClick={() => setView(n.id)}
-        >
-          <div style={{ fontSize: 18 }}>{n.icon}</div>
-          <div style={{ fontSize: 11, marginTop: 1, fontWeight: view === n.id ? 700 : 400 }}>{n.label}</div>
-          {view === n.id && <div style={S.navDot} />}
-        </div>
-      ))}
+      {NAV.map((n) => {
+        const active = view === n.id;
+        return (
+          <div
+            key={n.id}
+            style={{ ...S.navItem, color: active ? "#7C5CFC" : inactiveColor }}
+            onClick={() => setView(n.id)}
+          >
+            <NavIcon id={n.id} size={20} color={active ? "#7C5CFC" : inactiveColor} strokeWidth={active ? 2 : 1.5} />
+            <div style={{ fontSize: 10, marginTop: 3, fontWeight: active ? 700 : 500, letterSpacing: 0.2 }}>{n.label}</div>
+            {active && <div style={S.navDot} />}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -2,32 +2,32 @@
 // Single source of truth for spacing, radii, typography, and color.
 
 export const TOKENS = {
-  // Spacing scale (px)
-  space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 },
+  // Spacing scale (px) — tighter, more intentional
+  space: { xs: 4, sm: 6, md: 10, lg: 14, xl: 18, xxl: 24, xxxl: 32 },
 
-  // Border-radius scale — only 4 values
-  radii: { sm: 8, md: 12, lg: 16, xl: 20 },
+  // Border-radius scale — softer, modern
+  radii: { sm: 8, md: 10, lg: 14, xl: 18, pill: 100 },
 
-  // Typography — minimum 11px everywhere
+  // Typography — clean, readable hierarchy
   font: {
-    xs: 11,   // was 7-9px, now readable
+    xs: 11,
     sm: 12,
     md: 13,
     lg: 15,
     xl: 18,
-    xxl: 24,
-    hero: 28,
-    display: 38,
+    xxl: 22,
+    hero: 26,
+    display: 34,
   },
 
-  // Font weights
-  weight: { normal: 500, medium: 600, bold: 700, black: 800, heavy: 900 },
+  // Font weights — Linear-style: lean on medium/semibold, reserve bold for emphasis
+  weight: { normal: 400, medium: 500, semibold: 600, bold: 700, black: 800, heavy: 900 },
 
   // Transitions
   transition: {
-    fast: "0.15s ease",
-    normal: "0.25s ease",
-    smooth: "0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    fast: "0.12s ease",
+    normal: "0.2s ease",
+    smooth: "0.35s cubic-bezier(0.4, 0, 0.2, 1)",
     spring: "0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
   },
 };
@@ -37,21 +37,21 @@ export const TOKENS = {
 // Light: warm off-white for reduced eye strain
 
 export const DARK_COLORS = {
-  bg: "#0F172A",             // slate-900 — warm dark, not pure black
-  bgGrad1: "#0F172A",
-  bgGrad2: "#131B2E",
-  surface: "rgba(255,255,255,0.06)",         // bumped from 0.025
-  surfaceElevated: "rgba(255,255,255,0.09)", // new: for cards that need to pop
-  surfaceBorder: "rgba(255,255,255,0.08)",   // bumped from 0.04
-  text: "#E2E8F0",           // slate-200 — slightly warmer
-  textSecondary: "rgba(255,255,255,0.55)",   // bumped from 0.4
+  bg: "#0C0F1A",             // deeper, more neutral dark
+  bgGrad1: "#0C0F1A",
+  bgGrad2: "#10131F",
+  surface: "rgba(255,255,255,0.05)",
+  surfaceElevated: "rgba(255,255,255,0.07)",
+  surfaceBorder: "rgba(255,255,255,0.07)",
+  text: "#E8ECF4",           // slightly cooler for crisp readability
+  textSecondary: "rgba(255,255,255,0.45)",
   accent: "#7C5CFC",
-  accentGlow: "rgba(124,92,252,0.15)",
-  cardBg: "rgba(255,255,255,0.06)",          // bumped from 0.025
-  cardBorder: "rgba(255,255,255,0.08)",      // bumped from 0.04
-  navBg: "rgba(15,23,42,0.97)",
-  inputBg: "rgba(255,255,255,0.06)",         // bumped from 0.03
-  inputBorder: "rgba(255,255,255,0.12)",     // bumped from 0.08
+  accentGlow: "rgba(124,92,252,0.12)",
+  cardBg: "rgba(255,255,255,0.04)",
+  cardBorder: "rgba(255,255,255,0.06)",
+  navBg: "rgba(12,15,26,0.97)",
+  inputBg: "rgba(255,255,255,0.05)",
+  inputBorder: "rgba(255,255,255,0.1)",
   success: "#22C55E",
   danger: "#EF4444",
   warning: "#F59E0B",
@@ -89,7 +89,7 @@ const T = TOKENS;
 const DC = DARK_COLORS;
 
 export const S = {
-  app: { width: "100%", maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: `linear-gradient(180deg,${DC.bgGrad1} 0%,${DC.bgGrad2} 50%,${DC.bgGrad1} 100%)`, fontFamily: "'SF Pro Display','Inter','Segoe UI',system-ui,sans-serif", color: DC.text, position: "relative", display: "flex", flexDirection: "column" },
+  app: { width: "100%", maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: `linear-gradient(180deg,${DC.bgGrad1} 0%,${DC.bgGrad2} 50%,${DC.bgGrad1} 100%)`, fontFamily: "'Inter','SF Pro Display','Segoe UI',system-ui,-apple-system,sans-serif", color: DC.text, position: "relative", display: "flex", flexDirection: "column", WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" },
   content: { flex: 1, overflowY: "auto", paddingBottom: 76 },
   vc: { paddingTop: T.space.sm, paddingBottom: T.space.md },
 
@@ -199,9 +199,9 @@ export const S = {
   dayDot: { aspectRatio: "1", borderRadius: T.radii.sm, display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.font.xs, fontWeight: T.weight.normal, transition: `all ${T.transition.fast}` },
 
   // Bottom Nav
-  bottomNav: { position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, display: "flex", justifyContent: "space-around", alignItems: "center", padding: `${T.space.sm}px 0 ${T.space.lg}px`, background: `linear-gradient(180deg,rgba(15,23,42,0.8),${DC.navBg})`, backdropFilter: "blur(16px)", borderTop: `1px solid ${DC.surfaceBorder}`, zIndex: 100 },
-  navItem: { display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", position: "relative", padding: `3px ${T.space.md}px`, transition: `color ${T.transition.fast}` },
-  navDot: { width: 3, height: 3, borderRadius: 2, background: "#7C5CFC", marginTop: 2 },
+  bottomNav: { position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, display: "flex", justifyContent: "space-around", alignItems: "center", padding: `${T.space.sm}px 0 ${T.space.xl}px`, background: `linear-gradient(180deg,rgba(12,15,26,0.7),${DC.navBg})`, backdropFilter: "blur(20px)", borderTop: `1px solid ${DC.surfaceBorder}`, zIndex: 100 },
+  navItem: { display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", position: "relative", padding: `4px ${T.space.md}px`, transition: `color ${T.transition.fast}`, gap: 1 },
+  navDot: { width: 3, height: 3, borderRadius: 2, background: "#7C5CFC", marginTop: 1 },
 };
 
 /**
