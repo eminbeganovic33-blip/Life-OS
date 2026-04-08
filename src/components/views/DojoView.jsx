@@ -3,6 +3,7 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { getTodayStr } from "../../utils";
 import { chatWithCoach } from "../../utils/ai";
+import { Bot, Pencil, Trash2, Lightbulb, AlertTriangle, Flame } from "lucide-react";
 import {
   EXERCISE_LIBRARY, MUSCLE_GROUPS, EQUIPMENT, WORKOUT_TEMPLATES,
   getExerciseById, getExercisesByMuscle,
@@ -469,10 +470,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             </div>
             <div style={ds.actionButtons}>
               <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
-                {aiLoading ? "Generating..." : "🤖 AI Workout"}
+                {aiLoading ? "Generating..." : <><Bot size={14} style={{ marginRight: 4 }} /> AI Workout</>}
               </button>
               <button style={ds.customButton} onClick={() => setMode("custom")}>
-                ✏️ Custom
+                <Pencil size={12} style={{ marginRight: 4 }} /> Custom
               </button>
             </div>
             {aiError && <div style={ds.errorText}>{aiError}</div>}
@@ -652,14 +653,14 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                       onClick={() => startEditEntry(i)}
                       title="Edit"
                     >
-                      ✏️
+                      <Pencil size={13} />
                     </button>
                     <button
                       style={ds.deleteBtn}
                       onClick={() => confirmDeleteEntry(i)}
                       title="Delete"
                     >
-                      🗑️
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
@@ -675,7 +676,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             {!mode && (
               <div style={{ ...ds.actionButtons, marginTop: 10 }}>
                 <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
-                  {aiLoading ? "..." : "🤖 AI Workout"}
+                  {aiLoading ? "..." : <><Bot size={14} style={{ marginRight: 4 }} /> AI Workout</>}
                 </button>
                 <button style={ds.customButton} onClick={() => setMode("custom")}>
                   + Add Exercise
@@ -921,7 +922,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           {exercise.tips && (
             <div style={{ ...ds.detailSection, ...ds.tipBox }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#22C55E", marginBottom: 4 }}>
-                💡 PRO TIP
+                <Lightbulb size={12} style={{ marginRight: 4 }} /> PRO TIP
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85 }}>
                 {exercise.tips}
@@ -935,7 +936,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
               <div style={ds.detailLabel}>Common Mistakes</div>
               {exercise.commonMistakes.map((mistake, i) => (
                 <div key={i} style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.8, paddingLeft: 12 }}>
-                  ⚠️ {mistake}
+                  <AlertTriangle size={11} color="#F59E0B" style={{ marginRight: 4, flexShrink: 0 }} /> {mistake}
                 </div>
               ))}
             </div>
@@ -1027,7 +1028,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
         <div style={ds.headerSub}>Train hard. Log everything. Level up.</div>
         {state.liftingStreak > 0 && (
           <div style={{ fontSize: 12, marginTop: 4 }}>
-            🔥 <strong>{state.liftingStreak}</strong> day lifting streak
+            <Flame size={13} color="#F97316" style={{ marginRight: 3 }} /> <strong>{state.liftingStreak}</strong> day lifting streak
             <span style={{ opacity: 0.3, marginLeft: 6 }}>Best: {state.bestLiftingStreak || 0}</span>
           </div>
         )}

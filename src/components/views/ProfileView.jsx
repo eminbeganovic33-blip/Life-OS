@@ -8,6 +8,7 @@ import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star } from "lucide-react";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -63,7 +64,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
             <div style={avatarCircle}>{avatarLetter}</div>
           )}
           <div style={levelDot}>Lv.{levelIdx + 1}</div>
-          <div style={editBadge}>✏️</div>
+          <div style={editBadge}><Pencil size={10} /></div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -72,7 +73,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
           <div style={levelRow}>
             <span style={levelPill}>{level.name}</span>
             {state.streak > 0 && (
-              <span style={streakPill}>🔥 {state.streak} day streak</span>
+              <span style={streakPill}><Flame size={12} style={{ verticalAlign: -1 }} /> {state.streak} day streak</span>
             )}
           </div>
         </div>
@@ -96,9 +97,9 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
 
       {/* ── Primary Stats ── */}
       <div style={primaryStats}>
-        <StatBig value={state.streak} label="Streak" color="#F97316" icon="🔥" />
-        <StatBig value={day} label="Day" color="#7C5CFC" icon="📅" />
-        <StatBig value={Object.keys(state.completedDays).length} label="Done" color="#22C55E" icon="✅" />
+        <StatBig value={state.streak} label="Streak" color="#F97316" icon={<Flame size={22} color="#F97316" />} />
+        <StatBig value={day} label="Day" color="#7C5CFC" icon={<Calendar size={22} color="#7C5CFC" />} />
+        <StatBig value={Object.keys(state.completedDays).length} label="Done" color="#22C55E" icon={<CheckCircle size={22} color="#22C55E" />} />
       </div>
 
       {/* ── Secondary Stats Grid ── */}
@@ -163,7 +164,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
               fontWeight: cur || isBoss ? 700 : 400,
               fontSize: isBoss && !done ? 11 : 10,
             }}>
-              {isBoss && !done ? "⚔️" : d}
+              {isBoss && !done ? <Swords size={11} /> : d}
             </div>
           );
         })}
@@ -175,15 +176,15 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
         {/* Theme toggle */}
         <div style={settingsRow}>
           <div style={settingsRowLeft}>
-            <span style={{ fontSize: 20 }}>{isDark ? "🌙" : "☀️"}</span>
+            <span style={{ display: "flex", alignItems: "center" }}>{isDark ? <Moon size={20} /> : <Sun size={20} color="#F59E0B" />}</span>
             <div>
               <div style={settingsRowTitle}>Appearance</div>
               <div style={settingsRowSub}>{isDark ? "Dark Mode" : "Light Mode"}</div>
             </div>
           </div>
           <button style={toggleTrack(isDark)} onClick={toggleTheme} aria-label="Toggle theme">
-            <span style={toggleIcon(true, isDark)}>☀️</span>
-            <span style={toggleIcon(false, isDark)}>🌙</span>
+            <span style={toggleIcon(true, isDark)}><Sun size={12} /></span>
+            <span style={toggleIcon(false, isDark)}><Moon size={12} /></span>
             <div style={toggleThumb(isDark)} />
           </button>
         </div>
@@ -191,7 +192,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
         {/* Social */}
         <div style={{ ...settingsRow, cursor: "pointer" }} onClick={() => onNavigate?.("social")}>
           <div style={settingsRowLeft}>
-            <span style={{ fontSize: 20 }}>👥</span>
+            <span style={{ display: "flex", alignItems: "center" }}><Users size={20} /></span>
             <div>
               <div style={settingsRowTitle}>Community</div>
               <div style={settingsRowSub}>Leaderboard, friends &amp; challenges</div>
@@ -203,7 +204,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
         {/* Notifications */}
         <div style={{ ...settingsRow, cursor: "pointer" }} onClick={onOpenNotifications}>
           <div style={settingsRowLeft}>
-            <span style={{ fontSize: 20 }}>🔔</span>
+            <span style={{ display: "flex", alignItems: "center" }}><Bell size={20} /></span>
             <div>
               <div style={settingsRowTitle}>Notifications</div>
               <div style={settingsRowSub}>Reminders and alerts</div>
@@ -215,7 +216,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
         {/* Focus Timer — collapsible, last row so no bottom border */}
         <div style={{ ...settingsRow, borderBottom: "none", cursor: "pointer" }} onClick={() => setShowTimer(v => !v)}>
           <div style={settingsRowLeft}>
-            <span style={{ fontSize: 20 }}>⏱️</span>
+            <span style={{ display: "flex", alignItems: "center" }}><Timer size={20} /></span>
             <div>
               <div style={settingsRowTitle}>Focus Timer</div>
               <div style={settingsRowSub}>{pomodoroActive ? "Running..." : `${String(pomodoroMins).padStart(2,"0")}:${String(pomodoroSecs).padStart(2,"0")}`}</div>
@@ -262,7 +263,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
       {!isPremium && (
         <div style={premiumBanner} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: T.space.md }}>
-            <span style={{ fontSize: 24 }}>⭐</span>
+            <span style={{ display: "flex", alignItems: "center" }}><Star size={24} color="#FFD700" /></span>
             <div>
               <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, color: "#FFD700" }}>Upgrade to Premium</div>
               <div style={{ fontSize: T.font.xs, opacity: 0.55, marginTop: 2 }}>Unlock AI coaching, unlimited custom quests & more</div>
@@ -299,7 +300,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
             style={resetConfirm}
           >
             <div style={{ fontSize: T.font.sm, fontWeight: T.weight.bold, color: "#EF4444", marginBottom: T.space.md }}>
-              ⚠️ This will permanently erase all your progress. Are you sure?
+              <AlertTriangle size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> This will permanently erase all your progress. Are you sure?
             </div>
             <div style={{ display: "flex", gap: T.space.sm }}>
               <button style={{ ...resetBtn, flex: 1 }} onClick={() => { onReset(); setConfirmReset(false); }}>
@@ -331,7 +332,7 @@ function SectionHeader({ title, sub }) {
 function StatBig({ value, label, color, icon }) {
   return (
     <div style={{ ...primaryStat, borderColor: `${color}22` }}>
-      <span style={{ fontSize: 22 }}>{icon}</span>
+      <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
       <div style={{ ...primaryStatVal, color }}>{value}</div>
       <div style={primaryStatLbl}>{label}</div>
     </div>

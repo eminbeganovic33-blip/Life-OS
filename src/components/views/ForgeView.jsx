@@ -8,6 +8,7 @@ import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
 import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
+import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle } from "lucide-react";
 
 // ── Constants ──
 
@@ -24,16 +25,16 @@ const GOAL_OPTIONS = [
 const MILESTONE_DAYS = [7, 14, 21, 30, 60, 90];
 
 function getPhase(daysClean) {
-  if (daysClean <= 7) return { name: "Acute Phase", color: "#EF4444", icon: "🔴" };
-  if (daysClean <= 21) return { name: "Building Phase", color: "#F59E0B", icon: "🟡" };
-  return { name: "Freedom Phase", color: "#10B981", icon: "🟢" };
+  if (daysClean <= 7) return { name: "Acute Phase", color: "#EF4444", LucideIcon: CircleDot };
+  if (daysClean <= 21) return { name: "Building Phase", color: "#F59E0B", LucideIcon: CircleDot };
+  return { name: "Freedom Phase", color: "#10B981", LucideIcon: CircleDot };
 }
 
-function getStreakEmoji(daysClean) {
-  if (daysClean >= 90) return "💎";
-  if (daysClean >= 60) return "👑";
-  if (daysClean >= 30) return "⭐";
-  if (daysClean >= 7) return "🔥";
+function getStreakIcon(daysClean) {
+  if (daysClean >= 90) return { Icon: Diamond, color: "#A78BFA" };
+  if (daysClean >= 60) return { Icon: Crown, color: "#FBBF24" };
+  if (daysClean >= 30) return { Icon: Star, color: "#F59E0B" };
+  if (daysClean >= 7) return { Icon: Flame, color: "#F97316" };
   return null;
 }
 
@@ -156,7 +157,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
       {/* Premium upsell for free users */}
       {!hasUnlimitedForge && (
         <div style={fs.upgradeBanner} onClick={() => setShowUpgrade(true)}>
-          <span style={{ fontSize: 16 }}>👑</span>
+          <Crown size={16} color="#FFD700" />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Custom Trackers</div>
             <div style={{ fontSize: 10, opacity: 0.5 }}>Premium lets you add custom habits to track</div>
@@ -236,7 +237,7 @@ function TrackerCard({
   const progress = Math.min(100, (daysClean / goal) * 100);
   const goalReached = daysClean >= goal;
   const phase = getPhase(daysClean);
-  const streakEmoji = getStreakEmoji(daysClean);
+  const streakIconData = getStreakIcon(daysClean);
   const [showCustom, setShowCustom] = useState(false);
 
   return (
@@ -253,8 +254,8 @@ function TrackerCard({
                   {daysClean}
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.5 }}>days free</span>
-                {streakEmoji && daysClean >= 7 && (
-                  <span style={styles.streakBadge}>{streakEmoji}</span>
+                {streakIconData && daysClean >= 7 && (
+                  <span style={styles.streakBadge}><streakIconData.Icon size={14} color={streakIconData.color} /></span>
                 )}
               </div>
             ) : (
@@ -330,7 +331,7 @@ function TrackerCard({
       {/* Goal Reached Celebration */}
       {isActive && goalReached && (
         <div style={styles.celebration}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>🎉</div>
+          <div style={{ marginBottom: 4 }}><PartyPopper size={20} color="#10B981" /></div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>
             Goal Reached! {goal} days of freedom!
           </div>
@@ -346,7 +347,7 @@ function TrackerCard({
       {/* Phase Badge */}
       {isActive && daysClean > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-          <span style={{ fontSize: 10 }}>{phase.icon}</span>
+          <phase.LucideIcon size={10} color={phase.color} />
           <span style={{ fontSize: 10, fontWeight: 700, color: phase.color, textTransform: "uppercase", letterSpacing: 0.5 }}>
             {phase.name}
           </span>
@@ -463,7 +464,7 @@ function JournalTab({ journals, filter, setFilter }) {
 
       {sorted.length === 0 && (
         <div style={styles.emptyJournal}>
-          <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>📖</div>
+          <div style={{ marginBottom: 8, opacity: 0.3 }}><BookOpen size={28} color="currentColor" /></div>
           <div style={{ fontSize: 12, opacity: 0.3 }}>No journal entries yet</div>
           <div style={{ fontSize: 11, opacity: 0.2, marginTop: 4 }}>
             Entries are added when you reset a tracker
@@ -477,7 +478,7 @@ function JournalTab({ journals, filter, setFilter }) {
           <div key={i} style={styles.journalEntry}>
             <div style={styles.journalHeader}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>{tr?.icon || "📝"}</span>
+                <span>{tr?.icon ? <span style={{ fontSize: 18 }}>{tr.icon}</span> : <PenLine size={18} color="currentColor" />}</span>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{tr?.label || entry.tracker}</div>
                   <div style={{ fontSize: 10, opacity: 0.35 }}>{entry.date}</div>
