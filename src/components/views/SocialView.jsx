@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import {
@@ -9,28 +9,30 @@ import {
   getPublicChallenges, joinChallenge,
 } from "../../utils/social";
 import { renderAnimalAvatar } from "../AnimalAvatars";
+import { Trophy, Users, Swords, Globe, Zap, Flame, Hand, Search, Plus, Check, X, Crown, Medal, UserPlus, RefreshCw } from "lucide-react";
+import Skeleton from "../Skeleton";
 
 const T = TOKENS;
 const C = DARK_COLORS;
 
 const TABS = [
-  { id: "Leaderboard", icon: "🏆" },
-  { id: "Friends", icon: "👥" },
-  { id: "Challenges", icon: "⚔️" },
+  { id: "Leaderboard", Icon: Trophy },
+  { id: "Friends", Icon: Users },
+  { id: "Challenges", Icon: Swords },
 ];
 
 // ── Sign-in gate ───────────────────────────────────────────────────────────────
 function SignInGate({ onNavigate }) {
   const previews = [
-    { icon: "🏆", title: "Global Leaderboard", desc: "See how you rank against warriors worldwide" },
-    { icon: "👥", title: "Add Friends", desc: "Keep each other accountable on the journey" },
-    { icon: "⚔️", title: "Challenges", desc: "Create and join 30-day challenges with others" },
+    { Icon: Trophy, color: "#FFD700", title: "Global Leaderboard", desc: "See how you rank against warriors worldwide" },
+    { Icon: Users, color: "#7C5CFC", title: "Add Friends", desc: "Keep each other accountable on the journey" },
+    { Icon: Swords, color: "#F97316", title: "Challenges", desc: "Create and join 30-day challenges with others" },
   ];
 
   return (
     <div style={gateWrap}>
       <div style={gateHero}>
-        <span style={{ fontSize: 40 }}>🌍</span>
+        <Globe size={40} color="#7C5CFC" />
         <h2 style={gateTitle}>Join the Community</h2>
         <p style={gateSub}>Sign in to compete, connect, and stay accountable with other Life OS warriors.</p>
       </div>
@@ -44,7 +46,7 @@ function SignInGate({ onNavigate }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
           >
-            <span style={{ fontSize: 24 }}>{p.icon}</span>
+            <span style={{ display: "flex", alignItems: "center" }}><p.Icon size={24} color={p.color} /></span>
             <div>
               <div style={gateFeatureTitle}>{p.title}</div>
               <div style={gateFeatureDesc}>{p.desc}</div>
@@ -93,7 +95,7 @@ export default function SocialView({ user, state, onNavigate }) {
             style={t.id === activeTab ? tabActive : tabStyle}
             onClick={() => setActiveTab(t.id)}
           >
-            <span style={{ fontSize: 14 }}>{t.icon}</span>
+            <t.Icon size={14} />
             <span>{t.id}</span>
           </button>
         ))}
@@ -136,11 +138,11 @@ function LeaderboardTab({ user, state }) {
 
       <div style={sectionLabel}>Top Warriors</div>
 
-      {loading && <Spinner />}
+      {loading && <LeaderboardSkeleton />}
       {error && <ErrorState text={error} onRetry={fetchBoard} />}
       {!loading && !error && board.length === 0 && (
         <EmptyState
-          icon="🏆"
+          icon={<Trophy size={32} color="#FFD700" />}
           title="No one on the board yet"
           desc="Be the first — complete your daily quests to appear here."
         />
@@ -149,7 +151,7 @@ function LeaderboardTab({ user, state }) {
         <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
           {board.map((entry, i) => {
             const isMe = entry.uid === user.uid;
-            const medals = ["🥇", "🥈", "🥉"];
+            const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
             return (
               <motion.div
                 key={entry.uid}
@@ -158,8 +160,8 @@ function LeaderboardTab({ user, state }) {
                 transition={{ delay: i * 0.03 }}
                 style={{ ...lbRow, ...(isMe ? lbRowMe : {}) }}
               >
-                <div style={{ width: 32, textAlign: "center", fontSize: i < 3 ? 18 : T.font.sm, fontWeight: T.weight.black, color: i < 3 ? undefined : C.textSecondary, flexShrink: 0 }}>
-                  {i < 3 ? medals[i] : i + 1}
+                <div style={{ width: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {i < 3 ? <Crown size={18} color={medalColors[i]} /> : <span style={{ fontSize: T.font.sm, fontWeight: T.weight.black, color: C.textSecondary }}>{i + 1}</span>}
                 </div>
                 <Avatar name={entry.displayName} photoURL={entry.photoURL} avatar={entry.avatar} size={34} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -169,8 +171,8 @@ function LeaderboardTab({ user, state }) {
                   <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>Day {entry.currentDay || 1}</div>
                 </div>
                 <div style={{ display: "flex", gap: T.space.sm, flexShrink: 0 }}>
-                  <span style={xpChip}>⚡ {entry.xp || 0}</span>
-                  <span style={streakChip}>🔥 {entry.streak || 0}</span>
+                  <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {entry.xp || 0}</span>
+                  <span style={streakChip}><Flame size={11} style={{ verticalAlign: -1 }} /> {entry.streak || 0}</span>
                 </div>
               </motion.div>
             );
@@ -257,7 +259,7 @@ function FriendsTab({ user }) {
               <Avatar name={u.displayName} photoURL={u.photoURL} avatar={u.avatar} size={34} />
               <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{u.displayName || "User"}</span>
               {sentIds.has(u.uid) ? (
-                <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold }}>Sent ✓</span>
+                <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold, display: "flex", alignItems: "center", gap: 4 }}>Sent <Check size={12} /></span>
               ) : (
                 <button style={accentBtn} onClick={() => handleAdd(u)} disabled={actionLoading === u.uid}>
                   {actionLoading === u.uid ? "..." : "Add"}
@@ -278,7 +280,7 @@ function FriendsTab({ user }) {
                 <Avatar name={req.fromName} size={34} />
                 <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{req.fromName || "Someone"}</span>
                 <button style={accentBtn} onClick={() => handleAccept(req)} disabled={actionLoading === req.id}>Accept</button>
-                <button style={declineBtn} onClick={() => handleDecline(req)} disabled={actionLoading === req.id}>✕</button>
+                <button style={declineBtn} onClick={() => handleDecline(req)} disabled={actionLoading === req.id}><X size={14} /></button>
               </div>
             ))}
           </div>
@@ -288,7 +290,7 @@ function FriendsTab({ user }) {
       {/* Friends list */}
       <div style={sectionLabel}>Friends · {friends.length}</div>
       {loading ? <Spinner /> : friends.length === 0 ? (
-        <EmptyState icon="👋" title="No friends yet" desc="Search for friends above to start holding each other accountable." />
+        <EmptyState icon={<Hand size={32} color="#F59E0B" />} title="No friends yet" desc="Search for friends above to start holding each other accountable." />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
           {friends.map(f => (
@@ -299,8 +301,8 @@ function FriendsTab({ user }) {
                 <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>Day {f.currentDay || 1}</div>
               </div>
               <div style={{ display: "flex", gap: T.space.sm }}>
-                <span style={xpChip}>⚡ {f.xp || 0}</span>
-                <span style={streakChip}>🔥 {f.streak || 0}</span>
+                <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {f.xp || 0}</span>
+                <span style={streakChip}><Flame size={11} style={{ verticalAlign: -1 }} /> {f.streak || 0}</span>
               </div>
             </div>
           ))}
@@ -364,7 +366,7 @@ function ChallengesTab({ user }) {
           {/* Active */}
           <div style={sectionLabel}>Your Challenges · {active.length}</div>
           {active.length === 0 ? (
-            <EmptyState icon="⚔️" title="No active challenges" desc="Join a public challenge or create your own below." />
+            <EmptyState icon={<Swords size={32} color="#F97316" />} title="No active challenges" desc="Join a public challenge or create your own below." />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
               {active.map(ch => {
@@ -393,7 +395,7 @@ function ChallengesTab({ user }) {
 
           {/* Create */}
           <button style={createToggleBtn} onClick={() => setShowCreate(v => !v)}>
-            {showCreate ? "Cancel" : "+ Create a Challenge"}
+            {showCreate ? "Cancel" : <><Plus size={14} style={{ verticalAlign: -2 }} /> Create a Challenge</>}
           </button>
           {showCreate && (
             <motion.div
@@ -420,7 +422,7 @@ function ChallengesTab({ user }) {
           {/* Browse */}
           <div style={{ ...sectionLabel, marginTop: T.space.xl }}>Browse Public Challenges</div>
           {publicList.length === 0 ? (
-            <EmptyState icon="🌐" title="No public challenges yet" desc="Create one above and invite others to join." />
+            <EmptyState icon={<Globe size={32} color="#7C5CFC" />} title="No public challenges yet" desc="Create one above and invite others to join." />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
               {publicList.map(ch => {
@@ -435,7 +437,7 @@ function ChallengesTab({ user }) {
                       </div>
                     </div>
                     {joined ? (
-                      <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold }}>Joined ✓</span>
+                      <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold, display: "flex", alignItems: "center", gap: 4 }}>Joined <Check size={12} /></span>
                     ) : (
                       <button style={accentBtn} onClick={() => handleJoin(ch.id)} disabled={joinLoading === ch.id}>
                         {joinLoading === ch.id ? "..." : "Join"}
@@ -474,15 +476,44 @@ function Avatar({ name, photoURL, avatar, size = 32 }) {
   );
 }
 
+function LeaderboardSkeleton() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <div key={i} style={{ ...lbRow, opacity: 1 - i * 0.12 }}>
+          <Skeleton style={{ width: 32, height: 20, borderRadius: 4 }} />
+          <Skeleton.Circle size={34} />
+          <div style={{ flex: 1 }}>
+            <Skeleton style={{ width: `${60 - i * 6}%`, height: 14, borderRadius: 4, marginBottom: 4 }} />
+            <Skeleton style={{ width: 40, height: 10, borderRadius: 4 }} />
+          </div>
+          <Skeleton style={{ width: 50, height: 20, borderRadius: 10 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Spinner() {
-  return <div style={{ textAlign: "center", padding: `${T.space.xxxl}px 0`, fontSize: T.font.sm, color: C.textSecondary }}>Loading...</div>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} style={{ ...friendRow, opacity: 1 - i * 0.15 }}>
+          <Skeleton.Circle size={34} />
+          <div style={{ flex: 1 }}>
+            <Skeleton style={{ width: `${70 - i * 10}%`, height: 14, borderRadius: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ErrorState({ text, onRetry }) {
   return (
     <div style={{ textAlign: "center", padding: `${T.space.xl}px 0` }}>
       <div style={{ fontSize: T.font.sm, color: "#EF4444", marginBottom: T.space.md }}>{text}</div>
-      {onRetry && <button style={accentBtn} onClick={onRetry}>Retry</button>}
+      {onRetry && <button style={{ ...accentBtn, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={onRetry}><RefreshCw size={12} /> Retry</button>}
     </div>
   );
 }
@@ -490,7 +521,7 @@ function ErrorState({ text, onRetry }) {
 function EmptyState({ icon, title, desc }) {
   return (
     <div style={emptyWrap}>
-      <span style={{ fontSize: 32 }}>{icon}</span>
+      <span style={{ display: "flex", justifyContent: "center" }}>{icon}</span>
       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, marginTop: T.space.sm }}>{title}</div>
       <div style={{ fontSize: T.font.sm, color: C.textSecondary, marginTop: T.space.xs, lineHeight: 1.4 }}>{desc}</div>
     </div>
