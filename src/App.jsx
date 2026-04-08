@@ -19,6 +19,7 @@ import MotivationModal from "./components/modals/MotivationModal";
 import MorningBrief from "./components/MorningBrief";
 import Confetti from "./components/Confetti";
 import DayCompleteModal from "./components/modals/DayCompleteModal";
+import { ToastProvider, useToast } from "./components/Toast";
 import WorkoutModal from "./components/modals/WorkoutModal";
 import RelapseModal from "./components/modals/RelapseModal";
 import BossModal from "./components/modals/BossModal";
@@ -45,10 +46,21 @@ injectGlobalStyles();
 // All courses in one array — tier 2 gating handled by AcademyView
 const ALL_COURSES = COURSES;
 
-export default function LifeOS() {
+export default function LifeOSRoot() {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <LifeOS />
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}
+
+function LifeOS() {
   const { user, loading: authLoading } = useAuth();
   const { state, loading, save, showOnboarding, setShowOnboarding } = useCloudSync(user);
   const { checkTrophies } = useTrophies();
+  const toast = useToast();
   const pomodoro = usePomodoro(state?.pomodoroMinutes || 25);
 
   const [view, setView] = useState("dashboard");
@@ -100,6 +112,15 @@ export default function LifeOS() {
     }
     prevLevelRef.current = currentLvl;
   }, [state?.xp]);
+
+  // Streak freeze used notification
+  useEffect(() => {
+    if (!state) return;
+    const today = getTodayStr();
+    if (state.streakFreezeUsedDate === today) {
+      toast.show("Streak freeze used — streak preserved!", "info", 4000);
+    }
+  }, [state?.streakFreezeUsedDate]);
 
   // Morning Brief — shows full-screen brief on first daily open
   useEffect(() => {
@@ -258,10 +279,14 @@ export default function LifeOS() {
     const newXp = state.xp + xpVal;
     showXp(xpVal);
     const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
-    const { unlocked, xpBonus } = checkTrophies(ns);
+    const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
     setConfettiPop((c) => c + 1);
+    // Toast for trophy unlocks
+    if (newlyUnlocked?.length > 0) {
+      newlyUnlocked.forEach((t) => toast.show(`Trophy unlocked: ${t.name}!`, "trophy", 4000));
+    }
   }
 
   // Uncheck a quest (called only via swipe gesture)
@@ -288,10 +313,13 @@ export default function LifeOS() {
       bestStreak: Math.max(state.bestStreak, newStreak),
       lastActiveDate: getTodayStr(),
     };
-    const { unlocked, xpBonus } = checkTrophies(ns);
+    const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
     setConfettiBurst((c) => c + 1);
+    if (newlyUnlocked?.length > 0) {
+      newlyUnlocked.forEach((t) => toast.show(`Trophy unlocked: ${t.name}!`, "trophy", 4000));
+    }
     if (day === 21 || day === 66) {
       setBossDay(day);
       setModal("boss");
@@ -344,6 +372,7 @@ export default function LifeOS() {
       journal: { ...state.journal, [day]: journalText || state.journal[day] },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
+    toast.show("Journal saved", "success", 2000);
     setView("home");
   }
 
@@ -386,9 +415,13 @@ export default function LifeOS() {
       bestLiftingStreak: Math.max(state.bestLiftingStreak || 0, newLiftStreak),
       lastLiftDate: todayKey,
     };
-    const { unlocked, xpBonus } = checkTrophies(ns);
+    const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     showXp(20 + bonusXp + xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    toast.show("Workout logged!", "success", 2000);
+    if (newlyUnlocked?.length > 0) {
+      newlyUnlocked.forEach((t) => toast.show(`Trophy unlocked: ${t.name}!`, "trophy", 4000));
+    }
   }
 
   // ── Dojo: Edit/Delete logged exercises ──
@@ -471,6 +504,7 @@ export default function LifeOS() {
   // ── Forge ──
   function startSobriety(trackerId) {
     save({ ...state, sobrietyDates: { ...state.sobrietyDates, [trackerId]: getTodayStr() } });
+    toast.show("Forge tracker started — stay strong!", "streak", 3000);
   }
 
   function triggerRelapse(trackerId) {
@@ -508,6 +542,7 @@ export default function LifeOS() {
     if (!quest || !quest.text || quest.text.length > 200) return;
     save({ ...state, customQuests: [...(state.customQuests || []), quest] });
     setModal(null);
+    toast.show("Custom quest added!", "success", 2000);
   }
 
   function removeCustomQuest(questId) {
@@ -623,17 +658,15 @@ export default function LifeOS() {
   };
 
   return (
-    <ThemeProvider>
-      <PremiumProvider state={state} save={save}>
-        <LifeOSProvider value={lifeOSValue}>
-          <LifeOSInner
-            renderModal={renderModal}
-            showWeeklySummary={showWeeklySummary}
-            setShowWeeklySummary={setShowWeeklySummary}
-          />
-        </LifeOSProvider>
-      </PremiumProvider>
-    </ThemeProvider>
+    <PremiumProvider state={state} save={save}>
+      <LifeOSProvider value={lifeOSValue}>
+        <LifeOSInner
+          renderModal={renderModal}
+          showWeeklySummary={showWeeklySummary}
+          setShowWeeklySummary={setShowWeeklySummary}
+        />
+      </LifeOSProvider>
+    </PremiumProvider>
   );
 }
 

@@ -22,6 +22,8 @@ export function useTrophies() {
     const recoveryCount = (s.recoveryJournals || []).length;
     const totalVolume = getTotalVolume(s.workoutLogs);
 
+    const newlyUnlocked = [];
+
     TROPHIES.forEach((t) => {
       if (unlocked[t.id]) return;
       let earned = false;
@@ -35,10 +37,11 @@ export function useTrophies() {
       if (earned) {
         unlocked[t.id] = getTodayStr();
         xpBonus += t.xpReward;
+        newlyUnlocked.push(t);
       }
     });
 
-    return { unlocked, xpBonus };
+    return { unlocked, xpBonus, newlyUnlocked };
   }, []);
 
   return { checkTrophies };

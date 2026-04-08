@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { CATEGORIES, MOODS } from "../../data";
@@ -12,21 +13,25 @@ import {
 } from "../../utils/analytics";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
+import { CategoryIcon } from "../Icon";
+import { Flame, Zap, CalendarCheck, CheckCircle, BarChart3, TrendingUp, Grid3X3, Lightbulb, Crown, ChevronRight } from "lucide-react";
+import Skeleton from "../Skeleton";
 
 export default function AnalyticsView({ state }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
-  const [tab, setTab] = useState("overview"); // overview | heatmap | insights
+  const [tab, setTab] = useState("overview");
+  const [hoveredBar, setHoveredBar] = useState(null);
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasAdvancedAnalytics = checkFeatureAccess(FEATURE_IDS.ADVANCED_ANALYTICS);
 
-  const weeklyXp = getWeeklyXpData(state);
-  const categoryRates = getCategoryCompletionRates(state);
-  const moodTrend = getMoodTrend(state);
-  const insights = getCorrelationInsights(state);
-  const records = getPersonalRecords(state);
-  const heatmap = getHeatmapData(state);
+  const weeklyXp = useMemo(() => getWeeklyXpData(state), [state.xp, state.currentDay]);
+  const categoryRates = useMemo(() => getCategoryCompletionRates(state), [state.completedQuests, state.currentDay]);
+  const moodTrend = useMemo(() => getMoodTrend(state), [state.moods, state.currentDay]);
+  const insights = useMemo(() => getCorrelationInsights(state), [state.completedQuests, state.moods, state.currentDay]);
+  const records = useMemo(() => getPersonalRecords(state), [state.completedQuests, state.completedDays, state.xp]);
+  const heatmap = useMemo(() => getHeatmapData(state), [state.completedQuests, state.currentDay]);
 
   const maxXp = Math.max(...weeklyXp.map((d) => d.xp), 1);
 
@@ -34,200 +39,344 @@ export default function AnalyticsView({ state }) {
   if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0) {
     return (
       <div style={S.vc}>
-        <div style={S.secTitle}>Analytics</div>
-        <div style={welcomeState}>
-          <span style={{ fontSize: 32 }}>📊</span>
-          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8 }}>Your analytics are waiting</div>
-          <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4, lineHeight: 1.5 }}>
-            Complete your first day of quests to start seeing progress charts, completion rates, and personal records.
-          </div>
+        <div style={headerRow}>
+          <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
+          <span style={headerTitle}>Analytics</span>
         </div>
+        <motion.div
+          style={welcomeState}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div style={welcomeIcon}>
+            <BarChart3 size={28} color="#7C5CFC" strokeWidth={1.5} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginTop: 12 }}>Your analytics are waiting</div>
+          <div style={{ fontSize: 12, opacity: 0.45, marginTop: 6, lineHeight: 1.6, maxWidth: 260 }}>
+            Complete your first day to unlock progress charts, completion rates, and personal records.
+          </div>
+        </motion.div>
       </div>
     );
   }
 
+  const tabs = [
+    { id: "overview", label: "Overview", Icon: TrendingUp },
+    { id: "heatmap", label: "Heatmap", Icon: Grid3X3 },
+    { id: "insights", label: "Insights", Icon: Lightbulb },
+  ];
+
+  const fadeIn = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3 } };
+
   return (
     <div style={S.vc}>
-      <div style={S.secTitle}>Analytics</div>
+      {/* Header */}
+      <div style={headerRow}>
+        <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
+        <span style={headerTitle}>Analytics</span>
+      </div>
 
       {/* Tab Switcher */}
       <div style={tabRow}>
-        {[
-          { id: "overview", label: "Overview" },
-          { id: "heatmap", label: "Heatmap" },
-          { id: "insights", label: "Insights" },
-        ].map((t) => (
-          <div
-            key={t.id}
-            style={{
-              ...tabItem,
-              color: tab === t.id ? "#7C5CFC" : colors.textSecondary,
-              borderBottomColor: tab === t.id ? "#7C5CFC" : "transparent",
-            }}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </div>
-        ))}
+        {tabs.map((t) => {
+          const active = tab === t.id;
+          return (
+            <div
+              key={t.id}
+              style={{
+                ...tabItem,
+                color: active ? colors.text : colors.textSecondary,
+                background: active ? "rgba(124,92,252,0.1)" : "transparent",
+                borderColor: active ? "rgba(124,92,252,0.2)" : "transparent",
+              }}
+              onClick={() => setTab(t.id)}
+            >
+              <t.Icon size={13} strokeWidth={active ? 2 : 1.5} />
+              <span>{t.label}</span>
+            </div>
+          );
+        })}
       </div>
 
-      {tab === "overview" && (
-        <>
-          {/* Personal Records */}
-          <div style={sectionLabel}>Personal Records</div>
-          <div style={recordsGrid}>
-            {[
-              { icon: "🔥", val: records.longestStreak, label: "Longest Streak" },
-              { icon: "⚡", val: records.highestDayXp, label: "Best Day XP" },
-              { icon: "📅", val: records.totalDaysCompleted, label: "Days Done" },
-              { icon: "✅", val: records.totalQuestsCompleted, label: "Quests Done" },
-            ].map((r, i) => (
-              <div key={i} style={recordCard}>
-                <span style={{ fontSize: 20 }}>{r.icon}</span>
-                <div style={recordVal}>{r.val}</div>
-                <div style={recordLabel}>{r.label}</div>
-              </div>
-            ))}
-          </div>
-          {records.mostConsistentCategory && (
-            <div style={consistentBadge}>
-              Most consistent: <strong>{records.mostConsistentCategory}</strong>
-            </div>
-          )}
+      <AnimatePresence mode="wait">
+        <motion.div key={tab} {...fadeIn}>
+          {tab === "overview" && renderOverview()}
+          {tab === "heatmap" && renderHeatmap()}
+          {tab === "insights" && renderInsights()}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
 
-          {/* Weekly XP Chart */}
-          <div style={sectionLabel}>XP This Week</div>
-          <div style={chartContainer}>
-            {weeklyXp.map((d, i) => (
-              <div key={i} style={barCol}>
-                <div style={barValue}>{d.xp > 0 ? d.xp : ""}</div>
+  function renderOverview() {
+    return (
+      <>
+        {/* Personal Records */}
+        <div style={sectionLabel}>Personal Records</div>
+        <div style={recordsGrid}>
+          {[
+            { Icon: Flame, val: records.longestStreak, label: "Best Streak", color: "#F97316" },
+            { Icon: Zap, val: records.highestDayXp, label: "Best Day XP", color: "#FBBF24" },
+            { Icon: CalendarCheck, val: records.totalDaysCompleted, label: "Days Done", color: "#22C55E" },
+            { Icon: CheckCircle, val: records.totalQuestsCompleted, label: "Quests Done", color: "#7C5CFC" },
+          ].map((r, i) => (
+            <motion.div
+              key={i}
+              style={recordCard}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.06 }}
+            >
+              <div style={{ ...recordIconBg, background: `${r.color}15`, border: `1px solid ${r.color}25` }}>
+                <r.Icon size={16} color={r.color} strokeWidth={2} />
+              </div>
+              <div style={recordVal}>{r.val}</div>
+              <div style={recordLabel}>{r.label}</div>
+            </motion.div>
+          ))}
+        </div>
+        {records.mostConsistentCategory && (
+          <div style={consistentBadge}>
+            <TrendingUp size={13} color="#10B981" strokeWidth={2} />
+            Most consistent: <strong>{records.mostConsistentCategory}</strong>
+          </div>
+        )}
+
+        {/* Weekly XP Chart */}
+        <div style={sectionLabel}>XP This Week</div>
+        <div style={chartContainer}>
+          {weeklyXp.map((d, i) => {
+            const pct = (d.xp / maxXp) * 100;
+            const isHovered = hoveredBar === i;
+            return (
+              <div
+                key={i}
+                style={barCol}
+                onPointerEnter={() => setHoveredBar(i)}
+                onPointerLeave={() => setHoveredBar(null)}
+              >
+                <div style={{ ...barValue, opacity: d.xp > 0 ? 1 : 0 }}>
+                  {d.xp > 0 ? d.xp : ""}
+                </div>
                 <div style={barTrack}>
-                  <div
+                  <motion.div
                     style={{
                       ...barFill,
-                      height: `${(d.xp / maxXp) * 100}%`,
+                      opacity: isHovered ? 1 : 0.85,
+                      filter: isHovered ? "brightness(1.2)" : "none",
                     }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${Math.max(pct, 2)}%` }}
+                    transition={{ duration: 0.5, delay: i * 0.06, ease: "easeOut" }}
                   />
                 </div>
-                <div style={barLabel}>{d.label}</div>
+                <div style={{ ...barLabel, fontWeight: isHovered ? 700 : 400 }}>{d.label}</div>
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Category Completion */}
-          <div style={sectionLabel}>Category Completion Rate</div>
-          <div style={catContainer}>
-            {categoryRates.map((c) => (
-              <div key={c.category} style={catRow}>
+        {/* Category Completion */}
+        <div style={sectionLabel}>Category Completion Rate</div>
+        <div style={catContainer}>
+          {categoryRates.map((c, i) => {
+            const cat = CATEGORIES.find((cat) => cat.id === c.category);
+            return (
+              <motion.div
+                key={c.category}
+                style={catRow}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+              >
                 <div style={catInfo}>
-                  <span>{c.icon}</span>
+                  {cat ? <CategoryIcon id={cat.id} size={14} color={cat.color} /> : <span>{c.icon}</span>}
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{c.label}</span>
                 </div>
                 <div style={catBarOuter}>
-                  <div
-                    style={{
-                      ...catBarInner,
-                      width: `${c.rate}%`,
-                      background: c.color,
-                    }}
+                  <motion.div
+                    style={{ ...catBarInner, background: c.color }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${c.rate}%` }}
+                    transition={{ duration: 0.6, delay: i * 0.04, ease: "easeOut" }}
                   />
                 </div>
-                <div style={catPercent}>{Math.round(c.rate)}%</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Mood Trend */}
-          {moodTrend.length > 0 && (
-            <>
-              <div style={sectionLabel}>Mood Trend (Last 14 Days)</div>
-              <div style={moodChartContainer}>
-                {moodTrend.map((m, i) => (
-                  <div key={i} style={moodCol}>
-                    <div style={{ fontSize: 16 }}>{MOODS[m.mood]?.emoji || "·"}</div>
-                    <div style={moodDayLabel}>D{m.day}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {tab === "heatmap" && (
-        <>
-          <div style={sectionLabel}>90-Day Activity Heatmap</div>
-          <div style={heatmapLegend}>
-            <span style={{ fontSize: 10, opacity: 0.4 }}>Less</span>
-            {[0, 1, 2, 3, 4].map((level) => (
-              <div key={level} style={{ ...heatCell, background: heatColors[level] }} />
-            ))}
-            <span style={{ fontSize: 10, opacity: 0.4 }}>More</span>
-          </div>
-          <div style={heatmapGrid}>
-            {heatmap.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  ...heatCell,
-                  background: heatColors[d.intensity],
-                }}
-                title={`${d.date}: ${d.intensity === 0 ? "No activity" : `${d.intensity} quests`}`}
-              />
-            ))}
-          </div>
-          <div style={{ padding: "8px 16px", fontSize: 10, opacity: 0.3, textAlign: "center" }}>
-            Each cell = 1 day. Brighter = more quests completed.
-          </div>
-        </>
-      )}
-
-      {tab === "insights" && (
-        <>
-          {!hasAdvancedAnalytics ? (
-            <div style={premiumGate} onClick={() => setShowUpgrade(true)}>
-              <span style={{ fontSize: 24 }}>👑</span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700" }}>Premium Insights</div>
-              <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>
-                Unlock correlation insights, trend analysis, and category streaks with Premium.
-              </div>
-              <div style={premiumGateBtn}>Upgrade to Premium</div>
-            </div>
-          ) : (
-            <>
-              <div style={sectionLabel}>Correlation Insights</div>
-              {insights.length > 0 ? (
-                insights.map((insight, i) => (
-                  <div key={i} style={insightCard}>
-                    <span style={{ fontSize: 16 }}>💡</span>
-                    <span style={{ fontSize: 12, lineHeight: 1.5 }}>{insight}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={emptyState}>
-                  Complete a few more days with mood tracking to unlock correlation insights.
+                <div style={{ ...catPercent, color: c.rate > 70 ? "#22C55E" : c.rate > 40 ? colors.text : colors.textSecondary }}>
+                  {Math.round(c.rate)}%
                 </div>
-              )}
+              </motion.div>
+            );
+          })}
+        </div>
 
-              <div style={sectionLabel}>Category Streaks</div>
-              {categoryRates.map((c) => {
-                const streakDays = getCatStreak(state, c.category);
+        {/* Mood Trend */}
+        {moodTrend.length > 0 && (
+          <>
+            <div style={sectionLabel}>Mood Trend (Last 14 Days)</div>
+            <div style={moodChartContainer}>
+              {moodTrend.map((m, i) => {
+                const mood = MOODS[m.mood];
                 return (
-                  <div key={c.category} style={streakRow}>
-                    <span>{c.icon}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{c.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: streakDays > 0 ? "#10B981" : sub(0.2) }}>
-                      {streakDays > 0 ? `${streakDays}d streak` : "—"}
-                    </span>
-                  </div>
+                  <motion.div
+                    key={i}
+                    style={moodCol}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                  >
+                    <div style={{
+                      fontSize: 18,
+                      filter: mood ? "none" : "grayscale(1)",
+                      opacity: mood ? 1 : 0.3,
+                    }}>
+                      {mood?.emoji || "·"}
+                    </div>
+                    <div style={moodDayLabel}>D{m.day}</div>
+                  </motion.div>
                 );
               })}
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
+            </div>
+          </>
+        )}
+      </>
+    );
+  }
+
+  function renderHeatmap() {
+    return (
+      <>
+        <div style={sectionLabel}>90-Day Activity Heatmap</div>
+        <div style={heatmapLegend}>
+          <span style={{ fontSize: 10, opacity: 0.35 }}>Less</span>
+          {[0, 1, 2, 3, 4].map((level) => (
+            <div key={level} style={{ ...heatCell, background: heatColors[level] }} />
+          ))}
+          <span style={{ fontSize: 10, opacity: 0.35 }}>More</span>
+        </div>
+        <div style={heatmapGrid}>
+          {heatmap.map((d, i) => (
+            <motion.div
+              key={i}
+              style={{
+                ...heatCell,
+                background: heatColors[d.intensity],
+              }}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.003, duration: 0.2 }}
+              title={`${d.date}: ${d.intensity === 0 ? "No activity" : `Level ${d.intensity}`}`}
+            />
+          ))}
+        </div>
+        <div style={{ padding: "10px 16px", fontSize: 11, opacity: 0.3, textAlign: "center" }}>
+          Each cell = 1 day · Brighter = more quests completed
+        </div>
+
+        {/* Summary stats below heatmap */}
+        <div style={{ padding: "0 14px", display: "flex", gap: 8 }}>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity > 0).length}</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Active Days</div>
+          </div>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity >= 3).length}</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>High Activity</div>
+          </div>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>
+              {Math.round((heatmap.filter((d) => d.intensity > 0).length / Math.max(heatmap.length, 1)) * 100)}%
+            </div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Coverage</div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function renderInsights() {
+    if (!hasAdvancedAnalytics) {
+      return (
+        <motion.div
+          style={premiumGate}
+          onClick={() => setShowUpgrade(true)}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div style={premiumIconBg}>
+            <Crown size={24} color="#FFD700" strokeWidth={1.5} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#FFD700", marginTop: 8 }}>Premium Insights</div>
+          <div style={{ fontSize: 12, opacity: 0.45, marginTop: 4, lineHeight: 1.6, maxWidth: 260 }}>
+            Unlock correlation insights, trend analysis, and category streaks.
+          </div>
+          <div style={premiumGateBtn}>
+            <span>Upgrade to Premium</span>
+            <ChevronRight size={14} />
+          </div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <>
+        <div style={sectionLabel}>Correlation Insights</div>
+        {insights.length > 0 ? (
+          insights.map((insight, i) => (
+            <motion.div
+              key={i}
+              style={insightCard}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.08 }}
+            >
+              <div style={insightIconBg}>
+                <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{insight}</span>
+            </motion.div>
+          ))
+        ) : (
+          <div style={emptyState}>
+            <Lightbulb size={20} color="rgba(255,255,255,0.2)" strokeWidth={1.5} />
+            <div style={{ marginTop: 8 }}>Complete a few more days with mood tracking to unlock correlation insights.</div>
+          </div>
+        )}
+
+        <div style={sectionLabel}>Category Streaks</div>
+        {categoryRates.map((c, i) => {
+          const cat = CATEGORIES.find((cat) => cat.id === c.category);
+          const streakDays = getCatStreak(state, c.category);
+          return (
+            <motion.div
+              key={c.category}
+              style={streakRow}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              {cat ? <CategoryIcon id={cat.id} size={14} color={cat.color} /> : <span>{c.icon}</span>}
+              <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{c.label}</span>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: streakDays >= 7 ? "#22C55E" : streakDays > 0 ? "#F59E0B" : sub(0.2),
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+              }}>
+                {streakDays > 0 ? (
+                  <>
+                    <Flame size={11} color={streakDays >= 7 ? "#22C55E" : "#F59E0B"} />
+                    {streakDays}d
+                  </>
+                ) : "—"}
+              </span>
+            </motion.div>
+          );
+        })}
+      </>
+    );
+  }
 }
 
 function getCatStreak(state, category) {
@@ -242,29 +391,45 @@ function getCatStreak(state, category) {
 
 // ── Styles ──
 
+const headerRow = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "6px 16px 2px",
+};
+const headerTitle = {
+  fontSize: 18,
+  fontWeight: 800,
+  letterSpacing: -0.3,
+};
 const tabRow = {
   display: "flex",
   padding: "0 14px",
-  gap: 0,
-  marginBottom: 16,
+  gap: 6,
+  marginBottom: 14,
+  marginTop: 8,
 };
 const tabItem = {
   flex: 1,
-  textAlign: "center",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   padding: "8px 0",
   cursor: "pointer",
-  borderBottom: "2px solid",
+  borderRadius: 10,
+  border: "1px solid",
   transition: "all 0.15s",
 };
 const sectionLabel = {
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
-  opacity: 0.5,
-  padding: "12px 16px 6px",
+  opacity: 0.4,
+  padding: "14px 16px 6px",
   textTransform: "uppercase",
-  letterSpacing: 0.8,
+  letterSpacing: 1,
 };
 const recordsGrid = {
   display: "grid",
@@ -273,27 +438,39 @@ const recordsGrid = {
   padding: "0 14px",
 };
 const recordCard = {
-  padding: 14,
-  borderRadius: 12,
-  background: "rgba(128,128,128,0.06)",
-  border: "1px solid rgba(128,128,128,0.1)",
+  padding: "14px 12px",
+  borderRadius: 14,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.06)",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 2,
+  gap: 4,
 };
-const recordVal = { fontSize: 22, fontWeight: 800 };
-const recordLabel = { fontSize: 11, opacity: 0.4, textTransform: "uppercase", letterSpacing: 0.5 };
+const recordIconBg = {
+  width: 32,
+  height: 32,
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+const recordVal = { fontSize: 22, fontWeight: 800, letterSpacing: -0.5 };
+const recordLabel = { fontSize: 10, opacity: 0.35, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 };
 const consistentBadge = {
   margin: "8px 14px 0",
   padding: "8px 14px",
   borderRadius: 10,
-  background: "rgba(16,185,129,0.08)",
-  border: "1px solid rgba(16,185,129,0.12)",
+  background: "rgba(16,185,129,0.06)",
+  border: "1px solid rgba(16,185,129,0.1)",
   fontSize: 12,
   color: "#10B981",
   textAlign: "center",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
 };
 
 // Bar chart
@@ -302,7 +479,7 @@ const chartContainer = {
   alignItems: "flex-end",
   gap: 6,
   padding: "0 14px",
-  height: 140,
+  height: 150,
 };
 const barCol = {
   flex: 1,
@@ -310,13 +487,14 @@ const barCol = {
   flexDirection: "column",
   alignItems: "center",
   height: "100%",
+  cursor: "pointer",
 };
-const barValue = { fontSize: 11, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, minHeight: 12 };
+const barValue = { fontSize: 11, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, minHeight: 14 };
 const barTrack = {
   flex: 1,
   width: "100%",
-  borderRadius: 6,
-  background: "rgba(128,128,128,0.1)",
+  borderRadius: 8,
+  background: "rgba(255,255,255,0.04)",
   position: "relative",
   overflow: "hidden",
   display: "flex",
@@ -325,29 +503,28 @@ const barTrack = {
 };
 const barFill = {
   width: "100%",
-  borderRadius: 6,
+  borderRadius: 8,
   background: "linear-gradient(180deg, #7C5CFC, #6D28D9)",
-  transition: "height 0.5s ease",
+  transition: "opacity 0.15s, filter 0.15s",
   minHeight: 2,
 };
-const barLabel = { fontSize: 11, opacity: 0.4, marginTop: 4 };
+const barLabel = { fontSize: 11, opacity: 0.35, marginTop: 4, transition: "all 0.15s" };
 
 // Category bars
 const catContainer = { padding: "0 14px", display: "flex", flexDirection: "column", gap: 8 };
 const catRow = { display: "flex", alignItems: "center", gap: 8 };
-const catInfo = { display: "flex", alignItems: "center", gap: 4, minWidth: 80 };
+const catInfo = { display: "flex", alignItems: "center", gap: 5, minWidth: 85 };
 const catBarOuter = {
   flex: 1,
-  height: 8,
+  height: 7,
   borderRadius: 4,
-  background: "rgba(128,128,128,0.1)",
+  background: "rgba(255,255,255,0.05)",
   overflow: "hidden",
 };
 const catBarInner = {
   height: "100%",
   borderRadius: 4,
-  transition: "width 0.5s ease",
-  opacity: 0.7,
+  opacity: 0.75,
 };
 const catPercent = { fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: "right" };
 
@@ -362,10 +539,10 @@ const moodCol = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 2,
-  minWidth: 28,
+  gap: 3,
+  minWidth: 30,
 };
-const moodDayLabel = { fontSize: 11, opacity: 0.3 };
+const moodDayLabel = { fontSize: 10, opacity: 0.25, fontWeight: 500 };
 
 // Heatmap
 const heatmapGrid = {
@@ -381,7 +558,7 @@ const heatCell = {
   minWidth: 8,
 };
 const heatColors = [
-  "rgba(128,128,128,0.08)",
+  "rgba(255,255,255,0.04)",
   "rgba(124,92,252,0.2)",
   "rgba(124,92,252,0.4)",
   "rgba(124,92,252,0.65)",
@@ -395,27 +572,49 @@ const heatmapLegend = {
   marginBottom: 10,
   justifyContent: "flex-end",
 };
+const heatStat = {
+  flex: 1,
+  padding: 12,
+  borderRadius: 12,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.05)",
+  textAlign: "center",
+};
 
 // Insights
 const insightCard = {
   margin: "0 14px 8px",
   padding: "12px 14px",
   borderRadius: 12,
-  background: "rgba(124,92,252,0.06)",
-  border: "1px solid rgba(124,92,252,0.1)",
+  background: "rgba(251,191,36,0.04)",
+  border: "1px solid rgba(251,191,36,0.08)",
   display: "flex",
   alignItems: "flex-start",
   gap: 10,
 };
+const insightIconBg = {
+  width: 28,
+  height: 28,
+  borderRadius: 8,
+  background: "rgba(251,191,36,0.1)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
 const emptyState = {
   margin: "0 14px",
-  padding: 20,
-  borderRadius: 12,
-  background: "rgba(128,128,128,0.06)",
+  padding: 24,
+  borderRadius: 14,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
   fontSize: 12,
   opacity: 0.4,
   lineHeight: 1.6,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
 };
 const streakRow = {
   display: "flex",
@@ -424,43 +623,64 @@ const streakRow = {
   margin: "0 14px",
   padding: "10px 14px",
   borderRadius: 10,
-  background: "rgba(128,128,128,0.06)",
-  border: "1px solid rgba(128,128,128,0.1)",
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.05)",
   marginBottom: 6,
 };
 
 const premiumGate = {
-  margin: "0 14px",
-  padding: "30px 20px",
-  borderRadius: 16,
-  background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
-  border: "1px solid rgba(255,215,0,0.12)",
+  margin: "8px 14px",
+  padding: "32px 20px",
+  borderRadius: 18,
+  background: "linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,165,0,0.02))",
+  border: "1px solid rgba(255,215,0,0.1)",
   textAlign: "center",
   cursor: "pointer",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 4,
 };
-
+const premiumIconBg = {
+  width: 48,
+  height: 48,
+  borderRadius: 14,
+  background: "rgba(255,215,0,0.08)",
+  border: "1px solid rgba(255,215,0,0.15)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
 const premiumGateBtn = {
-  marginTop: 12,
-  padding: "8px 20px",
-  borderRadius: 8,
+  marginTop: 14,
+  padding: "9px 22px",
+  borderRadius: 10,
   background: "linear-gradient(135deg, #FFD700, #FFA500)",
   color: "#000",
   fontSize: 12,
   fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
 };
 
 const welcomeState = {
-  margin: "20px 14px",
-  padding: "40px 20px",
-  borderRadius: 16,
+  margin: "24px 14px",
+  padding: "44px 20px",
+  borderRadius: 18,
   background: "rgba(124,92,252,0.04)",
   border: "1px solid rgba(124,92,252,0.08)",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+};
+const welcomeIcon = {
+  width: 56,
+  height: 56,
+  borderRadius: 16,
+  background: "rgba(124,92,252,0.08)",
+  border: "1px solid rgba(124,92,252,0.12)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
