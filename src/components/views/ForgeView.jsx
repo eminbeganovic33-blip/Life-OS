@@ -148,6 +148,8 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
           journals={state.recoveryJournals || []}
           filter={journalFilter}
           setFilter={setJournalFilter}
+          state={state}
+          save={save}
         />
       )}
 
@@ -427,7 +429,22 @@ function TrackerCard({
 
 // ── Journal Tab ──
 
-function JournalTab({ journals, filter, setFilter }) {
+function JournalTab({ journals, filter, setFilter, state, save }) {
+  const [newEntry, setNewEntry] = useState("");
+  const [entryTracker, setEntryTracker] = useState("all");
+  const activeTrackers = Object.keys(state?.sobrietyDates || {}).filter(k => state.sobrietyDates[k]);
+
+  const handleAddEntry = () => {
+    if (!newEntry.trim() || !save) return;
+    const entry = {
+      text: newEntry.trim(),
+      tracker: entryTracker === "all" ? (activeTrackers[0] || "general") : entryTracker,
+      date: new Date().toISOString().split("T")[0],
+    };
+    save({ ...state, recoveryJournals: [...(state.recoveryJournals || []), entry] });
+    setNewEntry("");
+  };
+
   const filtered = filter === "all"
     ? journals
     : journals.filter((e) => e.tracker === filter);
@@ -440,6 +457,45 @@ function JournalTab({ journals, filter, setFilter }) {
 
   return (
     <div style={{ padding: "0 14px" }}>
+      {/* New entry input */}
+      {save && (
+        <div style={{ marginBottom: 12 }}>
+          <textarea
+            value={newEntry}
+            onChange={(e) => setNewEntry(e.target.value)}
+            placeholder="Write a recovery journal entry..."
+            style={styles.journalInput}
+            rows={3}
+          />
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            {activeTrackers.length > 1 && activeTrackers.map((t) => {
+              const tr = SOBRIETY_DEFAULTS.find((d) => d.id === t);
+              return (
+                <button
+                  key={t}
+                  style={{
+                    ...styles.filterBtn,
+                    ...(entryTracker === t ? { ...styles.filterBtnActive, borderColor: tr?.color, color: tr?.color } : {}),
+                    fontSize: 10,
+                    padding: "3px 8px",
+                  }}
+                  onClick={() => setEntryTracker(t)}
+                >
+                  {tr?.icon || t}
+                </button>
+              );
+            })}
+            <button
+              style={{ ...styles.saveEntryBtn, opacity: newEntry.trim() ? 1 : 0.4 }}
+              disabled={!newEntry.trim()}
+              onClick={handleAddEntry}
+            >
+              Save Entry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div style={styles.filterBar}>
         <button
@@ -710,6 +766,32 @@ const styles = {
     fontSize: 12,
     lineHeight: 1.6,
     opacity: 0.7,
+  },
+  journalInput: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    color: "inherit",
+    fontSize: 13,
+    lineHeight: 1.5,
+    resize: "vertical",
+    outline: "none",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  saveEntryBtn: {
+    marginLeft: "auto",
+    padding: "4px 12px",
+    borderRadius: 8,
+    border: "none",
+    background: "linear-gradient(135deg, #7C5CFC, #6D28D9)",
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
   upgradeBanner: {
     display: "flex",

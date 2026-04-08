@@ -514,13 +514,13 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {/* AI Workout Plan */}
         {mode === "ai" && aiPlan && renderPlanView(
-          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan"
+          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan", setAiExerciseIndex
         )}
 
         {/* Template Workout Plan */}
         {mode === "template" && activeTemplate && renderPlanView(
           activeTemplate.exercises, templateExIndex, templateSets, setTemplateSets,
-          saveTemplateExercise, activeTemplate.name
+          saveTemplateExercise, activeTemplate.name, setTemplateExIndex
         )}
 
         {/* Custom Exercise Picker */}
@@ -727,7 +727,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // ── Shared Plan View (AI or Template) ──
 
-  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title) {
+  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title, setCurrentIndex) {
     return (
       <div style={ds.planSection}>
         <div style={ds.planHeader}>
@@ -748,11 +748,13 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             return (
               <div
                 key={i}
+                onClick={() => setCurrentIndex?.(i)}
                 style={{
                   ...ds.planItem,
                   opacity: done ? 0.4 : 1,
                   borderLeft: active ? "3px solid #7C5CFC" : "3px solid transparent",
                   background: active ? "rgba(124,92,252,0.06)" : "transparent",
+                  cursor: "pointer",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
@@ -771,6 +773,26 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             );
           })}
         </div>
+
+        {/* Prev/Next navigation */}
+        {setCurrentIndex && exercises.length > 1 && (
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 14px" }}>
+            <button
+              style={{ ...ds.backLink, opacity: currentIndex > 0 ? 1 : 0.3 }}
+              disabled={currentIndex === 0}
+              onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+            >
+              ← Prev
+            </button>
+            <button
+              style={{ ...ds.backLink, opacity: currentIndex < exercises.length - 1 ? 1 : 0.3 }}
+              disabled={currentIndex >= exercises.length - 1}
+              onClick={() => setCurrentIndex(Math.min(exercises.length - 1, currentIndex + 1))}
+            >
+              Next →
+            </button>
+          </div>
+        )}
 
         {exercises[currentIndex] && (() => {
           const current = exercises[currentIndex];
@@ -946,6 +968,11 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <button
             style={{ ...ds.aiButton, marginTop: 16, width: "100%" }}
             onClick={() => {
+              // Auto-save current exercise if it has filled sets before switching
+              const filledSets = sets.filter(s => s.weight && s.reps);
+              if (activeExercise && filledSets.length > 0) {
+                onSaveWorkout(activeExercise, filledSets.map(s => ({ weight: Number(s.weight), reps: Number(s.reps) })));
+              }
               setActiveExercise(exercise.id);
               setSets([{ weight: "", reps: "" }]);
               setMode("custom");

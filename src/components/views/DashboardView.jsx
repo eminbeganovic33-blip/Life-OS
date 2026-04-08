@@ -28,7 +28,7 @@ function formatDate() {
   });
 }
 
-export default function DashboardView({ state, onNavigate, pomodoro }) {
+export default function DashboardView({ state, user, onNavigate, pomodoro }) {
   const { themed } = useTheme();
   const day = state.currentDay;
   const level = getLevel(state.xp);
@@ -42,7 +42,7 @@ export default function DashboardView({ state, onNavigate, pomodoro }) {
   const questsTotal = quests.length;
   const allDone = questsDone === questsTotal && questsTotal > 0;
 
-  const userName = state.userName || "Warrior";
+  const userName = user?.displayName || state.userName || "Warrior";
   const quote = getPersonalizedQuote(state, MOTIVATION_CARDS);
   const allNudges = getProactiveNudges(state);
   const topNudge = allNudges[0] || null;

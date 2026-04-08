@@ -63,13 +63,13 @@ function buildLocalBrief(state) {
   return lines.join(" ");
 }
 
-export default function MorningBrief({ state, onDismiss }) {
+export default function MorningBrief({ state, user, onDismiss }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const [aiBrief, setAiBrief] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const userName = state.userName || "Warrior";
+  const userName = user?.displayName || state.userName || "Warrior";
   const quote = getPersonalizedQuote(state, MOTIVATION_CARDS);
   const nudges = getProactiveNudges(state).slice(0, 2);
   const localBrief = buildLocalBrief(state);

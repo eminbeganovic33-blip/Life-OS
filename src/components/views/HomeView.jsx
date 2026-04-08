@@ -66,7 +66,7 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 
 export default function HomeView({
   state, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
-  canCompleteDay, calendarDay, onOpenCustomQuest, onRemoveCustomQuest,
+  canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
   unlockedCustomCategories, onNavigate,
 }) {
   const { theme, colors } = useTheme();
@@ -493,6 +493,7 @@ export default function HomeView({
           isDark={isDark}
           colors={colors}
           onOpenCustomQuest={onOpenCustomQuest}
+          onAddSuggestedQuest={onAddSuggestedQuest}
         />
       )}
 
@@ -729,7 +730,7 @@ export default function HomeView({
 }
 
 // ── Inline AI Quest Suggestions ──
-function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest }) {
+function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAddSuggestedQuest }) {
   const [suggestions, setSuggestions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -798,7 +799,13 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest }) {
               background: sub(0.02),
               cursor: "pointer",
             }}
-            onClick={onOpenCustomQuest}
+            onClick={() => {
+              if (onAddSuggestedQuest) {
+                onAddSuggestedQuest({ id: `ai_${Date.now()}_${i}`, text: s.text, category: s.category || "mind" });
+              } else {
+                onOpenCustomQuest();
+              }
+            }}
           >
             <div style={{
               width: 6, height: 6, borderRadius: "50%",

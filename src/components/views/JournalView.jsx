@@ -150,7 +150,17 @@ export default function JournalView({ state, journalText, setJournalText, select
               <textarea
                 style={textArea}
                 placeholder="What happened today? Write about your wins, struggles, or anything on your mind..."
-                value={journalText || state.journal[day] || ""}
+                value={journalText || (() => {
+                  const raw = state.journal[day];
+                  if (!raw) return "";
+                  try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed[0]?.role) {
+                      return parsed.filter(m => m.role === "user").map(m => m.text).join("\n\n");
+                    }
+                  } catch {}
+                  return raw;
+                })()}
                 onChange={(e) => setJournalText(e.target.value)}
                 rows={8}
               />

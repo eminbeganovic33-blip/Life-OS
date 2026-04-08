@@ -130,7 +130,7 @@ export const S = {
   qXp: { fontSize: T.font.sm, fontWeight: T.weight.bold, flexShrink: 0 },
   dojoLink: { color: "#F97316", fontWeight: T.weight.medium, cursor: "pointer", fontSize: T.font.xs },
   subStreak: { margin: `${T.space.md}px ${T.space.lg}px 0`, padding: `${T.space.md}px ${T.space.lg}px`, borderRadius: T.radii.md, background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: T.font.sm },
-  xpPop: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", fontSize: 26, fontWeight: T.weight.black, color: "#FACC15", textShadow: "0 0 20px rgba(250,204,21,0.4)", animation: "fadeUp 1.2s ease forwards", pointerEvents: "none", zIndex: 999 },
+  xpPop: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", fontSize: 26, fontWeight: T.weight.black, color: "#FACC15", textShadow: "0 0 20px rgba(250,204,21,0.4)", pointerEvents: "none", zIndex: 999 },
 
   // Buttons
   primaryBtn: { display: "block", width: "calc(100% - 28px)", margin: `${T.space.md}px ${T.space.lg}px 0`, padding: `${T.space.lg}px ${T.space.xl}px`, borderRadius: T.radii.md, border: "none", background: "linear-gradient(135deg,#7C5CFC,#6D28D9)", color: "#fff", fontSize: T.font.sm, fontWeight: T.weight.bold, cursor: "pointer", boxShadow: "0 4px 20px rgba(124,92,252,0.25)", transition: `all ${T.transition.normal}` },

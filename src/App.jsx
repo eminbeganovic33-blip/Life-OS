@@ -90,6 +90,8 @@ function LifeOS() {
   // Level-up detection
   const [levelUpIndex, setLevelUpIndex] = useState(null);
   const prevLevelRef = useRef(null);
+  const comebackCheckedRef = useRef(false);
+  const forgeMilestoneQueueRef = useRef([]);
 
   // Day completion celebration
   const [dayCompleteDay, setDayCompleteDay] = useState(null);
@@ -128,7 +130,6 @@ function LifeOS() {
   }, [state?.streakFreezeUsedDate]);
 
   // Comeback detection — show modal if returning after 2+ days
-  const comebackCheckedRef = useRef(false);
   useEffect(() => {
     if (!state || comebackCheckedRef.current) return;
     comebackCheckedRef.current = true;
@@ -276,8 +277,10 @@ function LifeOS() {
   }
 
   // ── Feature Set 2: Check Forge Milestones ──
+
   function checkForgeMilestones() {
     const seen = state.forgeStoriesSeen || {};
+    const pending = [];
     for (const [trackerId, startDate] of Object.entries(state.sobrietyDates || {})) {
       if (!startDate) continue;
       const daysClean = daysBetween(startDate);
@@ -289,12 +292,15 @@ function LifeOS() {
           const story = stories.find((s) => s.day === milestone);
           if (story) {
             const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
-            setForgeStory({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
-            setModal("forge_success");
-            return; // Show one at a time
+            pending.push({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
           }
         }
       }
+    }
+    if (pending.length > 0) {
+      forgeMilestoneQueueRef.current = pending.slice(1);
+      setForgeStory(pending[0]);
+      setModal("forge_success");
     }
   }
 
@@ -305,8 +311,14 @@ function LifeOS() {
         forgeStoriesSeen: { ...(state.forgeStoriesSeen || {}), [forgeStory.key]: true },
       });
     }
-    setForgeStory(null);
-    setModal(null);
+    // Show next queued milestone if any
+    const next = forgeMilestoneQueueRef.current.shift();
+    if (next) {
+      setForgeStory(next);
+    } else {
+      setForgeStory(null);
+      setModal(null);
+    }
   }
 
   // ── Quest Actions ──
@@ -604,7 +616,7 @@ function LifeOS() {
       return <MotivationModal card={currentCard} onDismiss={dismissMotivation} />;
     }
     if (modal === "morning_brief") {
-      return <MorningBrief state={state} onDismiss={dismissMotivation} />;
+      return <MorningBrief state={state} user={user} onDismiss={dismissMotivation} />;
     }
     if (modal === "workout") {
       return (
@@ -770,7 +782,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
             {view === "dashboard" && (
-              <DashboardView state={state} onNavigate={handleViewChange} pomodoro={pomodoro} />
+              <DashboardView state={state} user={user} onNavigate={handleViewChange} pomodoro={pomodoro} />
             )}
             {view === "home" && (
               <HomeView
@@ -783,6 +795,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                 canCompleteDay={canCompleteDay}
                 calendarDay={calendarDay}
                 onOpenCustomQuest={() => setModal("custom_quest")}
+                onAddSuggestedQuest={addCustomQuest}
                 onRemoveCustomQuest={removeCustomQuest}
                 unlockedCustomCategories={unlockedCustomCategories}
                 onNavigate={handleViewChange}
