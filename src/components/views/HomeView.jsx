@@ -6,10 +6,11 @@ import { CATEGORIES, findGuideForQuest } from "../../data";
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getQuestTier, getCategoryStreak } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges } from "../../utils/intelligence";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
+import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import QuestGuidePanel from "../QuestGuidePanel";
 import SmartInsights from "../SmartInsights";
 import { CategoryIcon } from "../Icon";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords } from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
 
@@ -394,10 +395,23 @@ export default function HomeView({
               <div style={ts.ringLabel}>/{quests.length}</div>
             </div>
           </div>
-          {/* Streak */}
+          {/* Streak + Multiplier */}
           <div style={ts.streakChip}>
-            <span style={{ fontSize: 12 }}>🔥</span>
+            <Flame size={13} color="#F97316" />
             <span style={ts.streakNumber}>{state.streak}</span>
+            {getStreakMultiplier(state.streak).tier !== "none" && (
+              <span style={{
+                fontSize: 9,
+                fontWeight: 800,
+                color: state.streak >= 14 ? "#FBBF24" : "#F97316",
+                background: state.streak >= 14 ? "rgba(251,191,36,0.15)" : "rgba(249,115,22,0.12)",
+                padding: "1px 5px",
+                borderRadius: 6,
+                marginLeft: 2,
+              }}>
+                {getStreakMultiplier(state.streak).label}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -426,10 +440,16 @@ export default function HomeView({
             .map(([catId, streak]) => {
               const cat = CATEGORIES.find((c) => c.id === catId);
               if (!cat) return null;
+              const mastery = getCategoryMastery(state, catId);
               return (
                 <div key={catId} style={{ ...ts.streakItem, borderColor: `${cat.color}25` }}>
                   <CategoryIcon id={catId} size={11} color={cat.color} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: cat.color }}>{streak}d</span>
+                  {mastery.levelIndex > 0 && (
+                    <span style={{ fontSize: 8, fontWeight: 700, color: mastery.color, opacity: 0.8 }}>
+                      {mastery.level.slice(0, 3)}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -475,6 +495,116 @@ export default function HomeView({
           onOpenCustomQuest={onOpenCustomQuest}
         />
       )}
+
+      {/* ── Daily Bonus Quest ── */}
+      {(() => {
+        const bonus = getDailyBonusQuest(state);
+        if (!bonus) return null;
+        const bonusDone = completed.includes(bonus.id);
+        const bonusCat = CATEGORIES.find((c) => c.id === bonus.category);
+        return (
+          <div style={{
+            margin: "12px 14px 0",
+            padding: "14px 16px",
+            borderRadius: 14,
+            background: bonusDone
+              ? "rgba(34,197,94,0.06)"
+              : "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.03))",
+            border: bonusDone
+              ? "1px solid rgba(34,197,94,0.15)"
+              : "1px solid rgba(251,191,36,0.15)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Star size={14} color="#FBBF24" />
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: "#FBBF24" }}>
+                Bonus Quest
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.4, marginLeft: "auto" }}>2x XP</span>
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              opacity: bonusDone ? 0.5 : 1,
+              textDecoration: bonusDone ? "line-through" : "none",
+            }}>
+              <div
+                style={{
+                  width: 22, height: 22, borderRadius: 7,
+                  border: bonusDone ? "none" : "2px solid rgba(251,191,36,0.4)",
+                  background: bonusDone ? "#22C55E" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: bonusDone ? "default" : "pointer", flexShrink: 0,
+                }}
+                onClick={() => !bonusDone && onCheckQuest(bonus.id, bonus.xp)}
+              >
+                {bonusDone && <Check size={13} color="#fff" strokeWidth={3} />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: colors.text }}>{bonus.text}</div>
+                <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>
+                  {bonusCat && <CategoryIcon id={bonusCat.id} size={10} color={bonusCat.color} />}{" "}
+                  {bonusCat?.label}
+                </div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24" }}>+{bonus.xp} XP</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Weekly Challenge ── */}
+      {(() => {
+        const wc = getWeeklyChallenge(state);
+        if (!wc) return null;
+        return (
+          <div style={{
+            margin: "10px 14px 0",
+            padding: "14px 16px",
+            borderRadius: 14,
+            background: wc.completed
+              ? "rgba(34,197,94,0.06)"
+              : "rgba(124,92,252,0.04)",
+            border: wc.completed
+              ? "1px solid rgba(34,197,94,0.12)"
+              : "1px solid rgba(124,92,252,0.1)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Swords size={14} color={wc.completed ? "#22C55E" : "#7C5CFC"} />
+              <span style={{
+                fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1,
+                color: wc.completed ? "#22C55E" : "#7C5CFC",
+              }}>
+                Weekly Challenge
+              </span>
+              {wc.completed && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", marginLeft: "auto" }}>
+                  Completed!
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 10 }}>
+              {wc.text}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                flex: 1, height: 6, borderRadius: 3, overflow: "hidden",
+                background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+              }}>
+                <div style={{
+                  width: `${wc.percentComplete}%`, height: "100%", borderRadius: 3,
+                  background: wc.completed
+                    ? "linear-gradient(90deg, #22C55E, #16A34A)"
+                    : "linear-gradient(90deg, #7C5CFC, #6D28D9)",
+                  transition: "width 0.5s ease",
+                }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, minWidth: 40, textAlign: "right" }}>
+                {wc.progress}/{wc.target}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#FBBF24" }}>+{wc.xpReward} XP</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Temporal Lock ── */}
       {isTimeLocked && (

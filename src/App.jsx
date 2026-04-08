@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
 import { getPersonalizedQuote } from "./utils/intelligence";
+import { applyStreakMultiplier, getStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
 import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
   getCalendarDay, getCategoryStreak, defaultState,
@@ -121,6 +122,25 @@ function LifeOS() {
       toast.show("Streak freeze used — streak preserved!", "info", 4000);
     }
   }, [state?.streakFreezeUsedDate]);
+
+  // Weekly challenge completion check
+  useEffect(() => {
+    if (!state || state.currentDay < 7) return;
+    const wc = getWeeklyChallenge(state);
+    if (!wc || !wc.completed) return;
+    const claimedKey = `wc_${wc.weekNum}_${wc.id}`;
+    if (state.weeklyChallengeClaimed?.[claimedKey]) return;
+    // Award XP and mark claimed
+    const ns = {
+      ...state,
+      xp: state.xp + wc.xpReward,
+      weeklyChallengeClaimed: { ...(state.weeklyChallengeClaimed || {}), [claimedKey]: true },
+    };
+    save(ns);
+    showXp(wc.xpReward);
+    toast.show(`Weekly challenge completed! +${wc.xpReward} XP`, "trophy", 4000);
+    setConfettiBurst((c) => c + 1);
+  }, [state?.completedDays, state?.completedQuests, state?.streak, state?.workoutLogs]);
 
   // Morning Brief — shows full-screen brief on first daily open
   useEffect(() => {
@@ -276,8 +296,9 @@ function LifeOS() {
     const dc = [...completed];
     if (dc.includes(questId)) return; // already done
     dc.push(questId);
-    const newXp = state.xp + xpVal;
-    showXp(xpVal);
+    const boostedXp = applyStreakMultiplier(xpVal, state.streak);
+    const newXp = state.xp + boostedXp;
+    showXp(boostedXp);
     const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);

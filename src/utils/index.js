@@ -10,4 +10,9 @@ export {
   getCategoryStreak,
 } from "./helpers";
 export { defaultState } from "./state";
-export { calculateQuestXP, getQuestTier } from "./xpEngine";
+export {
+  calculateQuestXP, getQuestTier,
+  getStreakMultiplier, applyStreakMultiplier,
+  getCategoryMastery, MASTERY_LEVELS,
+  getDailyBonusQuest, getWeeklyChallenge,
+} from "./xpEngine";
