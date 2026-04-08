@@ -28,6 +28,7 @@ import LevelUpModal from "./components/modals/LevelUpModal";
 import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
+import ComebackModal from "./components/modals/ComebackModal";
 import DashboardView from "./components/views/DashboardView";
 import HomeView from "./components/views/HomeView";
 import JournalView from "./components/views/JournalView";
@@ -99,6 +100,9 @@ function LifeOS() {
   // Weekly summary
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
 
+  // Comeback modal
+  const [comebackInfo, setComebackInfo] = useState(null);
+
   // Notification scheduler
   const notifIntervalRef = useRef(null);
 
@@ -122,6 +126,21 @@ function LifeOS() {
       toast.show("Streak freeze used — streak preserved!", "info", 4000);
     }
   }, [state?.streakFreezeUsedDate]);
+
+  // Comeback detection — show modal if returning after 2+ days
+  const comebackCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!state || comebackCheckedRef.current) return;
+    comebackCheckedRef.current = true;
+    const last = state.lastActiveDate;
+    if (!last) return;
+    const today = new Date(getTodayStr());
+    const lastDate = new Date(last);
+    const diffDays = Math.round((today - lastDate) / 86400000);
+    if (diffDays >= 2) {
+      setComebackInfo({ daysAway: diffDays, streak: state.streak });
+    }
+  }, [state?.lastActiveDate]);
 
   // Weekly challenge completion check
   useEffect(() => {
@@ -685,13 +704,15 @@ function LifeOS() {
           renderModal={renderModal}
           showWeeklySummary={showWeeklySummary}
           setShowWeeklySummary={setShowWeeklySummary}
+          comebackInfo={comebackInfo}
+          onDismissComeback={() => setComebackInfo(null)}
         />
       </LifeOSProvider>
     </PremiumProvider>
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary }) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback }) {
   const {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
@@ -723,6 +744,12 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary }) {
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}
+      <ComebackModal
+        show={!!comebackInfo}
+        daysAway={comebackInfo?.daysAway || 0}
+        streak={comebackInfo?.streak || 0}
+        onClose={onDismissComeback}
+      />
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       <div style={S.content}>
         {(view === "home" || view === "dashboard") && showWeeklySummary && (

@@ -8,7 +8,7 @@ import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
-import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star } from "lucide-react";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles } from "lucide-react";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -170,6 +170,14 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
         })}
       </div>
 
+      {/* ── Streak Calendar ── */}
+      <SectionHeader title="Streak Calendar" sub={`${Object.keys(state.completedDays).length} days completed`} />
+      <StreakCalendar state={state} isDark={isDark} />
+
+      {/* ── Milestones ── */}
+      <SectionHeader title="Milestones" sub={day > 66 ? "Journey complete" : "Your path"} />
+      <MilestonesTimeline state={state} day={day} />
+
       {/* ── Settings ── */}
       <SectionHeader title="Settings" />
       <div style={settingsSection}>
@@ -325,6 +333,143 @@ function SectionHeader({ title, sub }) {
     <div style={sectionHeader}>
       <span style={sectionTitle}>{title}</span>
       {sub && <span style={sectionSub}>{sub}</span>}
+    </div>
+  );
+}
+
+function StreakCalendar({ state, isDark }) {
+  const [monthOffset, setMonthOffset] = useState(0);
+  const now = new Date();
+  const viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+
+  // Build a set of completed calendar dates from state
+  const startDate = state.startDate ? new Date(state.startDate) : null;
+  const completedDates = new Set();
+  if (startDate) {
+    Object.keys(state.completedDays).forEach((dayNum) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + Number(dayNum) - 1);
+      completedDates.add(d.toISOString().split("T")[0]);
+    });
+  }
+
+  const today = now.toISOString().split("T")[0];
+  const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const canGoForward = monthOffset < 0;
+
+  // Count completions this month
+  let monthCompletions = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (completedDates.has(dateStr)) monthCompletions++;
+  }
+
+  return (
+    <div style={calendarWrap}>
+      {/* Month nav */}
+      <div style={calendarNav}>
+        <button style={calNavBtn} onClick={() => setMonthOffset((o) => o - 1)} aria-label="Previous month">
+          <ChevronLeft size={16} />
+        </button>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{monthName}</div>
+          <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>{monthCompletions} / {daysInMonth} days</div>
+        </div>
+        <button style={{ ...calNavBtn, opacity: canGoForward ? 1 : 0.3 }} onClick={() => canGoForward && setMonthOffset((o) => o + 1)} disabled={!canGoForward} aria-label="Next month">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Day labels */}
+      <div style={calendarGrid}>
+        {dayLabels.map((l) => (
+          <div key={l} style={calDayLabel}>{l}</div>
+        ))}
+        {/* Empty cells for offset */}
+        {Array.from({ length: firstDayOfWeek }, (_, i) => (
+          <div key={`e${i}`} />
+        ))}
+        {/* Day cells */}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const d = i + 1;
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const done = completedDates.has(dateStr);
+          const isToday = dateStr === today;
+          const isFuture = dateStr > today;
+          return (
+            <div key={d} style={{
+              ...calDayCell,
+              background: done ? "linear-gradient(135deg, #7C5CFC, #EC4899)" : isToday ? "rgba(124,92,252,0.15)" : "transparent",
+              color: done ? "#fff" : isFuture ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)") : isToday ? "#7C5CFC" : (isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)"),
+              border: isToday && !done ? "2px solid #7C5CFC" : "2px solid transparent",
+              fontWeight: isToday || done ? 700 : 400,
+            }}>
+              {d}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const MILESTONES = [
+  { day: 1, label: "First Step", desc: "Started the journey", Icon: Flag, color: "#22C55E" },
+  { day: 3, label: "Building Momentum", desc: "3-day streak earned", Icon: Zap, color: "#F59E0B" },
+  { day: 7, label: "One Week Strong", desc: "First full week", Icon: Flame, color: "#F97316" },
+  { day: 14, label: "Habit Forming", desc: "Two weeks of discipline", Icon: Target, color: "#7C5CFC" },
+  { day: 21, label: "Boss Day I", desc: "First major milestone", Icon: Swords, color: "#EC4899" },
+  { day: 30, label: "One Month", desc: "30 days of growth", Icon: Crown, color: "#FFD700" },
+  { day: 45, label: "Deep Roots", desc: "Habits are second nature", Icon: Trophy, color: "#10B981" },
+  { day: 66, label: "Boss Day II", desc: "Journey complete — mastery unlocked", Icon: Sparkles, color: "#7C5CFC" },
+];
+
+function MilestonesTimeline({ state, day }) {
+  return (
+    <div style={milestonesWrap}>
+      {MILESTONES.map((m, i) => {
+        const reached = day >= m.day;
+        const isNext = !reached && (i === 0 || day >= MILESTONES[i - 1].day);
+        return (
+          <div key={m.day} style={milestoneRow}>
+            {/* Timeline line */}
+            <div style={milestoneLineCol}>
+              <div style={{
+                ...milestoneDot,
+                background: reached ? m.color : isNext ? "rgba(124,92,252,0.2)" : "rgba(255,255,255,0.06)",
+                border: isNext ? `2px solid ${m.color}` : "2px solid transparent",
+                boxShadow: reached ? `0 0 12px ${m.color}44` : "none",
+              }}>
+                <m.Icon size={14} color={reached ? "#fff" : isNext ? m.color : "rgba(255,255,255,0.2)"} />
+              </div>
+              {i < MILESTONES.length - 1 && (
+                <div style={{
+                  ...milestoneConnector,
+                  background: reached && day >= (MILESTONES[i + 1]?.day || Infinity) ? "linear-gradient(180deg, #7C5CFC, #EC4899)" : reached ? `linear-gradient(180deg, ${m.color}88, rgba(255,255,255,0.06))` : "rgba(255,255,255,0.06)",
+                }} />
+              )}
+            </div>
+            {/* Content */}
+            <div style={{ ...milestoneContent, opacity: reached ? 1 : isNext ? 0.8 : 0.35 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: T.space.sm }}>
+                <span style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{m.label}</span>
+                <span style={{ fontSize: 10, color: C.textSecondary, fontWeight: T.weight.medium }}>Day {m.day}</span>
+              </div>
+              <div style={{ fontSize: T.font.xs, color: C.textSecondary, marginTop: 2 }}>{m.desc}</div>
+              {isNext && (
+                <div style={{ fontSize: T.font.xs, color: m.color, fontWeight: T.weight.bold, marginTop: 4 }}>
+                  {m.day - day} day{m.day - day !== 1 ? "s" : ""} away
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -779,3 +924,100 @@ const toggleThumb = (isDark) => ({
   boxShadow: isDark ? "0 2px 6px rgba(124,92,252,0.4)" : "0 2px 6px rgba(255,215,0,0.4)",
   transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)", zIndex: 2,
 });
+
+// ── Streak Calendar styles ───────────────────────────────────────────────────
+
+const calendarWrap = {
+  margin: `0 ${T.space.lg}px ${T.space.md}px`,
+  padding: T.space.lg,
+  borderRadius: T.radii.lg,
+  background: C.cardBg,
+  border: `1px solid ${C.cardBorder}`,
+};
+
+const calendarNav = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: T.space.md,
+};
+
+const calNavBtn = {
+  width: 32,
+  height: 32,
+  borderRadius: T.radii.sm,
+  border: `1px solid ${C.cardBorder}`,
+  background: "transparent",
+  color: "inherit",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+};
+
+const calendarGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gap: 3,
+};
+
+const calDayLabel = {
+  textAlign: "center",
+  fontSize: 10,
+  fontWeight: T.weight.bold,
+  color: C.textSecondary,
+  paddingBottom: T.space.xs,
+};
+
+const calDayCell = {
+  aspectRatio: "1",
+  borderRadius: T.radii.sm,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 11,
+  transition: "all 0.15s ease",
+};
+
+// ── Milestones Timeline styles ───────────────────────────────────────────────
+
+const milestonesWrap = {
+  margin: `0 ${T.space.lg}px ${T.space.md}px`,
+};
+
+const milestoneRow = {
+  display: "flex",
+  gap: T.space.md,
+  minHeight: 56,
+};
+
+const milestoneLineCol = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  width: 30,
+  flexShrink: 0,
+};
+
+const milestoneDot = {
+  width: 30,
+  height: 30,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
+
+const milestoneConnector = {
+  width: 2,
+  flex: 1,
+  minHeight: 16,
+  borderRadius: 1,
+};
+
+const milestoneContent = {
+  paddingBottom: T.space.md,
+  flex: 1,
+};
