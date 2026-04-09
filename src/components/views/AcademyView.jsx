@@ -7,7 +7,7 @@ import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
 
 const SWIPE_THRESHOLD = 60;
-const RATE_LIMIT_MS = 12 * 60 * 60 * 1000; // 12 hours in ms
+const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
 const MAX_FOCUS_SLOTS = 3;
 
 export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses }) {
@@ -165,7 +165,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     <div style={S.vc}>
       <div style={S.secTitle}>The Academy</div>
       <div style={{ padding: "0 16px", marginBottom: 14, fontSize: 12, opacity: 0.4, lineHeight: 1.5 }}>
-        Focus on 2-3 courses at a time. Complete steps mindfully -- there's a 12-hour cooldown between steps.
+        Focus on 2-3 courses at a time. Complete steps at your own pace.
       </div>
 
       {/* Focus Slot Indicator */}

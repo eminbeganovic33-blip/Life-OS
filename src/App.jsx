@@ -16,6 +16,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import AuthScreen from "./components/AuthScreen";
 import Onboarding from "./components/Onboarding";
 import BottomNav from "./components/BottomNav";
+import ErrorBoundary from "./components/ErrorBoundary";
 import MotivationModal from "./components/modals/MotivationModal";
 import MorningBrief from "./components/MorningBrief";
 import Confetti from "./components/Confetti";
@@ -298,27 +299,23 @@ function LifeOS() {
       }
     }
     if (pending.length > 0) {
-      forgeMilestoneQueueRef.current = pending.slice(1);
+      forgeMilestoneQueueRef.current = pending;
       setForgeStory(pending[0]);
       setModal("forge_success");
     }
   }
 
   function dismissForgeSuccess() {
-    if (forgeStory) {
-      save({
-        ...state,
-        forgeStoriesSeen: { ...(state.forgeStoriesSeen || {}), [forgeStory.key]: true },
-      });
+    // Mark all milestones as seen at once
+    const allMilestones = forgeMilestoneQueueRef.current;
+    if (allMilestones.length > 0) {
+      const newSeen = { ...(state.forgeStoriesSeen || {}) };
+      allMilestones.forEach((m) => { newSeen[m.key] = true; });
+      save({ ...state, forgeStoriesSeen: newSeen });
     }
-    // Show next queued milestone if any
-    const next = forgeMilestoneQueueRef.current.shift();
-    if (next) {
-      setForgeStory(next);
-    } else {
-      setForgeStory(null);
-      setModal(null);
-    }
+    forgeMilestoneQueueRef.current = [];
+    setForgeStory(null);
+    setModal(null);
   }
 
   // ── Quest Actions ──
@@ -648,12 +645,10 @@ function LifeOS() {
     if (modal === "levelup") {
       return <LevelUpModal levelIndex={levelUpIndex} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
     }
-    if (modal === "forge_success" && forgeStory) {
+    if (modal === "forge_success" && forgeMilestoneQueueRef.current.length > 0) {
       return (
         <ForgeSuccessModal
-          story={forgeStory.story}
-          trackerLabel={forgeStory.trackerLabel}
-          daysClean={forgeStory.daysClean}
+          milestones={forgeMilestoneQueueRef.current}
           onDismiss={dismissForgeSuccess}
         />
       );
@@ -700,13 +695,14 @@ function LifeOS() {
   const lifeOSValue = {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
-    openDojo, setModal, removeCustomQuest, unlockedCustomCategories,
+    openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, pomodoro, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
     confettiBurst, confettiPop,
+    setSkipAuth,
   };
 
   return (
@@ -728,13 +724,14 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   const {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
-    openDojo, setModal, removeCustomQuest, unlockedCustomCategories,
+    openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, pomodoro, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
     confettiBurst, confettiPop,
+    setSkipAuth,
   } = useLifeOS();
   const { showUpgrade, setShowUpgrade } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
@@ -744,6 +741,10 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
 
   // Centralized view change handler — initializes state for views that need it
   function handleViewChange(v) {
+    if (v === "auth") {
+      setSkipAuth(false);
+      return;
+    }
     if (v === "journal") {
       setJournalText(state.journal?.[day] || "");
       setSelectedMood(state.moods?.[day] ?? null);
@@ -782,59 +783,69 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
             {view === "dashboard" && (
-              <DashboardView state={state} user={user} onNavigate={handleViewChange} pomodoro={pomodoro} />
+              <ErrorBoundary name="Dashboard" key="eb-dashboard">
+                <DashboardView state={state} user={user} onNavigate={handleViewChange} pomodoro={pomodoro} />
+              </ErrorBoundary>
             )}
             {view === "home" && (
-              <HomeView
-                state={state}
-                xpPopup={xpPopup}
-                onCheckQuest={checkQuest}
-                onUncheckQuest={uncheckQuest}
-                onCompleteDay={completeDay}
-                onOpenDojo={openDojo}
-                canCompleteDay={canCompleteDay}
-                calendarDay={calendarDay}
-                onOpenCustomQuest={() => setModal("custom_quest")}
-                onAddSuggestedQuest={addCustomQuest}
-                onRemoveCustomQuest={removeCustomQuest}
-                unlockedCustomCategories={unlockedCustomCategories}
-                onNavigate={handleViewChange}
-              />
+              <ErrorBoundary name="Quests" key="eb-home">
+                <HomeView
+                  state={state}
+                  xpPopup={xpPopup}
+                  onCheckQuest={checkQuest}
+                  onUncheckQuest={uncheckQuest}
+                  onCompleteDay={completeDay}
+                  onOpenDojo={openDojo}
+                  canCompleteDay={canCompleteDay}
+                  calendarDay={calendarDay}
+                  onOpenCustomQuest={() => setModal("custom_quest")}
+                  onAddSuggestedQuest={addCustomQuest}
+                  onRemoveCustomQuest={removeCustomQuest}
+                  unlockedCustomCategories={unlockedCustomCategories}
+                  onNavigate={handleViewChange}
+                />
+              </ErrorBoundary>
             )}
             {view === "journal" && (
-              <JournalView
-                state={state}
-                journalText={journalText}
-                setJournalText={setJournalText}
-                selectedMood={selectedMood}
-                setSelectedMood={setSelectedMood}
-                onSave={saveJournal}
-                onSaveRaw={saveJournalRaw}
-              />
+              <ErrorBoundary name="Journal" key="eb-journal">
+                <JournalView
+                  state={state}
+                  journalText={journalText}
+                  setJournalText={setJournalText}
+                  selectedMood={selectedMood}
+                  setSelectedMood={setSelectedMood}
+                  onSave={saveJournal}
+                  onSaveRaw={saveJournalRaw}
+                />
+              </ErrorBoundary>
             )}
-            {view === "dojo" && <DojoView state={state} onSaveWorkout={doSaveWorkout} onUpdateEntry={updateWorkoutEntry} onDeleteEntry={deleteWorkoutEntry} />}
-            {view === "forge" && <ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} />}
-            {view === "analytics" && <AnalyticsView state={state} />}
-            {view === "social" && <SocialView user={user} state={state} onNavigate={handleViewChange} />}
+            {view === "dojo" && <ErrorBoundary name="Dojo" key="eb-dojo"><DojoView state={state} onSaveWorkout={doSaveWorkout} onUpdateEntry={updateWorkoutEntry} onDeleteEntry={deleteWorkoutEntry} /></ErrorBoundary>}
+            {view === "forge" && <ErrorBoundary name="Forge" key="eb-forge"><ForgeView state={state} save={save} onStart={startSobriety} onTriggerRelapse={triggerRelapse} /></ErrorBoundary>}
+            {view === "analytics" && <ErrorBoundary name="Analytics" key="eb-analytics"><AnalyticsView state={state} /></ErrorBoundary>}
+            {view === "social" && <ErrorBoundary name="Social" key="eb-social"><SocialView user={user} state={state} onNavigate={handleViewChange} /></ErrorBoundary>}
             {view === "academy" && (
-              <AcademyView
-                state={state}
-                save={save}
-                onCheckStep={checkCourseStep}
-                onUncheckStep={uncheckCourseStep}
-                allCourses={ALL_COURSES}
-              />
+              <ErrorBoundary name="Academy" key="eb-academy">
+                <AcademyView
+                  state={state}
+                  save={save}
+                  onCheckStep={checkCourseStep}
+                  onUncheckStep={uncheckCourseStep}
+                  allCourses={ALL_COURSES}
+                />
+              </ErrorBoundary>
             )}
             {view === "profile" && (
-              <ProfileView
-                state={state}
-                save={save}
-                user={user}
-                pomodoro={pomodoro}
-                onReset={resetApp}
-                onOpenNotifications={() => setModal("notifications")}
-                onNavigate={handleViewChange}
-              />
+              <ErrorBoundary name="Profile" key="eb-profile">
+                <ProfileView
+                  state={state}
+                  save={save}
+                  user={user}
+                  pomodoro={pomodoro}
+                  onReset={resetApp}
+                  onOpenNotifications={() => setModal("notifications")}
+                  onNavigate={handleViewChange}
+                />
+              </ErrorBoundary>
             )}
           </motion.div>
         </AnimatePresence>

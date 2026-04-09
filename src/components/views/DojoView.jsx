@@ -412,6 +412,9 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   }
 
   function renderSetLogger(setsList, setFn, onSave, exerciseName, hint) {
+    const filledSets = setsList.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
+    const totalVolume = filledSets.reduce((sum, s) => sum + Number(s.weight) * Number(s.reps), 0);
+
     return (
       <div style={ds.loggerCard}>
         <div style={ds.loggerHeader}>
@@ -449,9 +452,27 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           + Add Set
         </button>
 
+        {/* Summary before saving */}
+        {filledSets.length > 0 && (
+          <div style={ds.saveSummary}>
+            <span>{filledSets.length} set{filledSets.length !== 1 ? "s" : ""}</span>
+            <span style={{ opacity: 0.3 }}>&middot;</span>
+            <span>{totalVolume.toLocaleString()} kg total volume</span>
+          </div>
+        )}
+
         <div style={ds.loggerActions}>
           <button style={S.timerBtnSec} onClick={resetWorkout}>Cancel</button>
-          <button style={ds.doneBtn} onClick={onSave}>Done</button>
+          <button
+            style={{ ...ds.doneBtn, opacity: filledSets.length === 0 ? 0.4 : 1 }}
+            onClick={() => {
+              if (filledSets.length === 0) return;
+              onSave();
+            }}
+            disabled={filledSets.length === 0}
+          >
+            Log {filledSets.length} Set{filledSets.length !== 1 ? "s" : ""}
+          </button>
         </div>
       </div>
     );
@@ -1329,6 +1350,16 @@ const styles = {
     fontWeight: 700,
     cursor: "pointer",
     boxShadow: "0 4px 16px rgba(34,197,94,0.2)",
+  },
+  saveSummary: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    opacity: 0.5,
+    padding: "6px 0 2px",
+    justifyContent: "center",
   },
   summaryRow: {
     display: "flex",

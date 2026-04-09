@@ -1,4 +1,3 @@
-export { useAppState } from "./useAppState";
 export { useTrophies } from "./useTrophies";
 export { usePomodoro } from "./usePomodoro";
 export { AuthProvider, useAuth } from "./useAuth";

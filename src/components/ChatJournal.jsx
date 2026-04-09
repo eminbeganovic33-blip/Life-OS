@@ -107,7 +107,11 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
       const reply = await chatJournal(newMessages, state);
       if (reply) {
         setMessages([...newMessages, { role: "assistant", text: reply }]);
+      } else {
+        setMessages([...newMessages, { role: "assistant", text: "I'm having trouble connecting right now. Your thoughts are still saved — keep writing, I'll be back shortly." }]);
       }
+    } else {
+      setMessages([...newMessages, { role: "assistant", text: "AI journaling isn't configured yet. Your entries are still being saved — write freely!" }]);
     }
     setLoading(false);
     inputRef.current?.focus();
