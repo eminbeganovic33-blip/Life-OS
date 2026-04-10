@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
-import { useTheme } from "../../hooks";
+import { useTheme, usePomodoroContext } from "../../hooks";
 import { getLevel, getNextLevel, getLevelIndex, getDayQuests, getTodayStr, daysBetween } from "../../utils";
 import { getPersonalizedQuote, getProactiveNudges } from "../../utils/intelligence";
 import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../../data";
@@ -28,8 +28,9 @@ function formatDate() {
   });
 }
 
-export default function DashboardView({ state, user, onNavigate, pomodoro }) {
+export default function DashboardView({ state, user, onNavigate }) {
   const { themed } = useTheme();
+  const pomodoro = usePomodoroContext();
   const day = state.currentDay;
   const level = getLevel(state.xp);
   const nextLevel = getNextLevel(state.xp);

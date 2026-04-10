@@ -6,6 +6,7 @@ import { getTotalVolume, getLevel, getNextLevel, getLevelIndex } from "../../uti
 import { useAuth } from "../../hooks/useAuth";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
+import { usePomodoroContext } from "../../hooks";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
 import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles } from "lucide-react";
@@ -13,13 +14,14 @@ import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, A
 const T = TOKENS;
 const C = DARK_COLORS;
 
-export default function ProfileView({ state, save, user, pomodoro, onReset, onOpenNotifications, onNavigate }) {
+export default function ProfileView({ state, save, user, onReset, onOpenNotifications, onNavigate }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const { logout } = useAuth();
   const { isPremium, setShowUpgrade } = usePremium();
   const { theme, toggleTheme, colors } = useTheme();
+  const pomodoro = usePomodoroContext();
   const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer } = pomodoro;
 
   const isDark = theme === "dark";

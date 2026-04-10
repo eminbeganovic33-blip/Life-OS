@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
@@ -8,7 +8,7 @@ import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
   getCalendarDay, getCategoryStreak, defaultState,
 } from "./utils";
-import { useTrophies, usePomodoro, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS } from "./hooks";
+import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider, usePomodoroContext } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -31,14 +31,14 @@ import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
 import DashboardView from "./components/views/DashboardView";
-import HomeView from "./components/views/HomeView";
-import JournalView from "./components/views/JournalView";
-import AcademyView from "./components/views/AcademyView";
-import ForgeView from "./components/views/ForgeView";
-import DojoView from "./components/views/DojoView";
-import ProfileView from "./components/views/ProfileView";
-import AnalyticsView from "./components/views/AnalyticsView";
-import SocialView from "./components/views/SocialView";
+const HomeView = lazy(() => import("./components/views/HomeView"));
+const JournalView = lazy(() => import("./components/views/JournalView"));
+const AcademyView = lazy(() => import("./components/views/AcademyView"));
+const ForgeView = lazy(() => import("./components/views/ForgeView"));
+const DojoView = lazy(() => import("./components/views/DojoView"));
+const ProfileView = lazy(() => import("./components/views/ProfileView"));
+const AnalyticsView = lazy(() => import("./components/views/AnalyticsView"));
+const SocialView = lazy(() => import("./components/views/SocialView"));
 import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
@@ -64,8 +64,6 @@ function LifeOS() {
   const { state, loading, save, showOnboarding, setShowOnboarding } = useCloudSync(user);
   const { checkTrophies } = useTrophies();
   const toast = useToast();
-  const pomodoro = usePomodoro(state?.pomodoroMinutes || 25);
-
   const [view, setView] = useState("dashboard");
   const [modal, setModal] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
@@ -704,7 +702,7 @@ function LifeOS() {
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, ALL_COURSES,
     startSobriety, triggerRelapse,
-    user, pomodoro, resetApp,
+    user, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
     confettiBurst, confettiPop,
     setSkipAuth,
@@ -712,6 +710,7 @@ function LifeOS() {
 
   return (
     <PremiumProvider state={state} save={save}>
+      <PomodoroProvider minutes={state?.pomodoroMinutes || 25}>
       <LifeOSProvider value={lifeOSValue}>
         <LifeOSInner
           renderModal={renderModal}
@@ -721,6 +720,7 @@ function LifeOS() {
           onDismissComeback={() => setComebackInfo(null)}
         />
       </LifeOSProvider>
+      </PomodoroProvider>
     </PremiumProvider>
   );
 }
@@ -733,7 +733,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, ALL_COURSES,
     startSobriety, triggerRelapse,
-    user, pomodoro, resetApp,
+    user, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
     confettiBurst, confettiPop,
     setSkipAuth,
@@ -758,7 +758,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   }
 
   return (
-    <div style={themed("app")}>
+    <div style={themed("app")} role="application" aria-label="Life OS">
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}
@@ -769,7 +769,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         onClose={onDismissComeback}
       />
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
-      <div style={S.content}>
+      <main id="main-content" style={S.content}>
         {(view === "home" || view === "dashboard") && showWeeklySummary && (
           <WeeklySummaryBanner
             summary={computeWeeklySummary(state)}
@@ -787,9 +787,10 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
+          <Suspense fallback={<div style={{ padding: 40, textAlign: "center", opacity: 0.3 }}>Loading…</div>}>
             {view === "dashboard" && (
               <ErrorBoundary name="Dashboard" key="eb-dashboard">
-                <DashboardView state={state} user={user} onNavigate={handleViewChange} pomodoro={pomodoro} />
+                <DashboardView state={state} user={user} onNavigate={handleViewChange} />
               </ErrorBoundary>
             )}
             {view === "home" && (
@@ -845,16 +846,16 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   state={state}
                   save={save}
                   user={user}
-                  pomodoro={pomodoro}
                   onReset={resetApp}
                   onOpenNotifications={() => setModal("notifications")}
                   onNavigate={handleViewChange}
                 />
               </ErrorBoundary>
             )}
+          </Suspense>
           </motion.div>
         </AnimatePresence>
-      </div>
+      </main>
       <BottomNav view={view} setView={handleViewChange} />
     </div>
   );
