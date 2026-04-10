@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
@@ -37,6 +37,35 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
 
   const unlockedTrophyCount = Object.keys(state.unlockedTrophies || {}).length;
   const totalTrophies = TROPHIES.length;
+
+  // Compute progress for each trophy
+  const trophyProgress = useMemo(() => {
+    const catCounts = {};
+    Object.entries(state.completedQuests || {}).forEach(([, qIds]) => {
+      qIds.forEach((qid) => {
+        const cat = qid.split("-")[0];
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+      });
+    });
+    const totalCompletedDays = Object.keys(state.completedDays || {}).length;
+    const completedCourses = Object.values(state.courseProgress || {}).filter((p) => p.completed).length;
+    const recoveryCount = (state.recoveryJournals || []).length;
+
+    const progress = {};
+    TROPHIES.forEach((t) => {
+      if (state.unlockedTrophies?.[t.id]) { progress[t.id] = 1; return; }
+      let current = 0, target = 1;
+      if (t.daysReq && t.category === "all") { current = totalCompletedDays; target = t.daysReq; }
+      else if (t.daysReq) { current = catCounts[t.category] || 0; target = t.daysReq; }
+      else if (t.dayReq) { current = state.currentDay; target = t.dayReq; }
+      else if (t.countReq && t.category === "dojo") { current = workoutCount; target = t.countReq; }
+      else if (t.countReq && t.category === "academy") { current = completedCourses; target = t.countReq; }
+      else if (t.countReq && t.category === "forge") { current = recoveryCount; target = t.countReq; }
+      else if (t.volumeReq) { current = totalVolume; target = t.volumeReq; }
+      progress[t.id] = Math.min(current / target, 1);
+    });
+    return progress;
+  }, [state]);
 
   const displayName = (user && user.displayName) || state.userName || "Warrior";
   const displayEmail = user ? user.email : null;
@@ -135,6 +164,7 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
       <div style={trophyGrid}>
         {TROPHIES.map((t) => {
           const unlocked = !!state.unlockedTrophies?.[t.id];
+          const prog = trophyProgress[t.id] || 0;
           return (
             <div key={t.id} style={{ ...trophyCard, ...(unlocked ? trophyUnlocked : trophyLocked) }}>
               <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)", marginBottom: 4 }}>{t.icon}</div>
@@ -142,6 +172,12 @@ export default function ProfileView({ state, save, user, pomodoro, onReset, onOp
               <div style={{ fontSize: 10, opacity: unlocked ? 0.7 : 0.3, textAlign: "center", marginTop: 2 }}>
                 {unlocked ? `+${t.xpReward} XP` : t.desc}
               </div>
+              {!unlocked && prog > 0 && (
+                <div style={trophyProgWrap}>
+                  <div style={{ ...trophyProgBar, width: `${prog * 100}%` }} />
+                  <span style={trophyProgLabel}>{Math.round(prog * 100)}%</span>
+                </div>
+              )}
             </div>
           );
         })}
@@ -749,7 +785,31 @@ const trophyUnlocked = {
 const trophyLocked = {
   background: C.surface,
   border: `1px solid ${C.cardBorder}`,
-  opacity: 0.4,
+  opacity: 0.6,
+};
+
+const trophyProgWrap = {
+  width: "100%",
+  height: 4,
+  borderRadius: 2,
+  background: "rgba(255,255,255,0.08)",
+  marginTop: 6,
+  position: "relative",
+  overflow: "hidden",
+};
+const trophyProgBar = {
+  height: "100%",
+  borderRadius: 2,
+  background: "linear-gradient(90deg, #7C5CFC, #EC4899)",
+  transition: "width 0.3s ease",
+};
+const trophyProgLabel = {
+  position: "absolute",
+  right: 0,
+  top: -12,
+  fontSize: 8,
+  fontWeight: 700,
+  opacity: 0.5,
 };
 
 const dayGrid = {

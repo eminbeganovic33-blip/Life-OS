@@ -10,7 +10,7 @@ import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyC
 import QuestGuidePanel from "../QuestGuidePanel";
 import SmartInsights from "../SmartInsights";
 import { CategoryIcon } from "../Icon";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield } from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
 
@@ -74,7 +74,7 @@ export default function HomeView({
   const ts = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
   const day = state.currentDay;
-  const quests = getDayQuests(day, state.customQuests, state);
+  const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.currentDay]);
   const completed = state.completedQuests[day] || [];
   const allDone = completed.length === quests.length && quests.length > 0;
   const level = getLevel(state.xp);
@@ -412,6 +412,17 @@ export default function HomeView({
                 {getStreakMultiplier(state.streak).label}
               </span>
             )}
+            {(state.streakFreezes || 0) > 0 && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 2,
+                fontSize: 9, fontWeight: 700, color: "#3B82F6",
+                background: "rgba(59,130,246,0.12)", padding: "1px 5px",
+                borderRadius: 6, marginLeft: 3,
+              }}>
+                <Shield size={8} color="#3B82F6" />
+                {state.streakFreezes}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -485,6 +496,31 @@ export default function HomeView({
 
       {/* ── Time Block Sections ── */}
       {["morning", "afternoon", "evening"].map(renderTimeBlock)}
+
+      {/* ── Weekly Challenge Tracker ── */}
+      {(() => {
+        const wc = getWeeklyChallenge(state);
+        if (!wc) return null;
+        const claimedKey = `wc_${wc.weekNum}_${wc.id}`;
+        const claimed = state.weeklyChallengeClaimed?.[claimedKey];
+        return (
+          <div style={ts.weeklyCard}>
+            <div style={ts.weeklyHeader}>
+              <Trophy size={14} color="#FBBF24" />
+              <span style={ts.weeklyTitle}>Weekly Challenge</span>
+              {claimed && <span style={ts.weeklyDone}>Claimed!</span>}
+            </div>
+            <div style={ts.weeklyDesc}>{wc.description}</div>
+            <div style={ts.weeklyProgressRow}>
+              <div style={ts.weeklyBar}>
+                <div style={{ ...ts.weeklyBarFill, width: `${wc.percentComplete}%` }} />
+              </div>
+              <span style={ts.weeklyCount}>{wc.progress}/{wc.target}</span>
+            </div>
+            {!claimed && <div style={ts.weeklyReward}>+{wc.xpReward} XP on completion</div>}
+          </div>
+        );
+      })()}
 
       {/* ── Inline AI Quest Suggestions ── */}
       {day > 3 && !allDone && (
@@ -954,6 +990,70 @@ function getStyles(isDark, colors) {
     focusText: { fontSize: 15, fontWeight: 700, lineHeight: 1.3, color: colors.text },
     focusFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
     focusXp: { fontSize: 13, fontWeight: 800, color: "#7C5CFC" },
+
+    // Weekly challenge
+    weeklyCard: {
+      margin: "10px 14px",
+      padding: "12px 14px",
+      borderRadius: 14,
+      background: "rgba(251,191,36,0.04)",
+      border: "1px solid rgba(251,191,36,0.12)",
+    },
+    weeklyHeader: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 6,
+    },
+    weeklyTitle: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#FBBF24",
+      flex: 1,
+    },
+    weeklyDone: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#22C55E",
+      background: "rgba(34,197,94,0.12)",
+      padding: "2px 8px",
+      borderRadius: 6,
+    },
+    weeklyDesc: {
+      fontSize: 12,
+      opacity: 0.6,
+      lineHeight: 1.4,
+      marginBottom: 8,
+    },
+    weeklyProgressRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+    },
+    weeklyBar: {
+      flex: 1,
+      height: 5,
+      borderRadius: 3,
+      background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+      overflow: "hidden",
+    },
+    weeklyBarFill: {
+      height: "100%",
+      borderRadius: 3,
+      background: "linear-gradient(90deg, #FBBF24, #F97316)",
+      transition: "width 0.3s ease",
+    },
+    weeklyCount: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#FBBF24",
+      fontVariantNumeric: "tabular-nums",
+    },
+    weeklyReward: {
+      fontSize: 10,
+      opacity: 0.35,
+      marginTop: 4,
+    },
 
     // Time blocks
     timeBlock: {

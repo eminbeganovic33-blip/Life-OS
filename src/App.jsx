@@ -330,8 +330,13 @@ function LifeOS() {
     const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
-    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
-    setConfettiPop((c) => c + 1);
+    const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };
+    save(finalState);
+    // Confetti only for trophy unlocks or completing all quests
+    const allQuestsDone = dc.length === getDayQuests(day, state.customQuests, state).length;
+    if (newlyUnlocked?.length > 0 || allQuestsDone) {
+      setConfettiPop((c) => c + 1);
+    }
     // Toast for trophy unlocks
     if (newlyUnlocked?.length > 0) {
       newlyUnlocked.forEach((t) => toast.show(`Trophy unlocked: ${t.name}!`, "trophy", 4000));

@@ -88,8 +88,8 @@ export default function DayCompleteModal({ state, completedDay, onDismiss }) {
           </motion.div>
           <motion.div style={statBox} variants={fadeUp}>
             <Star size={16} color="#FBBF24" />
-            <div style={statValue}>{state.xp.toLocaleString()}</div>
-            <div style={statLabel}>Total XP</div>
+            <div style={{ ...statValue, color: "#FBBF24" }}>+{xpEarned}</div>
+            <div style={statLabel}>XP Earned</div>
           </motion.div>
           <motion.div style={statBox} variants={fadeUp}>
             <Zap size={16} color="#7C5CFC" />

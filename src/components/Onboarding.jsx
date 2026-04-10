@@ -345,6 +345,16 @@ export default function Onboarding({ onFinish }) {
               <div style={{ opacity: 0.4, marginTop: 4 }}>— Lao Tzu</div>
             </div>
 
+            {/* Notification permission prompt */}
+            {"Notification" in window && Notification.permission === "default" && (
+              <button
+                style={ob.notifBtn}
+                onClick={() => Notification.requestPermission()}
+              >
+                🔔 Enable daily reminders
+              </button>
+            )}
+
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
               <button style={S.primaryBtn} onClick={finish}>
@@ -590,5 +600,17 @@ const ob = {
     lineHeight: 1.5,
     marginBottom: 24,
     maxWidth: 300,
+  },
+  notifBtn: {
+    width: "100%",
+    padding: "12px 16px",
+    borderRadius: 12,
+    border: "1px solid rgba(124,92,252,0.2)",
+    background: "rgba(124,92,252,0.08)",
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    marginBottom: 16,
   },
 };
