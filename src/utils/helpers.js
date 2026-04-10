@@ -27,6 +27,13 @@ export function getLevelIndex(xp) {
   return i;
 }
 
+// Prestige is unlockable when the user has reached the final LEVELS entry
+export function isPrestigeReady(xp) {
+  return getLevelIndex(xp) >= LEVELS.length - 1;
+}
+
+export const MAX_LEVEL_INDEX = LEVELS.length - 1;
+
 export function getTodayStr() {
   return new Date().toISOString().split("T")[0];
 }

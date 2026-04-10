@@ -68,7 +68,7 @@ export default function BottomNav({ view, setView }) {
         </div>
       )}
 
-      <nav style={themed("bottomNav")} role="tablist" aria-label="Main navigation">
+      <nav style={themed("bottomNav")} data-bottom-nav role="tablist" aria-label="Main navigation">
         {NAV.map((n) => {
           const active = view === n.id;
           return (

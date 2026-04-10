@@ -763,7 +763,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   }
 
   return (
-    <div style={themed("app")} role="application" aria-label="Life OS">
+    <div style={themed("app")} data-app-shell role="application" aria-label="Life OS">
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}

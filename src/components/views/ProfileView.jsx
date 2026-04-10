@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
-import { getTotalVolume, getLevel, getNextLevel, getLevelIndex } from "../../utils";
+import { getTotalVolume, getLevel, getNextLevel, getLevelIndex, isPrestigeReady } from "../../utils";
 import { useAuth } from "../../hooks/useAuth";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
@@ -82,6 +82,22 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
     save({ ...state, avatar: newAvatar });
   };
 
+  const prestige = state.prestige || 0;
+  const canPrestige = isPrestigeReady(state.xp);
+  const [confirmPrestige, setConfirmPrestige] = useState(false);
+
+  const handlePrestige = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    save({
+      ...state,
+      xp: 0,
+      prestige: prestige + 1,
+      prestigeHistory: [...(state.prestigeHistory || []), { date: today, atStreak: state.streak }],
+    });
+    setConfirmPrestige(false);
+    playSound("levelUp");
+  };
+
   return (
     <div style={{ paddingTop: T.space.md, paddingBottom: 80 }}>
 
@@ -107,6 +123,11 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           {displayEmail && <div style={heroEmail}>{displayEmail}</div>}
           <div style={levelRow}>
             <span style={levelPill}>{level.name}</span>
+            {prestige > 0 && (
+              <span style={prestigePill} aria-label={`Prestige ${prestige}`}>
+                <Crown size={11} style={{ verticalAlign: -1 }} /> ×{prestige}
+              </span>
+            )}
             {state.streak > 0 && (
               <span style={streakPill}><Flame size={12} style={{ verticalAlign: -1 }} /> {state.streak} day streak</span>
             )}
@@ -129,6 +150,33 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           />
         </div>
       </div>
+
+      {/* Prestige action — only when at max level */}
+      {canPrestige && (
+        <div style={prestigeCard}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Crown size={28} color="#FACC15" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: T.font.md, fontWeight: T.weight.heavy, color: "#FACC15" }}>
+                Ready to Prestige
+              </div>
+              <div style={{ fontSize: T.font.xs, opacity: 0.65, marginTop: 2 }}>
+                Reset XP to gain a permanent crown. Trophies and streak stay.
+              </div>
+            </div>
+          </div>
+          {!confirmPrestige ? (
+            <button style={prestigeBtn} onClick={() => setConfirmPrestige(true)}>
+              Prestige Now
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button style={prestigeBtnConfirm} onClick={handlePrestige}>Confirm Reset</button>
+              <button style={prestigeBtnCancel} onClick={() => setConfirmPrestige(false)}>Cancel</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Primary Stats ── */}
       <div style={primaryStats}>
@@ -669,6 +717,64 @@ const streakPill = {
   borderRadius: 20,
   background: "rgba(249,115,22,0.12)",
   color: "#F97316",
+};
+
+const prestigePill = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.heavy,
+  padding: "3px 10px",
+  borderRadius: 20,
+  background: "linear-gradient(135deg,rgba(250,204,21,0.18),rgba(245,158,11,0.12))",
+  color: "#FACC15",
+  border: "1px solid rgba(250,204,21,0.3)",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+};
+
+const prestigeCard = {
+  margin: `0 ${T.space.lg}px ${T.space.lg}px`,
+  padding: T.space.lg,
+  borderRadius: T.radii.lg,
+  background: "linear-gradient(135deg,rgba(250,204,21,0.08),rgba(245,158,11,0.04))",
+  border: "1px solid rgba(250,204,21,0.25)",
+};
+
+const prestigeBtn = {
+  marginTop: 12,
+  width: "100%",
+  padding: "12px 16px",
+  borderRadius: 12,
+  border: "1px solid rgba(250,204,21,0.4)",
+  background: "linear-gradient(135deg,rgba(250,204,21,0.18),rgba(245,158,11,0.1))",
+  color: "#FACC15",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.heavy,
+  cursor: "pointer",
+};
+
+const prestigeBtnConfirm = {
+  flex: 1,
+  padding: "12px 16px",
+  borderRadius: 12,
+  border: "none",
+  background: "linear-gradient(135deg,#FACC15,#F59E0B)",
+  color: "#1A1530",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.heavy,
+  cursor: "pointer",
+};
+
+const prestigeBtnCancel = {
+  flex: 1,
+  padding: "12px 16px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "transparent",
+  color: "rgba(255,255,255,0.55)",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
 };
 
 const xpSection = {

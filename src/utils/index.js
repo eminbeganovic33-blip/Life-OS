@@ -8,6 +8,8 @@ export {
   getTotalVolume,
   getCalendarDay,
   getCategoryStreak,
+  isPrestigeReady,
+  MAX_LEVEL_INDEX,
 } from "./helpers";
 export { defaultState } from "./state";
 export {

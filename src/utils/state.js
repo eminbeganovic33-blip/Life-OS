@@ -127,5 +127,8 @@ export const defaultState = () => {
       subscribedAt: null,
       trialStartedAt: null,
     },
+    // Prestige
+    prestige: 0,
+    prestigeHistory: [],
   };
 };

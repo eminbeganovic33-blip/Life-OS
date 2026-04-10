@@ -22,6 +22,24 @@ export function injectGlobalStyles() {
     @keyframes swipeArrowBounce { 0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)} }
     @keyframes spin { 0%{transform:rotate(0deg)}100%{transform:rotate(360deg)} }
     @keyframes dotPulse { 0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)} }
+
+    /* Focus-visible accessibility ring (keyboard nav) */
+    button:focus-visible, [role="tab"]:focus-visible, [role="menuitem"]:focus-visible {
+      outline: 2px solid #7C5CFC;
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    /* Responsive breakpoints — widen the mobile column on tablet/desktop for readability */
+    @media (min-width: 768px) {
+      [data-app-shell] { max-width: 560px !important; box-shadow: 0 0 80px rgba(0,0,0,0.35); }
+      [data-bottom-nav] { max-width: 560px !important; border-left: 1px solid rgba(255,255,255,0.04); border-right: 1px solid rgba(255,255,255,0.04); }
+      body { background: radial-gradient(ellipse at top, #1a1530 0%, #0A0B1A 60%) !important; }
+    }
+    @media (min-width: 1024px) {
+      [data-app-shell] { max-width: 640px !important; }
+      [data-bottom-nav] { max-width: 640px !important; }
+    }
   `;
   document.head.appendChild(s);
 }
