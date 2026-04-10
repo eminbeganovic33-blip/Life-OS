@@ -9,7 +9,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { usePomodoroContext } from "../../hooks";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
-import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles } from "lucide-react";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { getSoundsEnabled, setSoundsEnabled, playSound } from "../../utils/audio";
 
 const T = TOKENS;
 const C = DARK_COLORS;
@@ -18,16 +19,19 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
   const [confirmReset, setConfirmReset] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [soundsOn, setSoundsOn] = useState(getSoundsEnabled());
   const { logout } = useAuth();
   const { isPremium, setShowUpgrade } = usePremium();
   const { theme, toggleTheme, colors } = useTheme();
   const pomodoro = usePomodoroContext();
-  const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer } = pomodoro;
+  const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer, phase, phaseLabel, sessionsCompleted, skipPhase } = pomodoro;
 
   const isDark = theme === "dark";
   const pomodoroMins = Math.floor(pomodoroTime / 60);
   const pomodoroSecs = pomodoroTime % 60;
-  const pomProg = 1 - pomodoroTime / ((state.pomodoroMinutes || 25) * 60);
+  const phaseDuration =
+    phase === "work" ? (state.pomodoroMinutes || 25) * 60 : phase === "longBreak" ? 15 * 60 : 5 * 60;
+  const pomProg = 1 - pomodoroTime / phaseDuration;
   const totalVolume = getTotalVolume(state.workoutLogs);
   const workoutCount = Object.values(state.workoutLogs || {}).reduce((a, b) => a + b.length, 0);
   const day = state.currentDay;
@@ -247,6 +251,29 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           <span style={settingsChevron}>›</span>
         </div>
 
+        {/* Sound effects */}
+        <div style={settingsRow}>
+          <div style={settingsRowLeft}>
+            <span style={{ display: "flex", alignItems: "center" }}>{soundsOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</span>
+            <div>
+              <div style={settingsRowTitle}>Sound Effects</div>
+              <div style={settingsRowSub}>Audio feedback on actions</div>
+            </div>
+          </div>
+          <button
+            style={toggleTrack(soundsOn)}
+            aria-label="Toggle sound effects"
+            onClick={() => {
+              const next = !soundsOn;
+              setSoundsEnabled(next);
+              setSoundsOn(next);
+              if (next) playSound("questCheck");
+            }}
+          >
+            <span style={toggleThumb(soundsOn)} />
+          </button>
+        </div>
+
         {/* Notifications */}
         <div style={{ ...settingsRow, cursor: "pointer" }} onClick={onOpenNotifications}>
           <div style={settingsRowLeft}>
@@ -281,12 +308,15 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
               style={{ overflow: "hidden" }}
             >
               <div style={timerExpanded}>
+                <div style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, color: phase === "work" ? "#7C5CFC" : "#22C55E", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+                  {phaseLabel}
+                </div>
                 <div style={{ position: "relative" }}>
                   <svg viewBox="0 0 120 120" style={{ width: 120, height: 120 }}>
                     <circle cx="60" cy="60" r="52" fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"} strokeWidth="5" />
-                    <circle cx="60" cy="60" r="52" fill="none" stroke="#7C5CFC" strokeWidth="5"
+                    <circle cx="60" cy="60" r="52" fill="none" stroke={phase === "work" ? "#7C5CFC" : "#22C55E"} strokeWidth="5"
                       strokeDasharray={`${pomProg * 327} 327`} strokeLinecap="round"
-                      transform="rotate(-90 60 60)" style={{ transition: "stroke-dasharray 0.5s" }} />
+                      transform="rotate(-90 60 60)" style={{ transition: "stroke-dasharray 0.5s, stroke 0.3s" }} />
                   </svg>
                   <div style={timerText}>
                     {String(pomodoroMins).padStart(2, "0")}:{String(pomodoroSecs).padStart(2, "0")}
@@ -294,11 +324,15 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
                 </div>
                 <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
                   <button style={timerBtn} onClick={toggle}>
-                    {pomodoroActive ? "Pause" : pomodoroTime === 0 ? "Again" : "Start"}
+                    {pomodoroActive ? "Pause" : pomodoroTime === 0 ? "Continue" : "Start"}
                   </button>
+                  <button style={timerBtnSec} onClick={skipPhase}>Skip</button>
                   <button style={timerBtnSec} onClick={resetTimer}>Reset</button>
                 </div>
-                {pomodoroTime === 0 && <div style={{ marginTop: 8, fontSize: T.font.sm, color: "#10B981", fontWeight: T.weight.bold }}>Session complete!</div>}
+                <div style={{ marginTop: 10, fontSize: T.font.xs, opacity: 0.55, fontWeight: T.weight.medium }}>
+                  {sessionsCompleted} session{sessionsCompleted === 1 ? "" : "s"} today · {state.totalPomodoros || 0} total
+                </div>
+                {pomodoroTime === 0 && <div style={{ marginTop: 8, fontSize: T.font.sm, color: "#10B981", fontWeight: T.weight.bold }}>Phase complete!</div>}
               </div>
             </motion.div>
           )}

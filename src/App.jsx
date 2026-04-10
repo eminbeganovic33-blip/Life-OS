@@ -43,6 +43,7 @@ import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
 import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
+import { playSound } from "./utils/audio";
 
 injectGlobalStyles();
 
@@ -115,6 +116,7 @@ function LifeOS() {
       setLevelUpIndex(currentLvl);
       setModal("levelup");
       setConfettiBurst((c) => c + 1);
+      playSound("levelUp");
     }
     prevLevelRef.current = currentLvl;
   }, [state?.xp]);
@@ -330,10 +332,12 @@ function LifeOS() {
     if (xpBonus > 0) showXp(xpBonus);
     const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };
     save(finalState);
+    playSound("questCheck");
     // Confetti only for trophy unlocks or completing all quests
     const allQuestsDone = dc.length === getDayQuests(day, state.customQuests, state).length;
     if (newlyUnlocked?.length > 0 || allQuestsDone) {
       setConfettiPop((c) => c + 1);
+      if (newlyUnlocked?.length > 0) playSound("levelUp");
     }
     // Toast for trophy unlocks
     if (newlyUnlocked?.length > 0) {
@@ -369,6 +373,7 @@ function LifeOS() {
     if (xpBonus > 0) showXp(xpBonus);
     save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
     setConfettiBurst((c) => c + 1);
+    playSound("dayComplete");
     if (newlyUnlocked?.length > 0) {
       newlyUnlocked.forEach((t) => toast.show(`Trophy unlocked: ${t.name}!`, "trophy", 4000));
     }
@@ -710,7 +715,7 @@ function LifeOS() {
 
   return (
     <PremiumProvider state={state} save={save}>
-      <PomodoroProvider minutes={state?.pomodoroMinutes || 25}>
+      <PomodoroProvider minutes={state?.pomodoroMinutes || 25} state={state} save={save}>
       <LifeOSProvider value={lifeOSValue}>
         <LifeOSInner
           renderModal={renderModal}

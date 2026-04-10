@@ -302,13 +302,16 @@ export default function DashboardView({ state, user, onNavigate }) {
 }
 
 function CompactTimer({ pomodoro, pomodoroMinutes }) {
-  const { pomodoroActive, pomodoroTime, toggle, reset } = pomodoro;
-  const totalSecs = pomodoroMinutes * 60;
-  const progress = 1 - pomodoroTime / totalSecs;
+  const { pomodoroActive, pomodoroTime, toggle, reset, phase, phaseLabel, sessionsCompleted, skipPhase } = pomodoro;
+  const phaseTotalSecs =
+    phase === "work" ? pomodoroMinutes * 60 : phase === "longBreak" ? 15 * 60 : 5 * 60;
+  const progress = 1 - pomodoroTime / phaseTotalSecs;
   const mins = Math.floor(pomodoroTime / 60);
   const secs = pomodoroTime % 60;
   const circumference = 2 * Math.PI * 22; // r=22
   const isDone = pomodoroTime === 0;
+  const isBreak = phase !== "work";
+  const ringColor = isBreak ? "#22C55E" : "#7C5CFC";
 
   return (
     <motion.div variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}>
@@ -319,7 +322,7 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
             <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
             <circle
               cx="28" cy="28" r="22" fill="none"
-              stroke={isDone ? "#22C55E" : pomodoroActive ? "#7C5CFC" : "rgba(124,92,252,0.4)"}
+              stroke={isDone ? "#22C55E" : pomodoroActive ? ringColor : `${ringColor}66`}
               strokeWidth="4"
               strokeDasharray={`${progress * circumference} ${circumference}`}
               strokeLinecap="round"
@@ -334,18 +337,27 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
 
         {/* Info + controls */}
         <div style={{ flex: 1 }}>
-          <div style={styles.timerTitle}>Focus Timer</div>
+          <div style={styles.timerTitle}>{phaseLabel}</div>
           <div style={styles.timerSub}>
-            {isDone ? "Session complete!" : pomodoroActive ? "Session running" : "Ready to focus"}
+            {isDone
+              ? "Done — tap to continue"
+              : pomodoroActive
+                ? `Running · ${sessionsCompleted} session${sessionsCompleted === 1 ? "" : "s"} today`
+                : sessionsCompleted > 0
+                  ? `${sessionsCompleted} session${sessionsCompleted === 1 ? "" : "s"} today`
+                  : "Ready to focus"}
           </div>
         </div>
 
         <div style={styles.timerBtns}>
-          <button style={styles.timerPlayBtn(pomodoroActive)} onClick={toggle}>
+          <button aria-label={pomodoroActive ? "Pause timer" : "Start timer"} style={styles.timerPlayBtn(pomodoroActive)} onClick={toggle}>
             {pomodoroActive ? <Pause size={14} /> : isDone ? <RotateCcw size={14} /> : <Play size={14} />}
           </button>
           {!pomodoroActive && !isDone && (
-            <button style={styles.timerResetBtn} onClick={reset}><RotateCcw size={14} /></button>
+            <button aria-label="Reset timer" style={styles.timerResetBtn} onClick={reset}><RotateCcw size={14} /></button>
+          )}
+          {pomodoroActive && (
+            <button aria-label="Skip phase" style={styles.timerResetBtn} onClick={skipPhase}>›</button>
           )}
         </div>
       </div>

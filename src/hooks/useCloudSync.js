@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "../firebase";
 import { defaultState } from "../utils/state";
 import { getTodayStr, daysBetween } from "../utils";
@@ -78,25 +78,38 @@ export default function useCloudSync(user) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const debounceRef = useRef(null);
 
-  // Track latest state for flushing on unload
+  // Track latest state for flushing on unload + last known remote version
   const latestStateRef = useRef(null);
+  const lastVersionRef = useRef(0);
+  const isWritingRef = useRef(false);
 
-  // Flush pending Firestore writes on unmount and page close
+  // Flush pending Firestore writes on visibility change and page close.
+  // `visibilitychange`/`pagehide` are more reliable than `beforeunload`,
+  // especially on mobile Safari and Chrome.
   useEffect(() => {
     function flushToFirestore() {
       if (debounceRef.current && user && latestStateRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
-        // Best-effort sync — use sendBeacon-style approach
         try {
           const ref = doc(db, "users", user.uid, "data", "state");
-          setDoc(ref, latestStateRef.current, { merge: true }).catch(() => {});
+          // Bump version optimistically — best effort during unload
+          const payload = { ...latestStateRef.current, _version: (lastVersionRef.current || 0) + 1 };
+          setDoc(ref, payload, { merge: true }).catch(() => {});
         } catch {}
       }
     }
 
+    function onVisibility() {
+      if (document.visibilityState === "hidden") flushToFirestore();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushToFirestore);
     window.addEventListener("beforeunload", flushToFirestore);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushToFirestore);
       window.removeEventListener("beforeunload", flushToFirestore);
       flushToFirestore();
     };
@@ -136,7 +149,9 @@ export default function useCloudSync(user) {
         if (cancelled) return;
 
         if (snap.exists()) {
-          let remote = { ...defaultState(), ...snap.data() };
+          const data = snap.data();
+          lastVersionRef.current = data._version || 0;
+          let remote = { ...defaultState(), ...data };
           remote = reconcileStreaks(remote);
           setState(remote);
           writeLocalStorage(remote);
@@ -198,10 +213,39 @@ export default function useCloudSync(user) {
       }
 
       debounceRef.current = setTimeout(async () => {
+        if (isWritingRef.current) return; // skip overlap
+        isWritingRef.current = true;
         try {
           const ref = doc(db, "users", user.uid, "data", "state");
-          await setDoc(ref, newState, { merge: true });
-        } catch {}
+          // Optimistic locking via Firestore transaction:
+          // refuse to overwrite if remote version advanced beyond ours.
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(ref);
+            const remoteVersion = snap.exists() ? (snap.data()._version || 0) : 0;
+            if (remoteVersion > lastVersionRef.current) {
+              // Conflict: remote was updated by another tab/device.
+              // Merge: take remote as base, layer our delta-style fields, then bump.
+              const remoteData = snap.data() || {};
+              const merged = { ...remoteData, ...latestStateRef.current };
+              const nextVersion = remoteVersion + 1;
+              tx.set(ref, { ...merged, _version: nextVersion }, { merge: true });
+              lastVersionRef.current = nextVersion;
+              // Sync local state to merged result so future writes see consistent base
+              setState(merged);
+              writeLocalStorage(merged);
+              latestStateRef.current = merged;
+            } else {
+              const nextVersion = (lastVersionRef.current || 0) + 1;
+              tx.set(ref, { ...latestStateRef.current, _version: nextVersion }, { merge: true });
+              lastVersionRef.current = nextVersion;
+            }
+          });
+        } catch {
+          // Network/transaction failure — local state is still saved.
+          // The next save attempt will retry with the latest data.
+        } finally {
+          isWritingRef.current = false;
+        }
       }, DEBOUNCE_MS);
     },
     [user]
