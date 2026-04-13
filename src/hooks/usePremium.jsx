@@ -86,6 +86,23 @@ export function PremiumProvider({ children, state, save }) {
   );
 
   /**
+   * Cancel premium — clears the active subscription/trial locally.
+   * In a real app, this would call Stripe to cancel the subscription.
+   */
+  const cancelPremium = useCallback(() => {
+    if (!save || !state) return;
+    save({
+      ...state,
+      premium: {
+        ...premiumData,
+        plan: null,
+        premiumUntil: null,
+        // Keep trialStartedAt so the user can't start the trial again.
+      },
+    });
+  }, [state, save, premiumData]);
+
+  /**
    * Restore purchase — checks if premium is still valid.
    * In a real app, this would verify with the payment provider.
    */
@@ -105,6 +122,7 @@ export function PremiumProvider({ children, state, save }) {
       plan,
       checkFeatureAccess,
       upgradeToPremium,
+      cancelPremium,
       restorePurchase,
       showUpgrade,
       setShowUpgrade,
@@ -118,6 +136,7 @@ export function PremiumProvider({ children, state, save }) {
       plan,
       checkFeatureAccess,
       upgradeToPremium,
+      cancelPremium,
       restorePurchase,
       showUpgrade,
     ]
@@ -143,6 +162,7 @@ export function usePremium() {
       plan: null,
       checkFeatureAccess: () => false,
       upgradeToPremium: () => {},
+      cancelPremium: () => {},
       restorePurchase: () => false,
       showUpgrade: false,
       setShowUpgrade: () => {},

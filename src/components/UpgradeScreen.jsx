@@ -3,13 +3,20 @@ import { PREMIUM_FEATURES, PREMIUM_PLANS, FREE_LIMITS } from "../data/premium";
 import { usePremium } from "../hooks/usePremium";
 
 export default function UpgradeScreen({ onClose }) {
-  const { isPremium, isTrialActive, trialDaysRemaining, plan, upgradeToPremium, restorePurchase } = usePremium();
+  const { isPremium, isPremiumActive, isTrialActive, trialDaysRemaining, premiumUntil, plan, upgradeToPremium, cancelPremium, restorePurchase } = usePremium();
   const [selectedPlan, setSelectedPlan] = useState("yearly");
   const [activating, setActivating] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const features = Object.values(PREMIUM_FEATURES);
   const yearlyPlan = PREMIUM_PLANS.yearly;
   const monthlyPlan = PREMIUM_PLANS.monthly;
+
+  function handleCancel() {
+    cancelPremium();
+    setConfirmCancel(false);
+    if (onClose) onClose();
+  }
 
   function handleUpgrade() {
     setActivating(true);
@@ -41,7 +48,7 @@ export default function UpgradeScreen({ onClose }) {
       <div style={overlay}>
         <div style={container}>
           <button style={closeBtn} onClick={onClose}>x</button>
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
+          <div style={{ textAlign: "center", padding: "40px 0 28px" }}>
             <div style={premiumCrown}>
               <span style={{ fontSize: 48 }}>👑</span>
             </div>
@@ -51,6 +58,20 @@ export default function UpgradeScreen({ onClose }) {
                 ? `Free trial · ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? "s" : ""} remaining`
                 : `${plan === "yearly" ? "Yearly" : "Monthly"} plan`}
             </div>
+            {isPremiumActive && premiumUntil && (
+              <div style={{ fontSize: 11, opacity: 0.4, marginBottom: 18, color: "#E2E2EE" }}>
+                Renews {new Date(premiumUntil).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </div>
+            )}
+            {isTrialActive && (
+              <button
+                style={{ ...upgradeBtn, marginBottom: 16, marginLeft: 16, marginRight: 16, width: "calc(100% - 32px)" }}
+                onClick={() => upgradeToPremium("yearly")}
+                disabled={activating}
+              >
+                Upgrade to keep Premium
+              </button>
+            )}
             <div style={featureListActive}>
               {features.map((f) => (
                 <div key={f.id} style={featureActiveRow}>
@@ -60,7 +81,27 @@ export default function UpgradeScreen({ onClose }) {
                 </div>
               ))}
             </div>
+            <div style={demoNotice}>
+              Demo build — no real charges are made. Subscriptions and trials are simulated locally.
+            </div>
             <button style={doneBtn} onClick={onClose}>Done</button>
+            {!confirmCancel ? (
+              <div style={{ marginTop: 14 }}>
+                <span style={cancelLink} onClick={() => setConfirmCancel(true)}>
+                  Cancel subscription
+                </span>
+              </div>
+            ) : (
+              <div style={{ marginTop: 14, padding: "0 24px" }}>
+                <div style={{ fontSize: 12, opacity: 0.55, marginBottom: 10, color: "#E2E2EE" }}>
+                  Cancel and lose premium access?
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                  <button style={cancelConfirmBtn} onClick={handleCancel}>Yes, cancel</button>
+                  <button style={cancelKeepBtn} onClick={() => setConfirmCancel(false)}>Keep Premium</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -173,6 +214,9 @@ export default function UpgradeScreen({ onClose }) {
           </button>
           <div style={disclaimer}>
             Cancel anytime. No questions asked.
+          </div>
+          <div style={demoNoticeInline}>
+            Demo build — no real charges. Premium is simulated locally.
           </div>
         </div>
 
@@ -623,6 +667,63 @@ const doneBtn = {
   background: "linear-gradient(135deg, #FFD700, #FFA500)",
   color: "#0D0D14",
   fontSize: 14,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const demoNotice = {
+  margin: "0 24px 16px",
+  padding: "10px 14px",
+  borderRadius: 10,
+  background: "rgba(124,92,252,0.06)",
+  border: "1px dashed rgba(124,92,252,0.25)",
+  fontSize: 10,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.55)",
+  textAlign: "center",
+  lineHeight: 1.5,
+  letterSpacing: 0.2,
+};
+
+const demoNoticeInline = {
+  marginTop: 6,
+  padding: "8px 12px",
+  borderRadius: 8,
+  background: "rgba(124,92,252,0.06)",
+  border: "1px dashed rgba(124,92,252,0.2)",
+  fontSize: 10,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.45)",
+  textAlign: "center",
+  letterSpacing: 0.2,
+};
+
+const cancelLink = {
+  fontSize: 11,
+  color: "rgba(239,68,68,0.7)",
+  cursor: "pointer",
+  textDecoration: "underline",
+  fontWeight: 600,
+};
+
+const cancelConfirmBtn = {
+  padding: "8px 16px",
+  borderRadius: 10,
+  border: "1px solid rgba(239,68,68,0.4)",
+  background: "rgba(239,68,68,0.1)",
+  color: "#EF4444",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const cancelKeepBtn = {
+  padding: "8px 16px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,215,0,0.3)",
+  background: "rgba(255,215,0,0.06)",
+  color: "#FFD700",
+  fontSize: 12,
   fontWeight: 700,
   cursor: "pointer",
 };

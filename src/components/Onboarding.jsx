@@ -53,7 +53,13 @@ const FEATURES = [
   { i: "📊", t: "Analytics", d: "Track your mood, streaks, and progress patterns" },
 ];
 
-const STEPS = ["welcome", "name", "focus", "forge", "tour", "ready"];
+const STEPS = ["welcome", "name", "focus", "forge", "tour", "trial", "ready"];
+
+const TRIAL_BENEFITS = [
+  { i: "🤖", t: "AI Coach", d: "Personalized insights from your data" },
+  { i: "🎯", t: "Custom Quests", d: "Create unlimited quests of your own" },
+  { i: "📊", t: "Advanced Analytics", d: "Trends, correlations & weekly reports" },
+];
 
 export default function Onboarding({ onFinish }) {
   const [step, setStep] = useState(0);
@@ -61,6 +67,7 @@ export default function Onboarding({ onFinish }) {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedTrackers, setSelectedTrackers] = useState([]);
   const [tourSlide, setTourSlide] = useState(0);
+  const [acceptedTrial, setAcceptedTrial] = useState(false);
 
   const currentStep = STEPS[step];
   const canGoNext = step < STEPS.length - 1;
@@ -91,6 +98,7 @@ export default function Onboarding({ onFinish }) {
       userName: userName.trim() || null,
       focusCategories: selectedCategories.length > 0 ? selectedCategories : null,
       forgeTrackers: selectedTrackers.length > 0 ? selectedTrackers : null,
+      acceptedTrial,
     });
   }
 
@@ -301,6 +309,50 @@ export default function Onboarding({ onFinish }) {
           </div>
         )}
 
+        {/* Step: Trial Offer */}
+        {currentStep === "trial" && (
+          <div style={ob.slide}>
+            <div style={ob.trialCrown}>
+              <span style={{ fontSize: 36 }}>👑</span>
+            </div>
+            <h2 style={ob.stepTitle}>Try Premium Free</h2>
+            <p style={ob.stepDesc}>
+              Get the full Life OS experience for 7 days. No card required —
+              cancel anytime from your profile.
+            </p>
+            <div style={ob.trialBenefits}>
+              {TRIAL_BENEFITS.map((b) => (
+                <div key={b.t} style={ob.trialBenefitRow}>
+                  <span style={{ fontSize: 22 }}>{b.i}</span>
+                  <div style={{ flex: 1, textAlign: "left" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#FFD700" }}>{b.t}</div>
+                    <div style={{ fontSize: 11, opacity: 0.5, marginTop: 1 }}>{b.d}</div>
+                  </div>
+                  <span style={{ color: "#10B981", fontSize: 14, fontWeight: 700 }}>✓</span>
+                </div>
+              ))}
+            </div>
+            <div style={ob.trialNote}>
+              After 7 days you'll automatically return to free — no surprise charges.
+            </div>
+            <div style={{ ...ob.btnRow, flexDirection: "column", gap: 8 }}>
+              <button
+                style={ob.trialAcceptBtn}
+                onClick={() => { setAcceptedTrial(true); next(); }}
+              >
+                Start 7-Day Free Trial
+              </button>
+              <button
+                style={ob.trialSkipBtn}
+                onClick={() => { setAcceptedTrial(false); next(); }}
+              >
+                Maybe later — continue free
+              </button>
+            </div>
+            <button style={{ ...ob.backBtn, marginTop: 8 }} onClick={back}>Back</button>
+          </div>
+        )}
+
         {/* Step: Ready */}
         {currentStep === "ready" && (
           <div style={ob.slide}>
@@ -338,6 +390,12 @@ export default function Onboarding({ onFinish }) {
                 <span style={{ opacity: 0.5 }}>Journey:</span>
                 <span>Ongoing self-mastery</span>
               </div>
+              {acceptedTrial && (
+                <div style={ob.summaryRow}>
+                  <span style={{ opacity: 0.5 }}>Trial:</span>
+                  <span style={{ color: "#FFD700" }}>7-day Premium ✓</span>
+                </div>
+              )}
             </div>
 
             <div style={ob.readyQuote}>
@@ -612,5 +670,64 @@ const ob = {
     fontWeight: 600,
     cursor: "pointer",
     marginBottom: 16,
+  },
+  trialCrown: {
+    width: 72,
+    height: 72,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,215,0,0.05))",
+    border: "2px solid rgba(255,215,0,0.25)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 12px",
+    boxShadow: "0 0 40px rgba(255,215,0,0.12)",
+  },
+  trialBenefits: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 12,
+  },
+  trialBenefitRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 12,
+    background: "rgba(255,215,0,0.04)",
+    border: "1px solid rgba(255,215,0,0.1)",
+  },
+  trialNote: {
+    fontSize: 11,
+    opacity: 0.45,
+    marginBottom: 16,
+    maxWidth: 280,
+    lineHeight: 1.5,
+  },
+  trialAcceptBtn: {
+    width: "100%",
+    padding: "14px 20px",
+    borderRadius: 12,
+    border: "none",
+    background: "linear-gradient(135deg, #FFD700, #FFA500)",
+    color: "#0D0D14",
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 4px 24px rgba(255,215,0,0.18)",
+    letterSpacing: 0.3,
+  },
+  trialSkipBtn: {
+    width: "100%",
+    padding: "12px 20px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "transparent",
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
   },
 };

@@ -21,7 +21,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [soundsOn, setSoundsOn] = useState(getSoundsEnabled());
   const { logout } = useAuth();
-  const { isPremium, setShowUpgrade } = usePremium();
+  const { isPremium, isPremiumActive, isTrialActive, trialDaysRemaining, premiumUntil, plan, setShowUpgrade } = usePremium();
   const { theme, toggleTheme, colors } = useTheme();
   const pomodoro = usePomodoroContext();
   const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer, phase, phaseLabel, sessionsCompleted, skipPhase } = pomodoro;
@@ -387,7 +387,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         </AnimatePresence>
       </div>
 
-      {/* ── Premium ── */}
+      {/* ── Premium / Subscription ── */}
       {!isPremium && (
         <div style={premiumBanner} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: T.space.md }}>
@@ -398,6 +398,43 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
             </div>
           </div>
           <span style={{ fontSize: T.font.sm, color: "#FFD700", fontWeight: T.weight.bold, flexShrink: 0 }}>Upgrade →</span>
+        </div>
+      )}
+      {isPremium && (
+        <div style={subscriptionCard}>
+          <div style={subStatusRow}>
+            <div style={{ display: "flex", alignItems: "center", gap: T.space.md }}>
+              <span style={subCrown}>👑</span>
+              <div>
+                <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, color: "#FFD700" }}>
+                  {isTrialActive ? "Free Trial Active" : "Premium Member"}
+                </div>
+                <div style={{ fontSize: T.font.xs, opacity: 0.6, marginTop: 2 }}>
+                  {isTrialActive
+                    ? `${trialDaysRemaining} day${trialDaysRemaining !== 1 ? "s" : ""} remaining`
+                    : plan === "yearly"
+                      ? "Yearly plan"
+                      : plan === "monthly"
+                        ? "Monthly plan"
+                        : "Active"}
+                </div>
+              </div>
+            </div>
+            <span style={subStatusPill}>Active</span>
+          </div>
+          {isPremiumActive && premiumUntil && (
+            <div style={subRenewRow}>
+              Renews {new Date(premiumUntil).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+            </div>
+          )}
+          {isTrialActive && trialDaysRemaining <= 3 && (
+            <div style={subTrialWarning}>
+              Your trial ends soon. Upgrade now to keep your premium features.
+            </div>
+          )}
+          <button style={subManageBtn} onClick={() => setShowUpgrade(true)}>
+            {isTrialActive ? "Upgrade to keep Premium" : "Manage subscription"}
+          </button>
         </div>
       )}
 
@@ -1062,6 +1099,71 @@ const premiumBanner = {
   borderRadius: T.radii.lg,
   background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.03))",
   border: "1px solid rgba(255,215,0,0.12)",
+  cursor: "pointer",
+};
+
+const subscriptionCard = {
+  margin: `${T.space.xl}px ${T.space.lg}px 0`,
+  padding: T.space.lg,
+  borderRadius: T.radii.lg,
+  background: "linear-gradient(135deg, rgba(255,215,0,0.07), rgba(255,165,0,0.03))",
+  border: "1px solid rgba(255,215,0,0.18)",
+  display: "flex",
+  flexDirection: "column",
+  gap: T.space.md,
+};
+
+const subStatusRow = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
+
+const subCrown = {
+  fontSize: 28,
+  display: "flex",
+  alignItems: "center",
+  filter: "drop-shadow(0 0 8px rgba(255,215,0,0.4))",
+};
+
+const subStatusPill = {
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 0.5,
+  textTransform: "uppercase",
+  padding: "4px 10px",
+  borderRadius: 999,
+  background: "rgba(16,185,129,0.12)",
+  border: "1px solid rgba(16,185,129,0.3)",
+  color: "#10B981",
+};
+
+const subRenewRow = {
+  fontSize: T.font.xs,
+  opacity: 0.45,
+  fontWeight: T.weight.medium,
+};
+
+const subTrialWarning = {
+  fontSize: T.font.xs,
+  fontWeight: T.weight.medium,
+  color: "#FFD700",
+  padding: T.space.sm,
+  borderRadius: T.radii.sm,
+  background: "rgba(255,215,0,0.08)",
+  border: "1px solid rgba(255,215,0,0.2)",
+  textAlign: "center",
+};
+
+const subManageBtn = {
+  width: "100%",
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: "1px solid rgba(255,215,0,0.3)",
+  background: "rgba(255,215,0,0.06)",
+  color: "#FFD700",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
   cursor: "pointer",
 };
 

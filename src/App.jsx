@@ -242,6 +242,9 @@ function LifeOS() {
               updates.sobrietyDates = { ...state.sobrietyDates, ...dates };
             }
             if (preferences.userName) updates.userName = preferences.userName;
+            if (preferences.acceptedTrial) {
+              updates.premium = { ...(state.premium || {}), trialStartedAt: Date.now() };
+            }
           }
           save(updates);
           setShowOnboarding(false);
@@ -743,9 +746,10 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     confettiBurst, confettiPop,
     setSkipAuth,
   } = useLifeOS();
-  const { showUpgrade, setShowUpgrade } = usePremium();
+  const { showUpgrade, setShowUpgrade, isTrialActive, isPremiumActive, trialDaysRemaining } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
   const { themed } = useTheme();
+  const showTrialBanner = isTrialActive && !isPremiumActive && trialDaysRemaining <= 2 && trialDaysRemaining > 0;
 
   const day = state.currentDay;
 
@@ -774,6 +778,25 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         onClose={onDismissComeback}
       />
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
+      {showTrialBanner && (
+        <button
+          onClick={() => setShowUpgrade(true)}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            width: "100%", padding: "10px 16px",
+            background: "linear-gradient(135deg, rgba(255,215,0,0.16), rgba(255,165,0,0.08))",
+            border: "none",
+            borderBottom: "1px solid rgba(255,215,0,0.25)",
+            color: "#FFD700", fontSize: 12, fontWeight: 700,
+            cursor: "pointer", letterSpacing: 0.2,
+          }}
+          aria-label={`Trial ending in ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? "s" : ""}, tap to upgrade`}
+        >
+          <span>👑</span>
+          <span>Trial ends in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} — upgrade to keep Premium</span>
+          <span style={{ opacity: 0.7 }}>→</span>
+        </button>
+      )}
       <main id="main-content" style={S.content}>
         {(view === "home" || view === "dashboard") && showWeeklySummary && (
           <WeeklySummaryBanner
