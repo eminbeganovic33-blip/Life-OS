@@ -3,11 +3,14 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { getTodayStr } from "../../utils";
 import { chatWithCoach } from "../../utils/ai";
-import { Bot, Pencil, Trash2, Lightbulb, AlertTriangle, Flame } from "lucide-react";
+import { Bot, Pencil, Trash2, Flame } from "lucide-react";
 import {
-  EXERCISE_LIBRARY, MUSCLE_GROUPS, EQUIPMENT, WORKOUT_TEMPLATES,
-  getExerciseById, getExercisesByMuscle,
+  EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES,
+  getExerciseById,
 } from "../../data/exerciseLibrary";
+import { MuscleTag, DifficultyBadge } from "./dojo/shared";
+import ExerciseLibraryTab from "./dojo/ExerciseLibraryTab";
+import ProgramsTab from "./dojo/ProgramsTab";
 
 // ── Helpers ──
 
@@ -24,15 +27,6 @@ function parseAIPlan(raw) {
     return null;
   }
 }
-
-const MUSCLE_COLORS = {};
-MUSCLE_GROUPS.forEach((m) => { MUSCLE_COLORS[m.id] = m.color; });
-
-const DIFFICULTY_COLORS = {
-  beginner: "#22C55E",
-  intermediate: "#F59E0B",
-  advanced: "#EF4444",
-};
 
 // ── Main Component ──
 
@@ -360,14 +354,6 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // ── Filter Exercises ──
 
-  const filteredLibrary = EXERCISE_LIBRARY.filter((ex) => {
-    const matchesSearch = !librarySearch ||
-      ex.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
-      ex.muscle.toLowerCase().includes(librarySearch.toLowerCase());
-    const matchesFilter = libraryFilter === "all" || ex.muscle === libraryFilter;
-    return matchesSearch && matchesFilter;
-  });
-
   const filteredCustomExercises = EXERCISE_LIBRARY.filter(
     (ex) =>
       ex.type === "strength" && (
@@ -375,41 +361,6 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
         ex.muscle.toLowerCase().includes(searchQuery.toLowerCase())
       )
   );
-
-  // ── Shared Components ──
-
-  function MuscleTag({ muscle, small }) {
-    const mg = MUSCLE_GROUPS.find((m) => m.id === muscle);
-    const color = mg?.color || "#7C5CFC";
-    return (
-      <span style={{
-        display: "inline-block",
-        padding: small ? "1px 5px" : "2px 8px",
-        borderRadius: 6,
-        fontSize: small ? 8 : 9,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        color,
-        background: `${color}18`,
-        border: `1px solid ${color}30`,
-      }}>
-        {mg?.name || muscle}
-      </span>
-    );
-  }
-
-  function DifficultyBadge({ level }) {
-    const color = DIFFICULTY_COLORS[level] || "#888";
-    return (
-      <span style={{
-        fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-        color, opacity: 0.8,
-      }}>
-        {level}
-      </span>
-    );
-  }
 
   function renderSetLogger(setsList, setFn, onSave, exerciseName, hint) {
     const filledSets = setsList.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
@@ -828,243 +779,23 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     );
   }
 
-  // ── TAB: Exercise Library ──
-
-  function renderLibraryTab() {
-    if (selectedExercise) {
-      return renderExerciseDetail(selectedExercise);
+  // ── Library log handler ──
+  function handleLogFromLibrary(exercise) {
+    const filledSets = sets.filter(s => s.weight && s.reps);
+    if (activeExercise && filledSets.length > 0) {
+      onSaveWorkout(activeExercise, filledSets.map(s => ({ weight: Number(s.weight), reps: Number(s.reps) })));
     }
-
-    return (
-      <>
-        <input
-          type="text"
-          placeholder="Search exercises..."
-          value={librarySearch}
-          onChange={(e) => setLibrarySearch(e.target.value)}
-          style={{ ...ds.searchInput, margin: "8px 14px", width: "calc(100% - 28px)" }}
-        />
-
-        {/* Muscle Group Filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 14px", marginBottom: 10 }}>
-          <button
-            style={{
-              ...ds.filterChip,
-              ...(libraryFilter === "all" ? ds.filterChipActive : {}),
-            }}
-            onClick={() => setLibraryFilter("all")}
-          >
-            All ({EXERCISE_LIBRARY.length})
-          </button>
-          {MUSCLE_GROUPS.map((mg) => {
-            const count = EXERCISE_LIBRARY.filter((e) => e.muscle === mg.id).length;
-            const isActive = libraryFilter === mg.id;
-            return (
-              <button
-                key={mg.id}
-                style={{
-                  ...ds.filterChip,
-                  ...(isActive ? {
-                    background: `${mg.color}18`,
-                    border: `1px solid ${mg.color}50`,
-                    color: mg.color,
-                  } : {}),
-                }}
-                onClick={() => setLibraryFilter(mg.id)}
-              >
-                {mg.icon} {mg.name} ({count})
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Exercise List */}
-        <div style={{ padding: "0 14px", paddingBottom: 20 }}>
-          {filteredLibrary.map((ex) => (
-            <div
-              key={ex.id}
-              style={ds.libraryItem}
-              onClick={() => setSelectedExercise(ex)}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{ex.name}</div>
-                <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center" }}>
-                  <MuscleTag muscle={ex.muscle} small />
-                  <DifficultyBadge level={ex.difficulty} />
-                  <span style={{ fontSize: 11, opacity: 0.3 }}>
-                    {ex.equipment.map((e) => EQUIPMENT[e]).join(", ")}
-                  </span>
-                </div>
-              </div>
-              <span style={{ fontSize: 16, opacity: 0.3 }}>→</span>
-            </div>
-          ))}
-          {filteredLibrary.length === 0 && (
-            <div style={{ textAlign: "center", padding: 30, fontSize: 13, opacity: 0.3 }}>
-              No exercises found
-            </div>
-          )}
-        </div>
-      </>
-    );
+    setActiveExercise(exercise.id);
+    setSets([{ weight: "", reps: "" }]);
+    setMode("custom");
+    setTab("workout");
+    setSelectedExercise(null);
   }
 
-  // ── Exercise Detail View ──
+  // (ExerciseLibraryTab and ProgramsTab extracted to dojo/ subdirectory)
 
-  function renderExerciseDetail(exercise) {
-    const mg = MUSCLE_GROUPS.find((m) => m.id === exercise.muscle);
-    return (
-      <div style={{ padding: "0 14px", paddingBottom: 20 }}>
-        <button style={ds.backLink} onClick={() => setSelectedExercise(null)}>
-          ← Back to Library
-        </button>
-
-        <div style={ds.detailCard}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 4px", letterSpacing: -0.5 }}>
-            {exercise.name}
-          </h2>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
-            <MuscleTag muscle={exercise.muscle} />
-            <DifficultyBadge level={exercise.difficulty} />
-            <span style={{ fontSize: 10, opacity: 0.4, textTransform: "capitalize" }}>{exercise.type}</span>
-          </div>
-
-          {/* Equipment */}
-          <div style={ds.detailSection}>
-            <div style={ds.detailLabel}>Equipment</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {exercise.equipment.map((eq) => (
-                <span key={eq} style={ds.equipmentTag}>{EQUIPMENT[eq] || eq}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Secondary Muscles */}
-          {exercise.secondary?.length > 0 && (
-            <div style={ds.detailSection}>
-              <div style={ds.detailLabel}>Also Works</div>
-              <div style={{ display: "flex", gap: 4 }}>
-                {exercise.secondary.map((m) => <MuscleTag key={m} muscle={m} small />)}
-              </div>
-            </div>
-          )}
-
-          {/* Instructions */}
-          <div style={ds.detailSection}>
-            <div style={ds.detailLabel}>How To Perform</div>
-            <ol style={{ margin: 0, paddingLeft: 18 }}>
-              {exercise.instructions.map((step, i) => (
-                <li key={i} style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 4, opacity: 0.85 }}>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Tips */}
-          {exercise.tips && (
-            <div style={{ ...ds.detailSection, ...ds.tipBox }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#22C55E", marginBottom: 4 }}>
-                <Lightbulb size={12} style={{ marginRight: 4 }} /> PRO TIP
-              </div>
-              <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85 }}>
-                {exercise.tips}
-              </div>
-            </div>
-          )}
-
-          {/* Common Mistakes */}
-          {exercise.commonMistakes?.length > 0 && (
-            <div style={ds.detailSection}>
-              <div style={ds.detailLabel}>Common Mistakes</div>
-              {exercise.commonMistakes.map((mistake, i) => (
-                <div key={i} style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.8, paddingLeft: 12 }}>
-                  <AlertTriangle size={11} color="#F59E0B" style={{ marginRight: 4, flexShrink: 0 }} /> {mistake}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Quick Log Button */}
-          <button
-            style={{ ...ds.aiButton, marginTop: 16, width: "100%" }}
-            onClick={() => {
-              // Auto-save current exercise if it has filled sets before switching
-              const filledSets = sets.filter(s => s.weight && s.reps);
-              if (activeExercise && filledSets.length > 0) {
-                onSaveWorkout(activeExercise, filledSets.map(s => ({ weight: Number(s.weight), reps: Number(s.reps) })));
-              }
-              setActiveExercise(exercise.id);
-              setSets([{ weight: "", reps: "" }]);
-              setMode("custom");
-              setTab("workout");
-              setSelectedExercise(null);
-            }}
-          >
-            Log This Exercise
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── TAB: Programs ──
-
-  function renderProgramsTab() {
-    return (
-      <div style={{ padding: "0 14px", paddingBottom: 20 }}>
-        <div style={{ fontSize: 12, opacity: 0.4, marginBottom: 12 }}>
-          Structured workout programs to follow. Pick one and stick with it for best results.
-        </div>
-
-        {WORKOUT_TEMPLATES.map((t) => {
-          const exercises = t.exercises.map((e) => getExerciseById(e.exerciseId)).filter(Boolean);
-          const muscleGroups = [...new Set(exercises.map((e) => e.muscle))];
-
-          return (
-            <div key={t.id} style={ds.programCard}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <span style={{ fontSize: 28 }}>{t.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, opacity: 0.5 }}>{t.description}</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-                {muscleGroups.map((m) => <MuscleTag key={m} muscle={m} small />)}
-              </div>
-
-              <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>
-                {t.exercises.length} exercises
-              </div>
-
-              {t.exercises.map((ex, i) => {
-                const exercise = getExerciseById(ex.exerciseId);
-                return (
-                  <div key={i} style={ds.programExercise}>
-                    <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>
-                      {exercise?.name || ex.exerciseId}
-                    </span>
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>
-                      {ex.sets}×{ex.reps} | Rest: {ex.rest}
-                    </span>
-                  </div>
-                );
-              })}
-
-              <button
-                style={{ ...ds.aiButton, marginTop: 10, width: "100%" }}
-                onClick={() => { startTemplate(t); setTab("workout"); }}
-              >
-                Start This Workout
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
+  // ── Removed: renderLibraryTab, renderExerciseDetail, renderProgramsTab ──
+  // These are now in dojo/ExerciseLibraryTab.jsx and dojo/ProgramsTab.jsx
 
   // ── Main Render ──
 
@@ -1103,8 +834,21 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       </div>
 
       {tab === "workout" && renderWorkoutTab()}
-      {tab === "library" && renderLibraryTab()}
-      {tab === "programs" && renderProgramsTab()}
+      {tab === "library" && (
+        <ExerciseLibraryTab
+          libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter}
+          librarySearch={librarySearch} setLibrarySearch={setLibrarySearch}
+          selectedExercise={selectedExercise} setSelectedExercise={setSelectedExercise}
+          ds={ds}
+          onLogExercise={handleLogFromLibrary}
+        />
+      )}
+      {tab === "programs" && (
+        <ProgramsTab
+          ds={ds}
+          onStartTemplate={(t) => { startTemplate(t); setTab("workout"); }}
+        />
+      )}
     </div>
   );
 }

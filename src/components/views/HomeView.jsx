@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { CATEGORIES, findGuideForQuest } from "../../data";
-import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getQuestTier, getCategoryStreak } from "../../utils";
+import { CATEGORIES } from "../../data";
+import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges } from "../../utils/intelligence";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
-import QuestGuidePanel from "../QuestGuidePanel";
 import SmartInsights from "../SmartInsights";
 import { CategoryIcon } from "../Icon";
+import TimeBlockSection from "./home/TimeBlockSection";
 import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield } from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
@@ -160,204 +160,23 @@ export default function HomeView({
 
   const isTimeLocked = !canCompleteDay && allDone;
 
-  // ── Render a single quest card ──
-  function renderQuest(q) {
-    const cat = CATEGORIES.find((c) => c.id === q.category);
-    const done = completed.includes(q.id);
-    const tier = getQuestTier(q.text);
-    const isShowingHint = swipeHint === q.id;
-    const streak = categoryStreaks[q.category] || 0;
-    const isFocus = focusQuest?.id === q.id && !done;
-
-    return (
-      <React.Fragment key={q.id}>
-        <motion.div
-          layout
-          initial={false}
-          animate={{
-            scale: done ? [1, 1.03, 1] : 1,
-            opacity: done ? 0.55 : 1,
-          }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          style={{
-            ...ts.questCard,
-            borderLeft: `3px solid ${done ? "rgba(34,197,94,0.5)" : cat?.color || "#555"}`,
-            background: isFocus && !done
-              ? `linear-gradient(135deg, ${cat?.color}08, ${cat?.color}03)`
-              : ts.questCard.background,
-            position: "relative",
-            overflow: "hidden",
-          }}
-          onClick={() => handleQuestClick(q)}
-          onTouchStart={(e) => handleTouchStart(e, q)}
-          onTouchEnd={(e) => handleTouchEnd(e, q)}
-        >
-          {/* Undo overlay */}
-          {isShowingHint && (
-            <div
-              style={ts.undoOverlay}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSwipeHint(null);
-                onUncheckQuest(q.id, q.xp);
-              }}
-            >
-              <span style={ts.undoIcon}>↩</span>
-              <span style={ts.undoText}>Tap to undo</span>
-            </div>
-          )}
-
-          <div style={ts.questLeft}>
-            {/* Checkbox */}
-            <div
-              style={{
-                ...ts.checkbox,
-                background: done ? (cat?.color || "#22C55E") : "transparent",
-                borderColor: done ? (cat?.color || "#22C55E") : (isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)"),
-                boxShadow: done ? `0 0 8px ${cat?.color}40` : "none",
-              }}
-            >
-              {done && <span style={{ fontSize: 10, color: "#fff" }}>✓</span>}
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                ...ts.questText,
-                textDecoration: done ? "line-through" : "none",
-                opacity: done ? 0.7 : 1,
-              }}>
-                {q.text}
-              </div>
-              <div style={ts.questMeta}>
-                <CategoryIcon id={q.category} size={12} color={cat?.color} />
-                <span style={{ color: cat?.color, fontSize: 10, fontWeight: 600 }}>{cat?.label}</span>
-                {streak > 0 && !done && (
-                  <span style={{ ...ts.streakPill, color: cat?.color, borderColor: `${cat?.color}30` }}>
-                    🔥{streak}d
-                  </span>
-                )}
-                {isFocus && !done && (
-                  <span style={ts.focusBadge}>FOCUS</span>
-                )}
-                <span style={{ ...ts.tierBadge, color: tier.color, borderColor: `${tier.color}30` }}>
-                  {tier.label}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div style={ts.questRight}>
-            <span style={{ ...ts.questXp, color: done ? "#22C55E" : (cat?.color || "#7C5CFC") }}>
-              {done ? "✓" : `+${q.xp}`}
-            </span>
-            {/* Action links */}
-            <div style={ts.questActions}>
-              {findGuideForQuest(q.text) && !done && (
-                <span
-                  style={ts.actionLink}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveGuide(activeGuide?.questId === q.id ? null : { questId: q.id, guide: findGuideForQuest(q.text) });
-                  }}
-                >
-                  {activeGuide?.questId === q.id ? "Hide" : "Guide"}
-                </span>
-              )}
-              {q.category === "exercise" && !done && (
-                <span style={ts.actionLink} onClick={(e) => { e.stopPropagation(); onNavigate?.("dojo"); }}>
-                  Dojo
-                </span>
-              )}
-              {q.isCustom && (
-                <span
-                  style={{ ...ts.actionLink, color: "#EF4444" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const prefix = `custom-${q.category}-`;
-                    const suffix = `-${state.currentDay}`;
-                    let rawId = q.id;
-                    if (rawId.startsWith(prefix)) rawId = rawId.slice(prefix.length);
-                    if (rawId.endsWith(suffix)) rawId = rawId.slice(0, -suffix.length);
-                    onRemoveCustomQuest(rawId);
-                  }}
-                >
-                  ✕
-                </span>
-              )}
-            </div>
-          </div>
-        </motion.div>
-        {activeGuide?.questId === q.id && (
-          <QuestGuidePanel
-            guide={activeGuide.guide}
-            onAddQuest={() => { if (onOpenCustomQuest) onOpenCustomQuest(); }}
-          />
-        )}
-      </React.Fragment>
-    );
+  // ── Quest card callbacks for extracted component ──
+  function handleToggleGuide(questId, guide) {
+    setActiveGuide(activeGuide?.questId === questId ? null : { questId, guide });
   }
 
-  // ── Render a time block section ──
-  function renderTimeBlock(key) {
-    const block = TIME_BLOCKS[key];
-    const blockQuests = groupedQuests[key];
-    if (blockQuests.length === 0) return null;
-
-    const blockCompleted = blockQuests.filter((q) => completed.includes(q.id)).length;
-    const blockDone = blockCompleted === blockQuests.length;
-    const isCollapsed = collapsedBlocks[key];
-
-    return (
-      <div key={key} style={ts.timeBlock}>
-        {/* Block header */}
-        <div
-          style={ts.blockHeader}
-          onClick={() => toggleBlock(key)}
-        >
-          <div style={ts.blockLeft}>
-            {blockDone
-              ? <CircleCheck size={16} color="#22C55E" />
-              : <block.LucideIcon size={16} color={block.accent} />
-            }
-            <div>
-              <div style={{
-                ...ts.blockTitle,
-                opacity: blockDone ? 0.5 : 1,
-                textDecoration: blockDone ? "line-through" : "none",
-              }}>
-                {block.label}
-              </div>
-              <div style={ts.blockCount}>
-                {blockCompleted}/{blockQuests.length} complete
-                {blockDone && <span style={ts.blockDoneBadge}>+Bonus!</span>}
-              </div>
-            </div>
-          </div>
-
-          <div style={ts.blockRight}>
-            {/* Mini progress */}
-            <div style={ts.miniProgress}>
-              <div style={{
-                ...ts.miniProgressFill,
-                width: `${(blockCompleted / blockQuests.length) * 100}%`,
-                background: blockDone ? "#22C55E" : block.accent,
-              }} />
-            </div>
-            <span style={{ fontSize: 12, opacity: 0.3, transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)", transition: "transform 0.2s", color: colors.text }}>
-              ▼
-            </span>
-          </div>
-        </div>
-
-        {/* Quest list */}
-        {!isCollapsed && (
-          <div style={ts.blockQuests}>
-            {blockQuests.map(renderQuest)}
-          </div>
-        )}
-      </div>
-    );
-  }
+  // Shared QuestCard props
+  const questCardProps = {
+    isDark, colors, ts,
+    categoryStreaks, focusQuest, swipeHint, activeGuide,
+    onCheck: onCheckQuest, onUncheck: onUncheckQuest,
+    onSwipeHintShow: showSwipeHint,
+    onSwipeHintClear: () => setSwipeHint(null),
+    onToggleGuide: handleToggleGuide,
+    onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
+    onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd,
+    currentDay: state.currentDay,
+  };
 
   return (
     <div style={S.vc}>
@@ -495,7 +314,20 @@ export default function HomeView({
       )}
 
       {/* ── Time Block Sections ── */}
-      {["morning", "afternoon", "evening"].map(renderTimeBlock)}
+      {["morning", "afternoon", "evening"].map((key) => (
+        <TimeBlockSection
+          key={key}
+          blockKey={key}
+          block={TIME_BLOCKS[key]}
+          quests={groupedQuests[key]}
+          completed={completed}
+          isCollapsed={collapsedBlocks[key]}
+          onToggle={() => toggleBlock(key)}
+          ts={ts}
+          colors={colors}
+          {...questCardProps}
+        />
+      ))}
 
       {/* ── Weekly Challenge Tracker ── */}
       {(() => {
