@@ -211,7 +211,16 @@ function TrackersTab({
               const tr = SOBRIETY_DEFAULTS.find((t) => t.id === entry.tracker);
               return (
                 <div key={i} style={styles.miniJournalEntry}>
-                  <span>{tr?.icon}</span>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 5,
+                    background: `${tr?.color || "#7C5CFC"}18`,
+                    border: `1px solid ${tr?.color || "#7C5CFC"}50`,
+                    fontSize: 8, fontWeight: 800, color: tr?.color || "#7C5CFC",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {(tr?.label || "?").substring(0, 2).toUpperCase()}
+                  </div>
                   <span style={{ opacity: 0.4, fontSize: 10 }}>{entry.date}</span>
                   <span style={{ fontSize: 11, opacity: 0.6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                     {entry.text}
@@ -247,7 +256,16 @@ function TrackerCard({
       {/* Header Row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 24 }}>{tracker.icon}</span>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: `${tracker.color}18`,
+            border: `1.5px solid ${tracker.color}50`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 13, fontWeight: 800, color: tracker.color,
+            flexShrink: 0, letterSpacing: -0.5,
+          }}>
+            {tracker.label.substring(0, 2).toUpperCase()}
+          </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{tracker.label}</div>
             {isActive ? (
@@ -481,7 +499,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
                   }}
                   onClick={() => setEntryTracker(t)}
                 >
-                  {tr?.icon || t}
+                  {tr?.label || t}
                 </button>
               );
             })}
@@ -515,7 +533,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
             }}
             onClick={() => setFilter(t.id)}
           >
-            {t.icon}
+            {t.label}
           </button>
         ))}
       </div>
@@ -536,7 +554,16 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <div key={i} style={styles.journalEntry}>
             <div style={styles.journalHeader}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>{tr?.icon ? <span style={{ fontSize: 18 }}>{tr.icon}</span> : <PenLine size={18} color="currentColor" />}</span>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: `${tr?.color || "#7C5CFC"}18`,
+                  border: `1.5px solid ${tr?.color || "#7C5CFC"}40`,
+                  fontSize: 9, fontWeight: 800, color: tr?.color || "#7C5CFC",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  {(tr?.label || entry.tracker).substring(0, 2).toUpperCase()}
+                </div>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{tr?.label || entry.tracker}</div>
                   <div style={{ fontSize: 10, opacity: 0.35 }}>{entry.date}</div>
@@ -569,7 +596,7 @@ const styles = {
     display: "flex",
     gap: 0,
     margin: "0 14px 12px",
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    background: "rgba(255,255,255,0.03)",
     borderRadius: 10,
     padding: 3,
     border: "1px solid rgba(255,255,255,0.05)",
@@ -623,8 +650,8 @@ const styles = {
   goalBtn: {
     padding: "6px 14px",
     borderRadius: 8,
-    border: isDark ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${colors.cardBorder}`,
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(255,255,255,0.03)",
     color: "#E2E2EE",
     fontSize: 12,
     fontWeight: 600,
@@ -641,7 +668,7 @@ const styles = {
     padding: "6px 10px",
     borderRadius: 8,
     border: "1px solid rgba(124,92,252,0.2)",
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    background: "rgba(255,255,255,0.03)",
     color: "#E2E2EE",
     fontSize: 12,
     outline: "none",
@@ -702,7 +729,7 @@ const styles = {
     marginTop: 10,
     padding: "10px 12px",
     borderRadius: 8,
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.05)",
     lineHeight: 1.4,
   },
@@ -712,7 +739,7 @@ const styles = {
     gap: 8,
     padding: "6px 10px",
     borderRadius: 8,
-    background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+    background: "rgba(255,255,255,0.02)",
     marginBottom: 4,
     fontSize: 11,
   },
@@ -725,8 +752,8 @@ const styles = {
   filterBtn: {
     padding: "5px 12px",
     borderRadius: 8,
-    border: isDark ? "1px solid rgba(255,255,255,0.08)" : `1px solid ${colors.cardBorder}`,
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
     color: "rgba(226,226,238,0.5)",
     fontSize: 11,
     fontWeight: 600,
@@ -773,8 +800,8 @@ const styles = {
     width: "100%",
     padding: "10px 12px",
     borderRadius: 10,
-    border: isDark ? "1px solid rgba(255,255,255,0.08)" : `1px solid ${colors.cardBorder}`,
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
     color: "inherit",
     fontSize: 13,
     lineHeight: 1.5,

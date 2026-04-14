@@ -1,8 +1,8 @@
 export const SOBRIETY_DEFAULTS = [
-  { id: "smoking", label: "Smoking", icon: "🚭", color: "#EF4444" },
-  { id: "alcohol", label: "Alcohol", icon: "🍺", color: "#F59E0B" },
-  { id: "junkfood", label: "Junk Food", icon: "🍔", color: "#F97316" },
-  { id: "social_media", label: "Doomscrolling", icon: "📱", color: "#8B5CF6" },
+  { id: "smoking",      label: "Smoking",      color: "#EF4444" },
+  { id: "alcohol",      label: "Alcohol",       color: "#F59E0B" },
+  { id: "junkfood",     label: "Junk Food",     color: "#F97316" },
+  { id: "social_media", label: "Doomscrolling", color: "#8B5CF6" },
 ];
 
 export const MOTIVATION_CARDS = [
@@ -64,12 +64,12 @@ export const MOTIVATION_CARDS = [
 ];
 
 export const MOODS = [
-  { emoji: "😤", label: "Frustrated" },
-  { emoji: "😔", label: "Low" },
-  { emoji: "😐", label: "Neutral" },
-  { emoji: "🙂", label: "Good" },
-  { emoji: "😊", label: "Great" },
-  { emoji: "🔥", label: "On Fire" },
+  { label: "Rough",   color: "#EF4444" },
+  { label: "Low",     color: "#F97316" },
+  { label: "Neutral", color: "#EAB308" },
+  { label: "Good",    color: "#22C55E" },
+  { label: "Great",   color: "#06B6D4" },
+  { label: "Peak",    color: "#7C5CFC" },
 ];
 
 export const LEVELS = [

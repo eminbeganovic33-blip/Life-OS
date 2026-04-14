@@ -114,14 +114,21 @@ export default function JournalView({ state, journalText, setJournalText, select
                 onClick={() => setSelectedMood(i)}
                 style={{
                   ...moodItem,
-                  background: active ? "rgba(124,92,252,0.15)" : sub(0.03),
-                  border: active ? "1px solid rgba(124,92,252,0.3)" : `1px solid ${sub(0.06)}`,
-                  boxShadow: active ? "0 2px 12px rgba(124,92,252,0.15)" : "none",
+                  background: active ? `${m.color}18` : sub(0.03),
+                  border: active ? `1px solid ${m.color}60` : `1px solid ${sub(0.06)}`,
+                  boxShadow: active ? `0 2px 12px ${m.color}30` : "none",
                 }}
                 whileTap={{ scale: 0.92 }}
               >
-                <div style={{ fontSize: 22 }}>{m.emoji}</div>
-                <div style={{ fontSize: 10, opacity: active ? 0.8 : 0.4, fontWeight: active ? 600 : 400, marginTop: 2 }}>{m.label}</div>
+                <div style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: active ? m.color : `${m.color}50`,
+                  transition: "all 0.15s",
+                  flexShrink: 0,
+                }} />
+                <div style={{ fontSize: 10, opacity: active ? 0.9 : 0.45, fontWeight: active ? 700 : 400, marginTop: 4 }}>{m.label}</div>
               </motion.div>
             );
           })}
@@ -255,8 +262,22 @@ export default function JournalView({ state, journalText, setJournalText, select
                             Chat
                           </span>
                         )}
-                        {entry.mood != null && (
-                          <span style={{ fontSize: 16 }}>{MOODS[entry.mood]?.emoji}</span>
+                        {entry.mood != null && MOODS[entry.mood] && (
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: MOODS[entry.mood].color,
+                            background: `${MOODS[entry.mood].color}18`,
+                            border: `1px solid ${MOODS[entry.mood].color}40`,
+                            borderRadius: 6,
+                            padding: "2px 6px",
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: MOODS[entry.mood].color, display: "inline-block" }} />
+                            {MOODS[entry.mood].label}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -329,8 +350,8 @@ const textArea = {
   width: "100%",
   padding: 14,
   borderRadius: 14,
-  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
-  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  background: "rgba(255,255,255,0.03)",
   color: "inherit",
   fontSize: 13,
   lineHeight: 1.7,
@@ -373,7 +394,7 @@ const historyStat = {
   flex: 1,
   padding: "10px 8px",
   borderRadius: 10,
-  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+  background: "rgba(255,255,255,0.03)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
 };
@@ -387,8 +408,8 @@ const searchContainer = {
   margin: "6px 14px 10px",
   padding: "8px 12px",
   borderRadius: 10,
-  background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 const searchInput = {
   flex: 1,
@@ -404,13 +425,13 @@ const emptyState = {
   margin: "12px 14px",
   padding: "32px 20px",
   borderRadius: 14,
-  background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+  background: "rgba(255,255,255,0.02)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)",
+  color: "rgba(255,255,255,0.4)",
   fontSize: 12,
   lineHeight: 1.6,
 };
@@ -419,8 +440,8 @@ const entryCard = {
   margin: "0 14px 8px",
   padding: "14px 16px",
   borderRadius: 14,
-  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
-  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 const entryHeader = {
   display: "flex",

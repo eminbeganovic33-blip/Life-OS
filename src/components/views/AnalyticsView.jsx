@@ -229,12 +229,14 @@ export default function AnalyticsView({ state }) {
                     transition={{ delay: i * 0.03 }}
                   >
                     <div style={{
-                      fontSize: 18,
-                      filter: mood ? "none" : "grayscale(1)",
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      background: mood ? mood.color : "rgba(255,255,255,0.15)",
+                      margin: "0 auto",
                       opacity: mood ? 1 : 0.3,
-                    }}>
-                      {mood?.emoji || "·"}
-                    </div>
+                      boxShadow: mood ? `0 0 6px ${mood.color}60` : "none",
+                    }} />
                     <div style={moodDayLabel}>D{m.day}</div>
                   </motion.div>
                 );

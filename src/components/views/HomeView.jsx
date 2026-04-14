@@ -299,7 +299,7 @@ export default function HomeView({
           onClick={() => handleQuestClick(focusQuest)}
         >
           <div style={ts.focusHeader}>
-            <span style={{ fontSize: 11 }}>🎯</span>
+            <Target size={11} strokeWidth={2.5} />
             <span style={ts.focusLabel}>Priority Quest</span>
           </div>
           <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
@@ -478,7 +478,7 @@ export default function HomeView({
       {/* ── Temporal Lock ── */}
       {isTimeLocked && (
         <div style={ts.lockBox}>
-          <span style={{ fontSize: 14 }}>🔒</span>
+          <CircleCheck size={14} color="#7C5CFC" strokeWidth={2} />
           <span style={{ fontSize: 12, opacity: 0.6, color: colors.text }}>
             All quests complete! Come back tomorrow for Day {day + 1}.
           </span>
@@ -500,15 +500,18 @@ export default function HomeView({
       >
         {allDone
           ? canCompleteDay
-            ? `✨ Complete Day ${day}`
-            : "⏳ Come back tomorrow"
-          : `${completed.length}/${quests.length} Quests`}
+            ? `Complete Day ${day}`
+            : "Come back tomorrow"
+          : `${completed.length} / ${quests.length} Quests`}
       </button>
 
       {/* ── Lifting Streak ── */}
       {state.liftingStreak > 0 && (
         <div style={ts.subStreak}>
-          <span>🏋️ Lifting: <strong>{state.liftingStreak} days</strong></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <Dumbbell size={12} strokeWidth={2.5} />
+            Lifting: <strong>{state.liftingStreak} days</strong>
+          </span>
           <span style={{ opacity: 0.3, fontSize: 11 }}>Best: {state.bestLiftingStreak || 0}</span>
         </div>
       )}
@@ -577,7 +580,7 @@ export default function HomeView({
           )}
           {day === 3 && (
             <div style={{ ...ts.discoveryCard, borderColor: "rgba(124,92,252,0.15)", background: "rgba(124,92,252,0.04)" }}>
-              <span style={{ fontSize: 18 }}>🎯</span>
+              <Target size={16} color="#7C5CFC" strokeWidth={2.5} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>Custom quests unlock tomorrow!</div>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>Add your own personalized quests</div>
@@ -635,7 +638,7 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAd
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 13 }}>✨</span>
+          <Sparkles size={13} color="#7C5CFC" strokeWidth={2} />
           <span style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>Suggested for You</span>
         </div>
         <span

@@ -3,7 +3,7 @@ import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { useTheme, usePomodoroContext } from "../../hooks";
 import { getLevel, getNextLevel, getLevelIndex, getDayQuests, getTodayStr, daysBetween } from "../../utils";
 import { getPersonalizedQuote, getProactiveNudges } from "../../utils/intelligence";
-import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../../data";
+import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS, MOODS } from "../../data";
 import NudgeBanner from "../NudgeBanner";
 import Icon from "../Icon";
 import { Flame, Swords, Calendar, PenLine, Dumbbell, GraduationCap, BarChart3, Trophy, Quote, Play, Pause, RotateCcw, Shield } from "lucide-react";
@@ -54,7 +54,7 @@ export default function DashboardView({ state, user, onNavigate }) {
   const activeTrackers = Object.entries(state.sobrietyDates || {})
     .filter(([, date]) => !!date)
     .map(([id, date]) => {
-      const meta = SOBRIETY_DEFAULTS.find((s) => s.id === id) || { label: id, icon: "🔥", color: "#7C5CFC" };
+      const meta = SOBRIETY_DEFAULTS.find((s) => s.id === id) || { label: id, color: "#7C5CFC" };
       return { ...meta, days: daysBetween(date) };
     });
 
@@ -64,7 +64,6 @@ export default function DashboardView({ state, user, onNavigate }) {
   // Journal status
   const hasJournaledToday = !!state.journal?.[day];
   const latestMood = state.moods?.[day];
-  const moodEmojis = ["😫", "😔", "😐", "😊", "🔥"];
 
   const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
   const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -202,7 +201,7 @@ export default function DashboardView({ state, user, onNavigate }) {
           <QuickAction
             lucideIcon={<PenLine size={22} />}
             label="Journal"
-            sub={hasJournaledToday ? (latestMood != null ? `Mood: ${moodEmojis[latestMood]}` : "Done") : "Not yet"}
+            sub={hasJournaledToday ? (latestMood != null ? `Mood: ${MOODS[latestMood]?.label ?? ""}` : "Done") : "Not yet"}
             color="#22C55E"
             onClick={() => onNavigate("journal")}
             done={hasJournaledToday}
@@ -250,7 +249,15 @@ export default function DashboardView({ state, user, onNavigate }) {
               <div style={styles.trackerList}>
                 {activeTrackers.map((t) => (
                   <div key={t.id} style={styles.trackerRow}>
-                    <span style={{ fontSize: 16 }}>{t.icon}</span>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 5,
+                      background: `${t.color}18`, border: `1px solid ${t.color}40`,
+                      fontSize: 8, fontWeight: 800, color: t.color,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      {t.label.substring(0, 2).toUpperCase()}
+                    </div>
                     <span style={styles.trackerLabel}>{t.label}</span>
                     <span style={{ ...styles.trackerDays, color: t.color }}>
                       {t.days} day{t.days !== 1 ? "s" : ""} clean

@@ -125,10 +125,10 @@ export default function DayCompleteModal({ state, completedDay, onDismiss }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
           >
-            {streak >= 21 ? "🔥 Legendary discipline!" :
-             streak >= 14 ? "⚡ Unstoppable force!" :
-             streak >= 7 ? "💪 On fire — one full week!" :
-             "✨ Keep the momentum going!"}
+            {streak >= 21 ? "Legendary discipline." :
+             streak >= 14 ? "Unstoppable." :
+             streak >= 7 ? "One full week. Keep going." :
+             "Momentum is building."}
           </motion.div>
         )}
 
