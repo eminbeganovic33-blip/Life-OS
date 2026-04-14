@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
+import { useTheme } from "../hooks/useTheme";
 import { TOKENS, DARK_COLORS } from "../styles/theme";
 import { ChevronRight } from "lucide-react";
 
 const T = TOKENS;
-const C = DARK_COLORS;
 
 const NUDGE_THEMES = {
   mood_decline: { bg: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(99,102,241,0.04))", accent: "#3B82F6", border: "rgba(59,130,246,0.12)" },
@@ -17,9 +17,11 @@ const NUDGE_THEMES = {
 const DEFAULT_THEME = { bg: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))", accent: "#7C5CFC", border: "rgba(124,92,252,0.1)" };
 
 export default function NudgeBanner({ nudge, onNavigate }) {
+  const { colors } = useTheme();
   if (!nudge) return null;
 
   const theme = NUDGE_THEMES[nudge.type] || DEFAULT_THEME;
+  const styles = getStyles(colors);
 
   return (
     <motion.div
@@ -41,51 +43,53 @@ export default function NudgeBanner({ nudge, onNavigate }) {
         <div style={{ ...styles.title, color: theme.accent }}>{nudge.title}</div>
         <div style={styles.message}>{nudge.message}</div>
       </div>
-      {nudge.action && <ChevronRight size={16} color={C.textSecondary} />}
+      {nudge.action && <ChevronRight size={16} color={colors.textSecondary} />}
     </motion.div>
   );
 }
 
-const styles = {
-  banner: {
-    display: "flex",
-    alignItems: "center",
-    gap: T.space.md,
-    padding: `${T.space.lg}px`,
-    borderRadius: T.radii.lg,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "transparent",
-    cursor: "pointer",
-    marginBottom: T.space.md,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: T.radii.md,
-    background: "rgba(255,255,255,0.06)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: T.font.sm,
-    fontWeight: T.weight.bold,
-    marginBottom: 2,
-  },
-  message: {
-    fontSize: T.font.xs,
-    color: C.textSecondary,
-    lineHeight: 1.4,
-  },
-  arrow: {
-    fontSize: T.font.xl,
-    color: C.textSecondary,
-    flexShrink: 0,
-  },
-};
+function getStyles(colors) {
+  return {
+    banner: {
+      display: "flex",
+      alignItems: "center",
+      gap: T.space.md,
+      padding: `${T.space.lg}px`,
+      borderRadius: T.radii.lg,
+      borderWidth: 1,
+      borderStyle: "solid",
+      borderColor: "transparent",
+      cursor: "pointer",
+      marginBottom: T.space.md,
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: T.radii.md,
+      background: "rgba(255,255,255,0.06)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    body: {
+      flex: 1,
+      minWidth: 0,
+    },
+    title: {
+      fontSize: T.font.sm,
+      fontWeight: T.weight.bold,
+      marginBottom: 2,
+    },
+    message: {
+      fontSize: T.font.xs,
+      color: colors.textSecondary,
+      lineHeight: 1.4,
+    },
+    arrow: {
+      fontSize: T.font.xl,
+      color: colors.textSecondary,
+      flexShrink: 0,
+    },
+  };
+}

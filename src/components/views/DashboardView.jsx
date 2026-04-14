@@ -9,7 +9,6 @@ import Icon from "../Icon";
 import { Flame, Swords, Calendar, PenLine, Dumbbell, GraduationCap, BarChart3, Trophy, Quote, Play, Pause, RotateCcw, Shield } from "lucide-react";
 
 const T = TOKENS;
-const C = DARK_COLORS;
 
 // Deterministic daily greeting based on time of day
 function getGreeting() {
@@ -174,7 +173,7 @@ export default function DashboardView({ state, user, onNavigate }) {
                     <motion.div
                       style={{
                         ...styles.questProgressFill,
-                        background: questsDone === 0 ? C.surface : "linear-gradient(90deg, #7C5CFC, #EC4899)",
+                        background: questsDone === 0 ? colors.surface : "linear-gradient(90deg, #7C5CFC, #EC4899)",
                       }}
                       initial={{ width: 0 }}
                       animate={{ width: questsTotal > 0 ? `${(questsDone / questsTotal) * 100}%` : "0%" }}

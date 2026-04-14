@@ -329,8 +329,8 @@ const textArea = {
   width: "100%",
   padding: 14,
   borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.06)",
-  background: "rgba(255,255,255,0.03)",
+  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   color: "inherit",
   fontSize: 13,
   lineHeight: 1.7,
@@ -373,7 +373,7 @@ const historyStat = {
   flex: 1,
   padding: "10px 8px",
   borderRadius: 10,
-  background: "rgba(255,255,255,0.03)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
 };
@@ -387,8 +387,8 @@ const searchContainer = {
   margin: "6px 14px 10px",
   padding: "8px 12px",
   borderRadius: 10,
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
 };
 const searchInput = {
   flex: 1,
@@ -404,13 +404,13 @@ const emptyState = {
   margin: "12px 14px",
   padding: "32px 20px",
   borderRadius: 14,
-  background: "rgba(255,255,255,0.02)",
+  background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  color: "rgba(255,255,255,0.4)",
+  color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)",
   fontSize: 12,
   lineHeight: 1.6,
 };
@@ -419,8 +419,8 @@ const entryCard = {
   margin: "0 14px 8px",
   padding: "14px 16px",
   borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
 };
 const entryHeader = {
   display: "flex",

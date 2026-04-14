@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../hooks/useTheme";
 import { TOKENS, DARK_COLORS } from "../styles/theme";
 
 const T = TOKENS;
-const C = DARK_COLORS;
 
 export default function AuthScreen({ onAuth, onSkip }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const { user, login, signup, loginWithGoogle, loginWithFacebook, resetPassword, error } =
     useAuth();
 
@@ -224,16 +226,17 @@ export default function AuthScreen({ onAuth, onSkip }) {
   );
 }
 
-const styles = {
+function getStyles(colors) {
+  return {
   wrapper: {
     minHeight: "100dvh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: `linear-gradient(180deg, ${C.bgGrad1} 0%, ${C.bgGrad2} 100%)`,
+    background: `linear-gradient(180deg, ${colors.bgGrad1} 0%, ${colors.bgGrad2} 100%)`,
     padding: `${T.space.xxl}px ${T.space.lg}px`,
     fontFamily: "'SF Pro Display','Inter','Segoe UI',system-ui,sans-serif",
-    color: C.text,
+    color: colors.text,
   },
   card: {
     width: "100%",
@@ -267,7 +270,7 @@ const styles = {
   },
   tagline: {
     fontSize: T.font.sm,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     margin: `${T.space.xs}px 0 0`,
   },
 
@@ -283,7 +286,7 @@ const styles = {
     padding: "14px 16px",
     fontSize: T.font.sm,
     fontWeight: T.weight.bold,
-    border: `1px solid ${C.surfaceBorder}`,
+    border: `1px solid ${colors.surfaceBorder}`,
     borderRadius: T.radii.md,
     cursor: "pointer",
     background: "#FFFFFF",
@@ -323,22 +326,22 @@ const styles = {
   dividerLine: {
     flex: 1,
     height: 1,
-    background: C.surfaceBorder,
+    background: colors.surfaceBorder,
   },
   dividerText: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     whiteSpace: "nowrap",
   },
 
   // Tabs
   tabRow: {
     display: "flex",
-    background: C.surface,
+    background: colors.surface,
     borderRadius: T.radii.md,
     padding: 3,
     marginBottom: T.space.xl,
-    border: `1px solid ${C.surfaceBorder}`,
+    border: `1px solid ${colors.surfaceBorder}`,
   },
   tab: (active) => ({
     flex: 1,
@@ -349,8 +352,8 @@ const styles = {
     borderRadius: 10,
     cursor: "pointer",
     transition: `all ${T.transition.fast}`,
-    background: active ? C.accent : "transparent",
-    color: active ? "#fff" : C.textSecondary,
+    background: active ? colors.accent : "transparent",
+    color: active ? "#fff" : colors.textSecondary,
     border: "none",
     outline: "none",
     fontFamily: "inherit",
@@ -361,10 +364,10 @@ const styles = {
     width: "100%",
     padding: "14px 16px",
     fontSize: T.font.sm,
-    background: C.inputBg,
-    border: `1px solid ${C.inputBorder}`,
+    background: colors.inputBg,
+    border: `1px solid ${colors.inputBorder}`,
     borderRadius: T.radii.md,
-    color: C.text,
+    color: colors.text,
     outline: "none",
     marginBottom: T.space.md,
     boxSizing: "border-box",
@@ -382,7 +385,7 @@ const styles = {
     borderRadius: T.radii.md,
     cursor: disabled ? "not-allowed" : "pointer",
     background: disabled
-      ? C.surface
+      ? colors.surface
       : "linear-gradient(135deg, #7C5CFC, #6D28D9)",
     color: "#fff",
     opacity: disabled ? 0.5 : 1,
@@ -395,7 +398,7 @@ const styles = {
   forgotLink: {
     background: "none",
     border: "none",
-    color: C.accent,
+    color: colors.accent,
     fontSize: T.font.xs,
     cursor: "pointer",
     padding: 0,
@@ -433,11 +436,11 @@ const styles = {
     padding: "12px 14px",
     fontSize: T.font.xs,
     fontWeight: T.weight.medium,
-    border: `1px solid ${C.surfaceBorder}`,
+    border: `1px solid ${colors.surfaceBorder}`,
     borderRadius: T.radii.md,
     cursor: "pointer",
     background: "transparent",
-    color: C.textSecondary,
+    color: colors.textSecondary,
     marginTop: T.space.md,
     transition: `all ${T.transition.fast}`,
     fontFamily: "inherit",
@@ -446,10 +449,11 @@ const styles = {
   // Footer
   footer: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     textAlign: "center",
     marginTop: T.space.xl,
     opacity: 0.5,
     lineHeight: 1.4,
   },
-};
+  };
+}

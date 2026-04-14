@@ -446,8 +446,8 @@ const recordsGrid = {
 const recordCard = {
   padding: "14px 12px",
   borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+  border: isDark ? "1px solid rgba(255,255,255,0.06)" : `1px solid ${colors.cardBorder}`,
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
@@ -500,7 +500,7 @@ const barTrack = {
   flex: 1,
   width: "100%",
   borderRadius: 8,
-  background: "rgba(255,255,255,0.04)",
+  background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
   position: "relative",
   overflow: "hidden",
   display: "flex",
@@ -524,7 +524,7 @@ const catBarOuter = {
   flex: 1,
   height: 7,
   borderRadius: 4,
-  background: "rgba(255,255,255,0.05)",
+  background: isDark ? "rgba(255,255,255,0.05)" : colors.surface,
   overflow: "hidden",
 };
 const catBarInner = {
@@ -582,7 +582,7 @@ const heatStat = {
   flex: 1,
   padding: 12,
   borderRadius: 12,
-  background: "rgba(255,255,255,0.03)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
 };
@@ -612,7 +612,7 @@ const emptyState = {
   margin: "0 14px",
   padding: 24,
   borderRadius: 14,
-  background: "rgba(255,255,255,0.03)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   border: "1px solid rgba(255,255,255,0.05)",
   textAlign: "center",
   fontSize: 12,
@@ -629,7 +629,7 @@ const streakRow = {
   margin: "0 14px",
   padding: "10px 14px",
   borderRadius: 10,
-  background: "rgba(255,255,255,0.03)",
+  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   border: "1px solid rgba(255,255,255,0.05)",
   marginBottom: 6,
 };

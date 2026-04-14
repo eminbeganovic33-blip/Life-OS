@@ -1,10 +1,10 @@
 import { useRef } from "react";
+import { useTheme } from "../hooks/useTheme";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../styles/theme";
 import { ANIMAL_AVATARS } from "./AnimalAvatars";
 
 const T = TOKENS;
-const C = DARK_COLORS;
 
 // Compress an image File to a base64 JPEG at maxDim × maxDim, ~10KB
 async function compressImage(file, maxDim = 150) {
@@ -30,7 +30,9 @@ async function compressImage(file, maxDim = 150) {
 }
 
 export default function AvatarPicker({ open, onClose, currentAvatar, onSave }) {
+  const { colors } = useTheme();
   const fileInputRef = useRef(null);
+  const S = getDynamicStyles(colors);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -91,37 +93,37 @@ export default function AvatarPicker({ open, onClose, currentAvatar, onSave }) {
               style={{ display: "none" }}
               onChange={handleFile}
             />
-            <button style={uploadBtn} onClick={() => fileInputRef.current?.click()}>
+            <button style={S.uploadBtn} onClick={() => fileInputRef.current?.click()}>
               <span style={{ fontSize: 20 }}>📷</span>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>Upload a Photo</div>
-                <div style={{ fontSize: T.font.xs, color: C.textSecondary, marginTop: 1 }}>
+                <div style={{ fontSize: T.font.xs, color: colors.textSecondary, marginTop: 1 }}>
                   JPG, PNG — compressed automatically
                 </div>
               </div>
             </button>
 
             {/* Divider */}
-            <div style={divider}>
-              <div style={dividerLine} />
-              <span style={dividerText}>or pick an animal</span>
-              <div style={dividerLine} />
+            <div style={S.divider}>
+              <div style={S.dividerLine} />
+              <span style={S.dividerText}>or pick an animal</span>
+              <div style={S.dividerLine} />
             </div>
 
             {/* Animal grid */}
-            <div style={animalGrid}>
+            <div style={S.animalGrid}>
               {ANIMAL_AVATARS.map(({ id, name, Component }) => {
                 const isSelected = currentAvatar?.type === "animal" && currentAvatar?.value === id;
                 return (
                   <motion.button
                     key={id}
-                    style={{ ...animalBtn, ...(isSelected ? animalBtnActive : {}) }}
+                    style={{ ...S.animalBtn, ...(isSelected ? S.animalBtnActive : {}) }}
                     onClick={() => handleAnimal(id)}
                     whileTap={{ scale: 0.9 }}
                     title={name}
                   >
                     <Component size={40} />
-                    <span style={{ fontSize: 10, color: isSelected ? "#7C5CFC" : C.textSecondary, marginTop: 2 }}>
+                    <span style={{ fontSize: 10, color: isSelected ? "#7C5CFC" : colors.textSecondary, marginTop: 2 }}>
                       {name}
                     </span>
                   </motion.button>
@@ -131,7 +133,7 @@ export default function AvatarPicker({ open, onClose, currentAvatar, onSave }) {
 
             {/* Remove */}
             {currentAvatar?.type !== "letter" && (
-              <button style={removeBtn} onClick={handleRemove}>
+              <button style={S.removeBtn} onClick={handleRemove}>
                 Remove photo / avatar
               </button>
             )}
@@ -182,74 +184,71 @@ const sheetTitle = {
   marginBottom: T.space.lg,
 };
 
-const uploadBtn = {
-  width: "100%",
-  display: "flex",
-  alignItems: "center",
-  gap: T.space.md,
-  padding: T.space.lg,
-  borderRadius: T.radii.md,
-  border: `1px solid ${C.cardBorder}`,
-  background: C.cardBg,
-  color: "inherit",
-  cursor: "pointer",
-  fontFamily: "inherit",
-  textAlign: "left",
-  marginBottom: T.space.md,
-};
-
-const divider = {
-  display: "flex",
-  alignItems: "center",
-  gap: T.space.sm,
-  margin: `${T.space.md}px 0`,
-};
-
-const dividerLine = {
-  flex: 1,
-  height: 1,
-  background: "rgba(255,255,255,0.08)",
-};
-
-const dividerText = {
-  fontSize: T.font.xs,
-  color: C.textSecondary,
-  whiteSpace: "nowrap",
-};
-
-const animalGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(4, 1fr)",
-  gap: T.space.sm,
-  marginBottom: T.space.md,
-};
-
-const animalBtn = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  padding: `${T.space.sm}px ${T.space.xs}px`,
-  borderRadius: T.radii.md,
-  border: `1px solid ${C.cardBorder}`,
-  background: C.cardBg,
-  cursor: "pointer",
-  fontFamily: "inherit",
-};
-
-const animalBtnActive = {
-  background: "rgba(124,92,252,0.1)",
-  border: "1px solid rgba(124,92,252,0.3)",
-};
-
-const removeBtn = {
-  width: "100%",
-  padding: `${T.space.md}px`,
-  borderRadius: T.radii.sm,
-  border: "none",
-  background: "transparent",
-  color: C.textSecondary,
-  fontSize: T.font.xs,
-  cursor: "pointer",
-  fontFamily: "inherit",
-  marginBottom: T.space.sm,
-};
+function getDynamicStyles(colors) {
+  return {
+    uploadBtn: {
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      gap: T.space.md,
+      padding: T.space.lg,
+      borderRadius: T.radii.md,
+      border: `1px solid ${colors.cardBorder}`,
+      background: colors.cardBg,
+      color: "inherit",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      textAlign: "left",
+      marginBottom: T.space.md,
+    },
+    divider: {
+      display: "flex",
+      alignItems: "center",
+      gap: T.space.sm,
+      margin: `${T.space.md}px 0`,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      background: colors.surfaceBorder || "rgba(255,255,255,0.08)",
+    },
+    dividerText: {
+      fontSize: T.font.xs,
+      color: colors.textSecondary,
+      whiteSpace: "nowrap",
+    },
+    animalGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(4, 1fr)",
+      gap: T.space.sm,
+      marginBottom: T.space.md,
+    },
+    animalBtn: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: `${T.space.sm}px ${T.space.xs}px`,
+      borderRadius: T.radii.md,
+      border: `1px solid ${colors.cardBorder}`,
+      background: colors.cardBg,
+      cursor: "pointer",
+      fontFamily: "inherit",
+    },
+    animalBtnActive: {
+      background: "rgba(124,92,252,0.1)",
+      border: "1px solid rgba(124,92,252,0.3)",
+    },
+    removeBtn: {
+      width: "100%",
+      padding: `${T.space.md}px`,
+      borderRadius: T.radii.sm,
+      border: "none",
+      background: "transparent",
+      color: colors.textSecondary,
+      fontSize: T.font.xs,
+      cursor: "pointer",
+      fontFamily: "inherit",
+      marginBottom: T.space.sm,
+    },
+  };
+}

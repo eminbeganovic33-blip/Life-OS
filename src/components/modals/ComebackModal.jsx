@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "../../hooks/useTheme";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { Flame, Heart, Shield, ArrowRight } from "lucide-react";
 
 const T = TOKENS;
-const C = DARK_COLORS;
 
 const MESSAGES = [
   { min: 2, max: 4, title: "Welcome Back!", sub: "A short break, but you're here now. That's what matters.", Icon: Heart, color: "#EC4899" },
@@ -12,8 +12,11 @@ const MESSAGES = [
 ];
 
 export default function ComebackModal({ show, daysAway, streak, onClose }) {
+  const { colors } = useTheme();
   const msg = MESSAGES.find((m) => daysAway >= m.min && daysAway <= m.max) || MESSAGES[0];
   const { Icon } = msg;
+  const cardStyle = { ...card, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` };
+  const subStyle = { ...sub, color: colors.textSecondary };
 
   return (
     <AnimatePresence>
@@ -30,7 +33,7 @@ export default function ComebackModal({ show, daysAway, streak, onClose }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            style={card}
+            style={cardStyle}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Icon */}
@@ -56,7 +59,7 @@ export default function ComebackModal({ show, daysAway, streak, onClose }) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              style={sub}
+              style={subStyle}
             >
               {msg.sub}
             </motion.p>
@@ -70,12 +73,12 @@ export default function ComebackModal({ show, daysAway, streak, onClose }) {
             >
               <div style={statItem}>
                 <div style={{ fontSize: T.font.xl, fontWeight: T.weight.black, color: msg.color }}>{daysAway}</div>
-                <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>days away</div>
+                <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>days away</div>
               </div>
               {streak > 0 && (
                 <div style={statItem}>
                   <div style={{ fontSize: T.font.xl, fontWeight: T.weight.black, color: "#F97316" }}>{streak}</div>
-                  <div style={{ fontSize: T.font.xs, color: C.textSecondary }}>streak saved</div>
+                  <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>streak saved</div>
                 </div>
               )}
             </motion.div>
@@ -114,8 +117,8 @@ const card = {
   maxWidth: 360,
   padding: T.space.xxl,
   borderRadius: T.radii.xl,
-  background: C.cardBg,
-  border: `1px solid ${C.cardBorder}`,
+  background: "#1E293B",
+  border: "1px solid rgba(255,255,255,0.08)",
   textAlign: "center",
 };
 
@@ -138,7 +141,7 @@ const title = {
 
 const sub = {
   fontSize: T.font.sm,
-  color: C.textSecondary,
+  color: "rgba(148,163,184,1)",
   lineHeight: 1.5,
   margin: `0 0 ${T.space.lg}px`,
 };
