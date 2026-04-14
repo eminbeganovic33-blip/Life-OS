@@ -73,24 +73,43 @@ export const MOODS = [
 ];
 
 export const LEVELS = [
-  { name: "Beginner", xpReq: 0 },
-  { name: "Apprentice", xpReq: 100 },
-  { name: "Warrior", xpReq: 300 },
-  { name: "Champion", xpReq: 600 },
-  { name: "Master", xpReq: 1000 },
-  { name: "Legend", xpReq: 1500 },
-  { name: "Mythic", xpReq: 2200 },
+  // ── Tier 1: Foundation (0–5k) ──
+  { name: "Beginner",    xpReq: 0 },
+  { name: "Apprentice",  xpReq: 100 },
+  { name: "Warrior",     xpReq: 300 },
+  { name: "Champion",    xpReq: 600 },
+  { name: "Master",      xpReq: 1000 },
+  // ── Tier 2: Ascension (5k–20k) ──
+  { name: "Legend",      xpReq: 1500 },
+  { name: "Mythic",      xpReq: 2200 },
   { name: "Transcended", xpReq: 3000 },
-  { name: "Ascendant", xpReq: 4000 },
-  { name: "Sovereign", xpReq: 5200 },
-  { name: "Titan", xpReq: 6600 },
-  { name: "Immortal", xpReq: 8200 },
-  { name: "Archon", xpReq: 10000 },
-  { name: "Paragon", xpReq: 12500 },
-  { name: "Eternal", xpReq: 15500 },
-  { name: "Apex", xpReq: 19000 },
-  { name: "Omega", xpReq: 23000 },
-  { name: "Prestige I", xpReq: 28000 },
-  { name: "Prestige II", xpReq: 34000 },
+  { name: "Ascendant",   xpReq: 4000 },
+  { name: "Sovereign",   xpReq: 5200 },
+  { name: "Titan",       xpReq: 6600 },
+  { name: "Immortal",    xpReq: 8200 },
+  { name: "Archon",      xpReq: 10000 },
+  { name: "Paragon",     xpReq: 12500 },
+  { name: "Eternal",     xpReq: 15500 },
+  { name: "Apex",        xpReq: 19000 },
+  { name: "Omega",       xpReq: 23000 },
+  // ── Tier 3: Prestige (28k–55k) ──
+  { name: "Prestige I",   xpReq: 28000 },
+  { name: "Prestige II",  xpReq: 34000 },
   { name: "Prestige III", xpReq: 42000 },
+  // ── Tier 4: Celestial (52k–110k) ──
+  { name: "Celestial I",   xpReq: 52000 },
+  { name: "Celestial II",  xpReq: 64000 },
+  { name: "Celestial III", xpReq: 78000 },
+  // ── Tier 5: Godlike (95k–175k) ──
+  { name: "Godlike I",   xpReq: 95000 },
+  { name: "Godlike II",  xpReq: 115000 },
+  { name: "Godlike III", xpReq: 140000 },
+  // ── Tier 6: Transcendence (170k–300k) ──
+  { name: "Transcendence I",   xpReq: 170000 },
+  { name: "Transcendence II",  xpReq: 205000 },
+  { name: "Transcendence III", xpReq: 245000 },
+  // ── Tier 7: Absolute (300k+) ──
+  { name: "Absolute",  xpReq: 300000 },
+  { name: "Primordial", xpReq: 375000 },
+  { name: "Infinite",  xpReq: 500000 },
 ];

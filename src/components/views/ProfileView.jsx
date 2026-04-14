@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS, DARK_COLORS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
+import { getTrophyTierColor } from "../../data/trophies";
 import { getTotalVolume, getLevel, getNextLevel, getLevelIndex, isPrestigeReady } from "../../utils";
 import { useAuth } from "../../hooks/useAuth";
 import { usePremium } from "../../hooks/usePremium";
@@ -20,6 +21,10 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
   const [showTimer, setShowTimer] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [soundsOn, setSoundsOn] = useState(getSoundsEnabled());
+  const [expandedTrophySections, setExpandedTrophySections] = useState({ milestone: true });
+  const toggleTrophySection = useCallback((id) => {
+    setExpandedTrophySections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
   const { logout } = useAuth();
   const { isPremium, isPremiumActive, isTrialActive, trialDaysRemaining, premiumUntil, plan, setShowUpgrade } = usePremium();
   const { theme, toggleTheme, colors } = useTheme();
@@ -204,7 +209,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
 
       {/* ── Trophy Room ── */}
       <SectionHeader title="Trophy Room" sub={`${unlockedTrophyCount} / ${totalTrophies} unlocked`} />
-      {/* Progress bar */}
+      {/* Overall progress bar */}
       <div style={trophyProgressWrap}>
         <div style={trophyProgressTrack}>
           <motion.div
@@ -215,27 +220,101 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           />
         </div>
       </div>
-      <div style={trophyGrid}>
-        {TROPHIES.map((t) => {
-          const unlocked = !!state.unlockedTrophies?.[t.id];
-          const prog = trophyProgress[t.id] || 0;
-          return (
-            <div key={t.id} style={{ ...trophyCard, ...(unlocked ? trophyUnlocked : trophyLocked) }}>
-              <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)", marginBottom: 4 }}>{t.icon}</div>
-              <div style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, textAlign: "center", lineHeight: 1.2 }}>{t.name}</div>
-              <div style={{ fontSize: 10, opacity: unlocked ? 0.7 : 0.3, textAlign: "center", marginTop: 2 }}>
-                {unlocked ? `+${t.xpReward} XP` : t.desc}
-              </div>
-              {!unlocked && prog > 0 && (
-                <div style={trophyProgWrap}>
-                  <div style={{ ...trophyProgBar, width: `${prog * 100}%` }} />
-                  <span style={trophyProgLabel}>{Math.round(prog * 100)}%</span>
-                </div>
+
+      {/* Organized Trophy Sections */}
+      {[
+        { id: "milestone", label: "Milestones", icon: "🏁", cats: ["milestone"] },
+        { id: "consistency", label: "Consistency", icon: "⚡", cats: ["all"] },
+        { id: "habits", label: "Category Habits", icon: "🌿", cats: ["water","sleep","mind","shower","screen","exercise","nutrition","reading"] },
+        { id: "dojo", label: "Dojo", icon: "⚔️", cats: ["dojo"] },
+        { id: "academy", label: "Academy", icon: "📚", cats: ["academy"] },
+        { id: "forge", label: "Forge", icon: "🔥", cats: ["forge"] },
+      ].map((section) => {
+        const sectionTrophies = TROPHIES.filter(t => section.cats.includes(t.category));
+        const sectionUnlocked = sectionTrophies.filter(t => !!state.unlockedTrophies?.[t.id]).length;
+        const isOpen = !!expandedTrophySections[section.id];
+        return (
+          <div key={section.id} style={{ marginBottom: 8, marginLeft: T.space.md, marginRight: T.space.md }}>
+            <button
+              onClick={() => toggleTrophySection(section.id)}
+              aria-expanded={isOpen}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+                borderRadius: isOpen ? "12px 12px 0 0" : 12,
+                padding: "11px 14px", cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{section.icon}</span>
+              <span style={{ flex: 1, fontSize: T.font.sm, fontWeight: T.weight.bold, color: isDark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)" }}>
+                {section.label}
+              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 600, color: sectionUnlocked === sectionTrophies.length ? "#22C55E" : isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)",
+                marginRight: 8,
+              }}>
+                {sectionUnlocked}/{sectionTrophies.length}
+              </span>
+              <ChevronRight size={16} color={isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)"}
+                style={{ transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
+            </button>
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
+                    padding: "10px 10px 12px",
+                    background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+                    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+                    borderTop: "none", borderRadius: "0 0 12px 12px",
+                  }}>
+                    {sectionTrophies.map((t) => {
+                      const unlocked = !!state.unlockedTrophies?.[t.id];
+                      const prog = trophyProgress[t.id] || 0;
+                      const tier = getTrophyTierColor(t.tier);
+                      return (
+                        <div key={t.id} style={{
+                          ...trophyCard,
+                          ...(unlocked ? trophyUnlocked : trophyLocked),
+                          position: "relative",
+                        }}>
+                          {t.tier && (
+                            <span style={{
+                              position: "absolute", top: 6, right: 6,
+                              fontSize: 9, fontWeight: 700, lineHeight: 1,
+                              color: tier.text, background: tier.bg,
+                              borderWidth: 1, borderStyle: "solid", borderColor: tier.border,
+                              borderRadius: 4, padding: "2px 4px",
+                            }}>{tier.label}</span>
+                          )}
+                          <div style={{ fontSize: 28, filter: unlocked ? "none" : "grayscale(1)", marginBottom: 4 }}>{t.icon}</div>
+                          <div style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, textAlign: "center", lineHeight: 1.2 }}>{t.name}</div>
+                          <div style={{ fontSize: 10, opacity: unlocked ? 0.7 : 0.3, textAlign: "center", marginTop: 2 }}>
+                            {unlocked ? `+${t.xpReward} XP` : t.desc}
+                          </div>
+                          {!unlocked && prog > 0 && (
+                            <div style={trophyProgWrap}>
+                              <div style={{ ...trophyProgBar, width: `${prog * 100}%` }} />
+                              <span style={trophyProgLabel}>{Math.round(prog * 100)}%</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
               )}
-            </div>
-          );
-        })}
-      </div>
+            </AnimatePresence>
+          </div>
+        );
+      })}
 
       {/* ── Journey Map ── */}
       <SectionHeader title="Journey Map" sub={day > 66 ? "Mastery Mode" : `Day ${day} of 66`} />

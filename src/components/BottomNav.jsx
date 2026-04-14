@@ -36,14 +36,15 @@ export default function BottomNav({ view, setView }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={menuHeader}>
-              <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>More</span>
-              <button aria-label="Close menu" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }} onClick={() => setShowMore(false)}>
-                <X size={16} style={{ opacity: 0.4 }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)" }}>More</span>
+              <button aria-label="Close menu" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)" }} onClick={() => setShowMore(false)}>
+                <X size={16} />
               </button>
             </div>
             <div style={menuGrid} role="menu">
               {MORE_ITEMS.map((item) => {
                 const active = view === item.id;
+                const labelColor = active ? item.color : isDark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.65)";
                 return (
                   <button
                     key={item.id}
@@ -51,13 +52,13 @@ export default function BottomNav({ view, setView }) {
                     aria-label={item.label}
                     style={{
                       ...menuItem,
-                      background: active ? `${item.color}15` : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                      border: active ? `1px solid ${item.color}30` : `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                      background: active ? `${item.color}18` : isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                      border: active ? `1px solid ${item.color}40` : `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
                     }}
                     onClick={() => { setView(item.id); setShowMore(false); }}
                   >
-                    <item.Icon size={20} color={active ? item.color : inactiveColor} strokeWidth={active ? 2 : 1.5} />
-                    <span style={{ fontSize: 11, fontWeight: active ? 700 : 500, color: active ? item.color : undefined, marginTop: 4 }}>
+                    <item.Icon size={22} color={active ? item.color : isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)"} strokeWidth={active ? 2 : 1.5} />
+                    <span style={{ fontSize: 12, fontWeight: active ? 700 : 600, color: labelColor, marginTop: 6 }}>
                       {item.label}
                     </span>
                   </button>

@@ -247,7 +247,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     {/* Book cover mini */}
                     <div style={{
                       width: 38,
-                      height: 48,
+                      height: 52,
                       borderRadius: 4,
                       background: `linear-gradient(135deg, ${book.coverColor}, ${book.coverColor}CC)`,
                       display: "flex",
@@ -255,9 +255,15 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                       justifyContent: "center",
                       fontSize: 18,
                       flexShrink: 0,
+                      overflow: "hidden",
                       boxShadow: `0 2px 8px ${book.coverColor}30`,
                     }}>
-                      {book.icon}
+                      {book.coverImage
+                        ? <img src={book.coverImage} alt={book.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
+                          />
+                        : null}
+                      <span style={{ display: book.coverImage ? "none" : "flex" }}>{book.icon}</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>

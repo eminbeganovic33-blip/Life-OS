@@ -3,7 +3,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   sendPasswordResetEmail,
   updateProfile,
@@ -11,6 +12,29 @@ import {
 import { auth, googleProvider, facebookProvider, firebaseConfigured } from "../firebase";
 
 const AuthContext = createContext(null);
+
+function friendlyAuthError(err) {
+  const code = err?.code || "";
+  if (code === "auth/unauthorized-domain") {
+    return "This domain isn't authorised in Firebase. Add it under Authentication → Settings → Authorised domains in the Firebase Console.";
+  }
+  if (code === "auth/popup-blocked") {
+    return "Popup was blocked. Trying redirect sign-in instead — you'll be taken to Google and returned here.";
+  }
+  if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+    return "Email or password is incorrect.";
+  }
+  if (code === "auth/email-already-in-use") {
+    return "An account with this email already exists.";
+  }
+  if (code === "auth/weak-password") {
+    return "Password must be at least 6 characters.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "Network error — check your connection and try again.";
+  }
+  return err?.message || "Something went wrong. Please try again.";
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -22,6 +46,16 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+
+    // Handle result from signInWithRedirect
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) setUser(result.user);
+      })
+      .catch((err) => {
+        setError(friendlyAuthError(err));
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -34,45 +68,46 @@ export function AuthProvider({ children }) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const msg = friendlyAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
   const signup = async (email, password, displayName) => {
     setError(null);
     try {
-      const { user: newUser } = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
       if (displayName) {
         await updateProfile(newUser, { displayName });
       }
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const msg = friendlyAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
   const loginWithGoogle = async () => {
     setError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      // Use redirect (no popup) — works on mobile, PWA, and when popups are blocked
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const msg = friendlyAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
   const loginWithFacebook = async () => {
     setError(null);
     try {
-      await signInWithPopup(auth, facebookProvider);
+      await signInWithRedirect(auth, facebookProvider);
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const msg = friendlyAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -81,8 +116,7 @@ export function AuthProvider({ children }) {
     try {
       await signOut(auth);
     } catch (err) {
-      setError(err.message);
-      throw err;
+      setError(friendlyAuthError(err));
     }
   };
 
@@ -91,8 +125,9 @@ export function AuthProvider({ children }) {
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const msg = friendlyAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -100,25 +135,16 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       await updateProfile(auth.currentUser, { displayName: name });
-      // Force refresh so listeners pick up the new profile
       setUser({ ...auth.currentUser });
     } catch (err) {
-      setError(err.message);
-      throw err;
+      setError(friendlyAuthError(err));
     }
   };
 
   const value = {
-    user,
-    loading,
-    error,
-    login,
-    signup,
-    loginWithGoogle,
-    loginWithFacebook,
-    logout,
-    resetPassword,
-    updateDisplayName,
+    user, loading, error,
+    login, signup, loginWithGoogle, loginWithFacebook,
+    logout, resetPassword, updateDisplayName,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -126,8 +152,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }
