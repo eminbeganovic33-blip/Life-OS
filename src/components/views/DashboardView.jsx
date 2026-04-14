@@ -29,7 +29,9 @@ function formatDate() {
 }
 
 export default function DashboardView({ state, user, onNavigate }) {
-  const { themed } = useTheme();
+  const { themed, theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const styles = getStyles(colors, isDark);
   const pomodoro = usePomodoroContext();
   const day = state.currentDay;
   const level = getLevel(state.xp);
@@ -205,6 +207,7 @@ export default function DashboardView({ state, user, onNavigate }) {
             color="#22C55E"
             onClick={() => onNavigate("journal")}
             done={hasJournaledToday}
+            styles={styles} colors={colors}
           />
           <QuickAction
             lucideIcon={<Dumbbell size={22} />}
@@ -213,6 +216,7 @@ export default function DashboardView({ state, user, onNavigate }) {
             color="#F97316"
             onClick={() => onNavigate("dojo")}
             done={todayWorkouts > 0}
+            styles={styles} colors={colors}
           />
           <QuickAction
             lucideIcon={<GraduationCap size={22} />}
@@ -220,6 +224,7 @@ export default function DashboardView({ state, user, onNavigate }) {
             sub="Learn"
             color="#3B82F6"
             onClick={() => onNavigate("academy")}
+            styles={styles} colors={colors}
           />
           <QuickAction
             lucideIcon={<BarChart3 size={22} />}
@@ -227,6 +232,7 @@ export default function DashboardView({ state, user, onNavigate }) {
             sub="Analytics"
             color="#8B5CF6"
             onClick={() => onNavigate("analytics")}
+            styles={styles} colors={colors}
           />
         </motion.div>
 
@@ -281,7 +287,7 @@ export default function DashboardView({ state, user, onNavigate }) {
         )}
 
         {/* Compact Focus Timer */}
-        {pomodoro && <CompactTimer pomodoro={pomodoro} pomodoroMinutes={state.pomodoroMinutes || 25} />}
+        {pomodoro && <CompactTimer pomodoro={pomodoro} pomodoroMinutes={state.pomodoroMinutes || 25} styles={styles} />}
 
         {/* Daily Quote */}
         <motion.div variants={fadeUp}>
@@ -301,7 +307,7 @@ export default function DashboardView({ state, user, onNavigate }) {
   );
 }
 
-function CompactTimer({ pomodoro, pomodoroMinutes }) {
+function CompactTimer({ pomodoro, pomodoroMinutes, styles }) {
   const { pomodoroActive, pomodoroTime, toggle, reset, phase, phaseLabel, sessionsCompleted, skipPhase } = pomodoro;
   const phaseTotalSecs =
     phase === "work" ? pomodoroMinutes * 60 : phase === "longBreak" ? 15 * 60 : 5 * 60;
@@ -319,7 +325,7 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
         {/* Mini ring */}
         <div style={styles.timerRingWrap}>
           <svg width="56" height="56" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(128,128,128,0.15)" strokeWidth="4" />
             <circle
               cx="28" cy="28" r="22" fill="none"
               stroke={isDone ? "#22C55E" : pomodoroActive ? ringColor : `${ringColor}66`}
@@ -365,25 +371,26 @@ function CompactTimer({ pomodoro, pomodoroMinutes }) {
   );
 }
 
-function QuickAction({ lucideIcon, label, sub, color, onClick, done }) {
+function QuickAction({ lucideIcon, label, sub, color, onClick, done, styles, colors }) {
   return (
     <motion.div
       style={{
         ...styles.quickAction,
-        borderColor: done ? `${color}33` : C.cardBorder,
-        background: done ? `${color}0A` : C.cardBg,
+        borderColor: done ? `${color}33` : colors.cardBorder,
+        background: done ? `${color}0A` : colors.cardBg,
       }}
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
     >
-      <div style={{ color: done ? color : C.textSecondary }}>{lucideIcon}</div>
+      <div style={{ color: done ? color : colors.textSecondary }}>{lucideIcon}</div>
       <div style={styles.qaLabel}>{label}</div>
-      <div style={{ ...styles.qaSub, color: done ? color : C.textSecondary }}>{sub}</div>
+      <div style={{ ...styles.qaSub, color: done ? color : colors.textSecondary }}>{sub}</div>
     </motion.div>
   );
 }
 
-const styles = {
+function getStyles(colors, isDark) {
+  return {
   wrapper: {
     padding: `${T.space.md}px ${T.space.lg}px`,
   },
@@ -416,13 +423,13 @@ const styles = {
   },
   greetChevron: {
     fontSize: T.font.xxl,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     fontWeight: T.weight.normal,
     flexShrink: 0,
   },
   dateText: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     margin: 0,
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -432,7 +439,9 @@ const styles = {
     fontSize: T.font.xl,
     fontWeight: T.weight.heavy,
     margin: `2px 0 0`,
-    background: "linear-gradient(135deg, #E2E8F0, #CBD5E1)",
+    background: isDark
+      ? "linear-gradient(135deg, #E2E8F0, #CBD5E1)"
+      : "linear-gradient(135deg, #1C1917, #374151)",
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
     letterSpacing: -0.3,
@@ -457,7 +466,7 @@ const styles = {
   xpBarTrack: {
     height: 5,
     borderRadius: 3,
-    background: C.surface,
+    background: colors.surface,
     overflow: "hidden",
   },
   xpBarFill: {
@@ -467,7 +476,7 @@ const styles = {
   },
   xpBarLabel: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     marginTop: 4,
     textAlign: "right",
   },
@@ -485,8 +494,8 @@ const styles = {
     gap: T.space.sm,
     padding: `${T.space.md}px ${T.space.md}px`,
     borderRadius: T.radii.md,
-    background: C.cardBg,
-    border: `1px solid ${C.cardBorder}`,
+    background: colors.cardBg,
+    border: `1px solid ${colors.cardBorder}`,
   },
   statIcon: {
     fontSize: 18,
@@ -499,7 +508,7 @@ const styles = {
   },
   statLabel: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 1.2,
     display: "flex",
     alignItems: "center",
@@ -522,8 +531,8 @@ const styles = {
   card: {
     padding: T.space.lg,
     borderRadius: T.radii.lg,
-    background: C.cardBg,
-    border: `1px solid ${C.cardBorder}`,
+    background: colors.cardBg,
+    border: `1px solid ${colors.cardBorder}`,
     marginBottom: T.space.md,
   },
   cardHeader: {
@@ -539,7 +548,7 @@ const styles = {
   },
   cardArrow: {
     fontSize: T.font.xl,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     fontWeight: T.weight.normal,
   },
 
@@ -554,7 +563,7 @@ const styles = {
   questProgressTrack: {
     height: 6,
     borderRadius: 3,
-    background: C.surface,
+    background: colors.surface,
     overflow: "hidden",
     marginBottom: T.space.xs,
   },
@@ -564,7 +573,7 @@ const styles = {
   },
   questProgressText: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
   allDoneBanner: {
     display: "flex",
@@ -583,7 +592,7 @@ const styles = {
     alignItems: "center",
     gap: T.space.sm,
     fontSize: T.font.sm,
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
   nextQuestDot: {
     fontSize: 6,
@@ -609,8 +618,8 @@ const styles = {
   quickAction: {
     padding: T.space.lg,
     borderRadius: T.radii.md,
-    border: `1px solid ${C.cardBorder}`,
-    background: C.cardBg,
+    border: `1px solid ${colors.cardBorder}`,
+    background: colors.cardBg,
     cursor: "pointer",
     display: "flex",
     flexDirection: "column",
@@ -623,7 +632,7 @@ const styles = {
   },
   qaSub: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Forge trackers
@@ -651,7 +660,7 @@ const styles = {
   sectionLabel: {
     fontSize: T.font.sm,
     fontWeight: T.weight.bold,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     marginBottom: T.space.sm,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -669,8 +678,8 @@ const styles = {
     gap: T.space.md,
     padding: T.space.lg,
     borderRadius: T.radii.md,
-    background: C.cardBg,
-    border: `1px solid ${C.cardBorder}`,
+    background: colors.cardBg,
+    border: `1px solid ${colors.cardBorder}`,
     cursor: "pointer",
   },
   nudgeIcon: {
@@ -685,7 +694,7 @@ const styles = {
   },
   nudgeMsg: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 1.4,
   },
 
@@ -714,7 +723,7 @@ const styles = {
   },
   quoteAuthor: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     margin: 0,
   },
   quoteReason: {
@@ -732,8 +741,8 @@ const styles = {
     gap: T.space.md,
     padding: T.space.lg,
     borderRadius: T.radii.lg,
-    background: C.cardBg,
-    border: `1px solid ${C.cardBorder}`,
+    background: colors.cardBg,
+    border: `1px solid ${colors.cardBorder}`,
     marginBottom: T.space.md,
   },
   timerRingWrap: {
@@ -758,7 +767,7 @@ const styles = {
   },
   timerSub: {
     fontSize: T.font.xs,
-    color: C.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   timerBtns: {
@@ -785,13 +794,14 @@ const styles = {
     width: 36,
     height: 36,
     borderRadius: "50%",
-    border: `1px solid ${C.cardBorder}`,
+    border: `1px solid ${colors.cardBorder}`,
     background: "transparent",
-    color: C.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
-};
+  }; // end getStyles return
+}
