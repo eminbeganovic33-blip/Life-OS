@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { LEVELS } from "../../data";
+import { LEVELS, BOOKS } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
@@ -10,7 +10,7 @@ const SWIPE_THRESHOLD = 60;
 const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
 const MAX_FOCUS_SLOTS = 3;
 
-export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses }) {
+export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
@@ -27,6 +27,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   const [expandedStep, setExpandedStep] = useState(null);
   const [filter, setFilter] = useState("focused");
   const [now, setNow] = useState(Date.now());
+  const [expandedBook, setExpandedBook] = useState(null);
+  const [mode, setMode] = useState("courses"); // "courses" | "books"
 
   // Swipe state
   const touchStartX = useRef(0);
@@ -161,9 +163,203 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     setExpandedStep(expandedStep === key ? null : key);
   }
 
+  // ── Book data ──
+  const bookStates = BOOKS.map((book) => {
+    const progress = state.bookProgress?.[book.id];
+    const readInsights = progress?.insights || [];
+    const isFinished = progress?.completed;
+    const pct = Math.round((readInsights.length / book.insights.length) * 100);
+    return { book, readInsights, isFinished, pct };
+  });
+  const booksRead = bookStates.filter((b) => b.isFinished).length;
+  const booksInProgress = bookStates.filter((b) => b.readInsights.length > 0 && !b.isFinished).length;
+
   return (
     <div style={S.vc}>
       <div style={S.secTitle}>The Academy</div>
+
+      {/* Mode toggle: Courses / Books */}
+      <div style={modeToggleRow}>
+        {[
+          { id: "courses", label: "Courses", icon: "\uD83C\uDF93" },
+          { id: "books", label: "Books", icon: "\uD83D\uDCDA" },
+        ].map((m) => (
+          <button
+            key={m.id}
+            style={{
+              ...modeToggleBtn,
+              background: mode === m.id ? "rgba(124,92,252,0.12)" : "transparent",
+              color: mode === m.id ? "#7C5CFC" : sub(0.4),
+              borderColor: mode === m.id ? "rgba(124,92,252,0.25)" : sub(0.06),
+            }}
+            onClick={() => setMode(m.id)}
+          >
+            <span>{m.icon}</span> {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "books" && (
+        <>
+          <div style={{ padding: "0 16px", marginBottom: 14, fontSize: 12, opacity: 0.4, lineHeight: 1.5 }}>
+            Key insights from the best books — read in minutes, apply for life.
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display: "flex", gap: 8, padding: "0 14px", marginBottom: 14 }}>
+            <div style={bookStatPill}>
+              <span style={{ fontWeight: 800, color: "#7C5CFC" }}>{booksInProgress}</span>
+              <span style={{ opacity: 0.5 }}>reading</span>
+            </div>
+            <div style={bookStatPill}>
+              <span style={{ fontWeight: 800, color: "#10B981" }}>{booksRead}</span>
+              <span style={{ opacity: 0.5 }}>finished</span>
+            </div>
+            <div style={bookStatPill}>
+              <span style={{ fontWeight: 800, color: sub(0.6) }}>{BOOKS.length}</span>
+              <span style={{ opacity: 0.5 }}>total</span>
+            </div>
+          </div>
+
+          {bookStates.map(({ book, readInsights, isFinished, pct }) => {
+            const isExpanded = expandedBook === book.id;
+            return (
+              <div
+                key={book.id}
+                style={{
+                  ...S.courseCard,
+                  border: isFinished
+                    ? "1px solid rgba(16,185,129,0.15)"
+                    : isExpanded
+                      ? `1px solid ${book.coverColor}20`
+                      : `1px solid ${colors.cardBorder}`,
+                  background: isFinished
+                    ? "rgba(16,185,129,0.04)"
+                    : colors.cardBg,
+                }}
+              >
+                {/* Book header */}
+                <div
+                  style={{ ...S.courseHead, cursor: "pointer" }}
+                  onClick={() => setExpandedBook(isExpanded ? null : book.id)}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                    {/* Book cover mini */}
+                    <div style={{
+                      width: 38,
+                      height: 48,
+                      borderRadius: 4,
+                      background: `linear-gradient(135deg, ${book.coverColor}, ${book.coverColor}CC)`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 18,
+                      flexShrink: 0,
+                      boxShadow: `0 2px 8px ${book.coverColor}30`,
+                    }}>
+                      {book.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>{book.title}</span>
+                        {isFinished && <span style={masteredBadge}>READ</span>}
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.4, marginTop: 1 }}>
+                        {book.author} &middot; {book.readTime}
+                      </div>
+                      {!isExpanded && readInsights.length > 0 && !isFinished && (
+                        <div style={{ fontSize: 10, color: book.coverColor, fontWeight: 600, marginTop: 2 }}>
+                          {readInsights.length}/{book.insights.length} insights
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {isFinished && <span style={{ color: "#10B981", fontSize: 12, fontWeight: 700 }}>+30 XP</span>}
+                    {!isFinished && pct > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: book.coverColor }}>{pct}%</span>
+                    )}
+                    <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
+                      &#x25BC;
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                {readInsights.length > 0 && !isFinished && (
+                  <div style={{ ...progressBarOuter, marginTop: 6 }}>
+                    <div style={{ ...progressBarInner, width: `${pct}%`, background: `linear-gradient(90deg, ${book.coverColor}, ${book.coverColor}CC)` }} />
+                  </div>
+                )}
+
+                {/* Expanded: description + insights */}
+                {isExpanded && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, opacity: 0.5, lineHeight: 1.5, marginBottom: 12 }}>
+                      {book.description}
+                    </div>
+                    {book.insights.map((insight, idx) => {
+                      const isRead = readInsights.includes(idx);
+                      return (
+                        <div key={idx} style={{ borderTop: `1px solid ${sub(0.03)}` }}>
+                          <div style={{ ...stepRow, opacity: isRead ? 0.5 : 1 }}>
+                            <div
+                              style={{
+                                ...S.cb,
+                                width: 18,
+                                height: 18,
+                                borderRadius: 5,
+                                background: isRead ? book.coverColor : "transparent",
+                                borderColor: isRead ? book.coverColor : sub(0.2),
+                                cursor: "pointer",
+                                flexShrink: 0,
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isRead) onUncheckInsight(book.id, idx);
+                                else onCheckInsight(book.id, idx);
+                              }}
+                            >
+                              {isRead && <span style={{ fontSize: 10, color: "#fff" }}>&#x2713;</span>}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                textDecoration: isRead ? "line-through" : "none",
+                                marginBottom: 4,
+                              }}>
+                                {insight.title}
+                              </div>
+                              <div style={{ fontSize: 12, opacity: 0.55, lineHeight: 1.5 }}>
+                                {insight.content}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {isFinished && (
+                      <div style={completionBox}>
+                        <span style={{ fontSize: 24 }}>{book.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Book Complete!</div>
+                          <div style={{ fontSize: 11, opacity: 0.4 }}>
+                            You've absorbed all key insights from {book.title}.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {mode === "courses" && (
+        <>
       <div style={{ padding: "0 16px", marginBottom: 14, fontSize: 12, opacity: 0.4, lineHeight: 1.5 }}>
         Focus on 2-3 courses at a time. Complete steps at your own pace.
       </div>
@@ -514,6 +710,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
           </div>
         );
       })}
+        </>
+      )}
     </div>
   );
 }
@@ -683,4 +881,37 @@ const premiumCourseBanner = {
   background: "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,165,0,0.04))",
   border: "1px solid rgba(255,215,0,0.12)",
   cursor: "pointer",
+};
+
+const modeToggleRow = {
+  display: "flex",
+  gap: 8,
+  padding: "0 14px",
+  marginBottom: 14,
+};
+
+const modeToggleBtn = {
+  flex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  padding: "8px 0",
+  borderRadius: 10,
+  border: "1px solid",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: "pointer",
+  transition: "all 0.2s",
+};
+
+const bookStatPill = {
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "4px 10px",
+  borderRadius: 8,
+  background: "rgba(124,92,252,0.05)",
+  border: "1px solid rgba(124,92,252,0.08)",
+  fontSize: 11,
 };

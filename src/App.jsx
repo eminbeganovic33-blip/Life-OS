@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
-import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES } from "./data";
+import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA } from "./data";
 import { getPersonalizedQuote } from "./utils/intelligence";
 import { applyStreakMultiplier, getStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
 import {
@@ -561,6 +561,39 @@ function LifeOS() {
     save({ ...state, courseProgress: progress });
   }
 
+  // ── Books ──
+  function checkBookInsight(bookId, insightIdx) {
+    const progress = { ...(state.bookProgress || {}) };
+    if (!progress[bookId]) progress[bookId] = { insights: [], completed: false };
+    const insights = [...progress[bookId].insights];
+    if (insights.includes(insightIdx)) return;
+    insights.push(insightIdx);
+    const book = BOOKS_DATA.find((b) => b.id === bookId);
+    if (!book) return;
+    const isCompleted = insights.length === book.insights.length;
+    progress[bookId] = { insights, completed: isCompleted };
+    let xpBonus = 0;
+    const bookXpAwarded = { ...(state.bookXpAwarded || {}) };
+    if (isCompleted && !bookXpAwarded[bookId]) {
+      xpBonus = 30;
+      bookXpAwarded[bookId] = true;
+    }
+    const ns = { ...state, bookProgress: progress, bookXpAwarded, xp: state.xp + xpBonus };
+    const { unlocked, xpBonus: tXp } = checkTrophies(ns);
+    if (xpBonus > 0 || tXp > 0) showXp(xpBonus + tXp);
+    save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
+  }
+
+  function uncheckBookInsight(bookId, insightIdx) {
+    const progress = { ...(state.bookProgress || {}) };
+    if (!progress[bookId]) return;
+    const insights = [...progress[bookId].insights];
+    if (!insights.includes(insightIdx)) return;
+    insights.splice(insights.indexOf(insightIdx), 1);
+    progress[bookId] = { insights, completed: false };
+    save({ ...state, bookProgress: progress });
+  }
+
   // ── Forge ──
   function startSobriety(trackerId) {
     save({ ...state, sobrietyDates: { ...state.sobrietyDates, [trackerId]: getTodayStr() } });
@@ -708,7 +741,7 @@ function LifeOS() {
     checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
-    checkCourseStep, uncheckCourseStep, ALL_COURSES,
+    checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
@@ -739,7 +772,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
-    checkCourseStep, uncheckCourseStep, ALL_COURSES,
+    checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
     doSaveWorkout, updateWorkoutEntry, deleteWorkoutEntry,
@@ -865,6 +898,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   onCheckStep={checkCourseStep}
                   onUncheckStep={uncheckCourseStep}
                   allCourses={ALL_COURSES}
+                  onCheckInsight={checkBookInsight}
+                  onUncheckInsight={uncheckBookInsight}
                 />
               </ErrorBoundary>
             )}
