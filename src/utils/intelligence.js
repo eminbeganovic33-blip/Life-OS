@@ -168,7 +168,7 @@ export function getQuestSuggestions(state) {
     suggestions.push({
       text: questText,
       category: weakest.cat,
-      reason: `Your ${weakest.cat} rate is ${Math.round(weakest.rate * 100)}% — here's an ${diffLabel} to build momentum`,
+      reason: `Your ${weakest.cat} rate is ${Math.round(weakest.rate * 100)}% — here's ${/^[aeiou]/i.test(diffLabel) ? "an" : "a"} ${diffLabel} to build momentum`,
       difficulty,
     });
   }

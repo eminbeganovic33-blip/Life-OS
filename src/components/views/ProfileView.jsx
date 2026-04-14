@@ -189,7 +189,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
       <div style={secGrid}>
         {[
           { v: workoutCount, l: "Workouts" },
-          { v: `${Math.round(totalVolume / 1000)}t`, l: "Vol. Moved" },
+          { v: totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k kg` : `${Math.round(totalVolume)} kg`, l: "Vol. Moved" },
           { v: Object.values(state.courseProgress || {}).filter(p => p.completed).length, l: "Courses" },
           { v: state.bestStreak, l: "Best Streak" },
           { v: unlockedTrophyCount, l: "Trophies" },
@@ -280,7 +280,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
               <div style={settingsRowSub}>{isDark ? "Dark Mode" : "Light Mode"}</div>
             </div>
           </div>
-          <button style={toggleTrack(isDark)} onClick={toggleTheme} aria-label="Toggle theme">
+          <button style={toggleTrack(isDark)} onClick={toggleTheme} role="switch" aria-checked={isDark} aria-label="Toggle theme">
             <span style={toggleIcon(true, isDark)}><Sun size={12} /></span>
             <span style={toggleIcon(false, isDark)}><Moon size={12} /></span>
             <div style={toggleThumb(isDark)} />
@@ -310,6 +310,8 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           </div>
           <button
             style={toggleTrack(soundsOn)}
+            role="switch"
+            aria-checked={soundsOn}
             aria-label="Toggle sound effects"
             onClick={() => {
               const next = !soundsOn;

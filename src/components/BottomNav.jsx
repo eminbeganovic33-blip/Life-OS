@@ -118,7 +118,7 @@ const menuStyle = {
   width: "100%",
   maxWidth: 430,
   borderRadius: "20px 20px 0 0",
-  padding: "16px 16px 24px",
+  padding: "16px 16px calc(24px + env(safe-area-inset-bottom, 0px) + 56px)",
   boxShadow: "0 -8px 32px rgba(0,0,0,0.2)",
 };
 

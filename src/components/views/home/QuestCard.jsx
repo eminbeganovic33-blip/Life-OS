@@ -68,6 +68,9 @@ export default function QuestCard({
         <div style={ts.questLeft}>
           {/* Checkbox */}
           <div
+            role="checkbox"
+            aria-checked={done}
+            aria-label={`${done ? "Completed" : "Mark complete"}: ${q.text}`}
             style={{
               ...ts.checkbox,
               background: done ? (cat?.color || "#22C55E") : "transparent",

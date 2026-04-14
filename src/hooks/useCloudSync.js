@@ -2,60 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "../firebase";
 import { defaultState } from "../utils/state";
-import { getTodayStr, daysBetween } from "../utils";
+import { reconcileStreaks } from "../utils";
 
 const STORAGE_KEY = "life-os-state";
 const DEBOUNCE_MS = 1000;
-
-function reconcileStreaks(s) {
-  const today = getTodayStr();
-  const lastActive = s.lastActiveDate;
-  if (!lastActive || lastActive === today) return s;
-
-  const missedDays = daysBetween(lastActive);
-
-  // If more than 1 day has passed since last activity, check for streak freeze
-  if (missedDays > 1) {
-    const freezes = s.streakFreezes || 0;
-    if (freezes > 0 && missedDays <= 2) {
-      // Use a freeze — preserve streak, consume one freeze
-      s = {
-        ...s,
-        streakFreezes: freezes - 1,
-        streakFreezeUsedDate: today,
-        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak }],
-      };
-    } else {
-      // No freezes available or too many days missed — break streak
-      s = { ...s, streak: 0 };
-    }
-  }
-
-  // Award streak freezes: 1 freeze earned per 7-day streak milestone (max 3)
-  const MAX_FREEZES = 3;
-  const currentFreezes = s.streakFreezes || 0;
-  const lastFreezeAwardedAt = s.lastFreezeAwardedAtStreak || 0;
-  if (s.streak > 0 && s.streak >= lastFreezeAwardedAt + 7 && currentFreezes < MAX_FREEZES) {
-    const newMilestone = Math.floor(s.streak / 7) * 7;
-    if (newMilestone > lastFreezeAwardedAt) {
-      s = {
-        ...s,
-        streakFreezes: Math.min(currentFreezes + 1, MAX_FREEZES),
-        lastFreezeAwardedAtStreak: newMilestone,
-      };
-    }
-  }
-
-  // Break lifting streak if more than 1 day since last lift
-  if (s.lastLiftDate) {
-    const liftGap = daysBetween(s.lastLiftDate);
-    if (liftGap > 1) {
-      s = { ...s, liftingStreak: 0 };
-    }
-  }
-
-  return s;
-}
 
 function readLocalStorage() {
   try {

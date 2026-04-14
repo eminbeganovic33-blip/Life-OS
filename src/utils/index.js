@@ -10,6 +10,7 @@ export {
   getCategoryStreak,
   isPrestigeReady,
   MAX_LEVEL_INDEX,
+  reconcileStreaks,
 } from "./helpers";
 export { defaultState } from "./state";
 export {

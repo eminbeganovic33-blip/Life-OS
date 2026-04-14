@@ -276,8 +276,8 @@ export default function HomeView({
                   <CategoryIcon id={catId} size={11} color={cat.color} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: cat.color }}>{streak}d</span>
                   {mastery.levelIndex > 0 && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color: mastery.color, opacity: 0.8 }}>
-                      {mastery.level.slice(0, 3)}
+                    <span style={{ fontSize: 8, fontWeight: 700, color: mastery.color, opacity: 0.8 }} title={mastery.level}>
+                      {mastery.level.charAt(0)}
                     </span>
                   )}
                 </div>

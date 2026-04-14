@@ -304,6 +304,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                         <div key={idx} style={{ borderTop: `1px solid ${sub(0.03)}` }}>
                           <div style={{ ...stepRow, opacity: isRead ? 0.5 : 1 }}>
                             <div
+                              role="checkbox"
+                              aria-checked={isRead}
+                              aria-label={`${isRead ? "Read" : "Mark as read"}: ${insight.title}`}
                               style={{
                                 ...S.cb,
                                 width: 18,
@@ -607,6 +610,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                       >
                         {/* Checkbox */}
                         <div
+                          role="checkbox"
+                          aria-checked={checked}
+                          aria-label={`${checked ? "Completed" : "Mark complete"}: ${stepObj.title}`}
                           style={{
                             ...S.cb,
                             width: 18,
@@ -739,7 +745,9 @@ const filterRow = {
 const filterTab = {
   padding: "6px 12px",
   borderRadius: 10,
-  border: "1px solid",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "transparent",
   fontSize: 12,
   fontWeight: 600,
   cursor: "pointer",
@@ -747,6 +755,7 @@ const filterTab = {
   alignItems: "center",
   gap: 6,
   transition: "all 0.2s",
+  background: "transparent",
 };
 
 const filterCount = {
@@ -764,7 +773,9 @@ const skillBadgeStyle = {
   fontWeight: 700,
   padding: "1px 6px",
   borderRadius: 4,
-  border: "1px solid",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "transparent",
   textTransform: "capitalize",
   letterSpacing: 0.3,
 };
@@ -898,11 +909,14 @@ const modeToggleBtn = {
   gap: 6,
   padding: "8px 0",
   borderRadius: 10,
-  border: "1px solid",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "transparent",
   fontSize: 13,
   fontWeight: 700,
   cursor: "pointer",
   transition: "all 0.2s",
+  background: "transparent",
 };
 
 const bookStatPill = {

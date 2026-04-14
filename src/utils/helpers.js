@@ -139,3 +139,49 @@ export function getCategoryStreak(completedQuests, category, currentDay) {
   }
   return streak;
 }
+
+/** Reconcile streaks after a gap in activity. Shared by useAppState and useCloudSync. */
+export function reconcileStreaks(s) {
+  const today = getTodayStr();
+  const lastActive = s.lastActiveDate;
+  if (!lastActive || lastActive === today) return s;
+
+  const missedDays = daysBetween(lastActive);
+
+  if (missedDays > 1) {
+    const freezes = s.streakFreezes || 0;
+    if (freezes > 0 && missedDays <= 2) {
+      s = {
+        ...s,
+        streakFreezes: freezes - 1,
+        streakFreezeUsedDate: today,
+        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak }],
+      };
+    } else {
+      s = { ...s, streak: 0 };
+    }
+  }
+
+  const MAX_FREEZES = 3;
+  const currentFreezes = s.streakFreezes || 0;
+  const lastFreezeAwardedAt = s.lastFreezeAwardedAtStreak || 0;
+  if (s.streak > 0 && s.streak >= lastFreezeAwardedAt + 7 && currentFreezes < MAX_FREEZES) {
+    const newMilestone = Math.floor(s.streak / 7) * 7;
+    if (newMilestone > lastFreezeAwardedAt) {
+      s = {
+        ...s,
+        streakFreezes: Math.min(currentFreezes + 1, MAX_FREEZES),
+        lastFreezeAwardedAtStreak: newMilestone,
+      };
+    }
+  }
+
+  if (s.lastLiftDate) {
+    const liftGap = daysBetween(s.lastLiftDate);
+    if (liftGap > 1) {
+      s = { ...s, liftingStreak: 0 };
+    }
+  }
+
+  return s;
+}

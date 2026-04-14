@@ -507,6 +507,8 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
         {SOBRIETY_DEFAULTS.map((t) => (
           <button
             key={t.id}
+            aria-label={`Filter by ${t.label}`}
+            title={t.label}
             style={{
               ...styles.filterBtn,
               ...(filter === t.id ? { ...styles.filterBtnActive, borderColor: t.color, color: t.color } : {}),

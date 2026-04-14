@@ -782,7 +782,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   const { showUpgrade, setShowUpgrade, isTrialActive, isPremiumActive, trialDaysRemaining } = usePremium();
   // Subscribe to theme context so this component re-renders when theme changes
   const { themed } = useTheme();
-  const showTrialBanner = isTrialActive && !isPremiumActive && trialDaysRemaining <= 2 && trialDaysRemaining > 0;
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
+  const showTrialBanner = isTrialActive && !isPremiumActive && trialDaysRemaining <= 2 && trialDaysRemaining > 0 && !trialBannerDismissed;
 
   const day = state.currentDay;
 
@@ -826,8 +827,14 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
           aria-label={`Trial ending in ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? "s" : ""}, tap to upgrade`}
         >
           <span>👑</span>
-          <span>Trial ends in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} — upgrade to keep Premium</span>
+          <span style={{ flex: 1 }}>Trial ends in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} — upgrade to keep Premium</span>
           <span style={{ opacity: 0.7 }}>→</span>
+          <span
+            role="button"
+            aria-label="Dismiss trial banner"
+            style={{ marginLeft: 4, opacity: 0.5, fontSize: 14, padding: "0 4px" }}
+            onClick={(e) => { e.stopPropagation(); setTrialBannerDismissed(true); }}
+          >×</span>
         </button>
       )}
       <main id="main-content" style={S.content}>

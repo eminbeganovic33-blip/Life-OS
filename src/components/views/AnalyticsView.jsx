@@ -78,12 +78,15 @@ export default function AnalyticsView({ state }) {
       </div>
 
       {/* Tab Switcher */}
-      <div style={tabRow}>
+      <div style={tabRow} role="tablist">
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
-            <div
+            <button
               key={t.id}
+              role="tab"
+              aria-selected={active}
+              aria-label={t.label}
               style={{
                 ...tabItem,
                 color: active ? colors.text : colors.textSecondary,
@@ -94,7 +97,7 @@ export default function AnalyticsView({ state }) {
             >
               <t.Icon size={13} strokeWidth={active ? 2 : 1.5} />
               <span>{t.label}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -420,7 +423,10 @@ const tabItem = {
   padding: "8px 0",
   cursor: "pointer",
   borderRadius: 10,
-  border: "1px solid",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "transparent",
+  background: "transparent",
   transition: "all 0.15s",
 };
 const sectionLabel = {
