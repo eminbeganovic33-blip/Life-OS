@@ -1,11 +1,28 @@
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES, findGuideForQuest } from "../../../data";
 import { getQuestTier } from "../../../utils";
 import { CategoryIcon } from "../../Icon";
+import { Flame } from "lucide-react";
 import QuestGuidePanel from "../../QuestGuidePanel";
 
-export default function QuestCard({
+// Burst ring shown briefly when a quest is completed
+function SparkleRing({ color }) {
+  return (
+    <motion.div
+      style={{
+        position: "absolute", inset: 0, borderRadius: "inherit",
+        border: `2px solid ${color || "#22C55E"}`,
+        pointerEvents: "none",
+      }}
+      initial={{ opacity: 0.8, scale: 1 }}
+      animate={{ opacity: 0, scale: 1.06 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+    />
+  );
+}
+
+const QuestCard = React.memo(function QuestCard({
   quest, done, isDark, colors, ts,
   categoryStreaks, focusQuest, swipeHint, activeGuide,
   onCheck, onUncheck, onSwipeHintShow, onSwipeHintClear,
@@ -18,11 +35,14 @@ export default function QuestCard({
   const isShowingHint = swipeHint === q.id;
   const streak = categoryStreaks[q.category] || 0;
   const isFocus = focusQuest?.id === q.id && !done;
+  const [sparkle, setSparkle] = useState(false);
 
   function handleClick() {
     if (done) {
       onSwipeHintShow(q.id);
     } else {
+      setSparkle(true);
+      setTimeout(() => setSparkle(false), 500);
       onCheck(q.id, q.xp);
     }
   }
@@ -36,6 +56,7 @@ export default function QuestCard({
           scale: done ? [1, 1.03, 1] : 1,
           opacity: done ? 0.55 : 1,
         }}
+        whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
         style={{
           ...ts.questCard,
@@ -50,6 +71,11 @@ export default function QuestCard({
         onTouchStart={(e) => onTouchStart(e, q)}
         onTouchEnd={(e) => onTouchEnd(e, q)}
       >
+        {/* Sparkle ring on completion */}
+        <AnimatePresence>
+          {sparkle && <SparkleRing key="sparkle" color={cat?.color} />}
+        </AnimatePresence>
+
         {/* Undo overlay */}
         {isShowingHint && (
           <div
@@ -93,8 +119,8 @@ export default function QuestCard({
               <CategoryIcon id={q.category} size={12} color={cat?.color} />
               <span style={{ color: cat?.color, fontSize: 10, fontWeight: 600 }}>{cat?.label}</span>
               {streak > 0 && !done && (
-                <span style={{ ...ts.streakPill, color: cat?.color, borderColor: `${cat?.color}30` }}>
-                  🔥{streak}d
+                <span style={{ ...ts.streakPill, color: cat?.color, borderColor: `${cat?.color}30`, display: "inline-flex", alignItems: "center", gap: 2 }}>
+                  <Flame size={9} color={cat?.color} />{streak}d
                 </span>
               )}
               {isFocus && !done && (
@@ -111,6 +137,9 @@ export default function QuestCard({
           <span style={{ ...ts.questXp, color: done ? "#22C55E" : (cat?.color || "#7C5CFC") }}>
             {done ? "✓" : `+${q.xp}`}
           </span>
+          {done && !isShowingHint && (
+            <span style={{ fontSize: 9, opacity: 0.18, display: "block", textAlign: "center", marginTop: 3, letterSpacing: 0.5 }}>← undo</span>
+          )}
           {/* Action links */}
           <div style={ts.questActions}>
             {findGuideForQuest(q.text) && !done && (
@@ -156,4 +185,6 @@ export default function QuestCard({
       )}
     </React.Fragment>
   );
-}
+});
+
+export default QuestCard;

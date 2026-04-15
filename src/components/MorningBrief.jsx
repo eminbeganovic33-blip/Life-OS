@@ -4,7 +4,7 @@ import { TOKENS, DARK_COLORS } from "../styles/theme";
 import { useTheme } from "../hooks/useTheme";
 import { getPersonalizedQuote, getProactiveNudges, getCategoryCompletionRates } from "../utils/intelligence";
 import { getDayQuests, daysBetween } from "../utils";
-import { getAICoachMessage } from "../utils/ai";
+import { getAICoachMessage, isAIConfigured } from "../utils/ai";
 import { MOTIVATION_CARDS, SOBRIETY_DEFAULTS } from "../data";
 import { Sparkles, ArrowRight, Quote } from "lucide-react";
 
@@ -67,7 +67,7 @@ export default function MorningBrief({ state, user, onDismiss }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const [aiBrief, setAiBrief] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isAIConfigured()); // only wait if AI will actually fetch
 
   const userName = user?.displayName || state.userName || "Warrior";
   const quote = getPersonalizedQuote(state, MOTIVATION_CARDS);

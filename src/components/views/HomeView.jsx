@@ -215,6 +215,7 @@ export default function HomeView({
             </div>
           </div>
           {/* Streak + Multiplier */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
           <div style={ts.streakChip}>
             <Flame size={13} color="#F97316" />
             <span style={ts.streakNumber}>{state.streak}</span>
@@ -243,6 +244,11 @@ export default function HomeView({
               </span>
             )}
           </div>
+          {[2, 6, 13, 29].includes(state.streak) && (
+            <div style={{ fontSize: 9, color: "#F97316", opacity: 0.75, fontWeight: 700, letterSpacing: 0.3 }}>
+              Tomorrow: {state.streak === 2 ? "1.2×" : state.streak === 6 ? "1.5×" : state.streak === 13 ? "1.8×" : "2×"} XP
+            </div>
+          )}
         </div>
       </div>
 

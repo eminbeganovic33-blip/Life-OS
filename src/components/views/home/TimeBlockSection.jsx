@@ -33,7 +33,7 @@ export default function TimeBlockSection({
             </div>
             <div style={ts.blockCount}>
               {blockCompleted}/{quests.length} complete
-              {blockDone && <span style={ts.blockDoneBadge}>+Bonus!</span>}
+              {blockDone && <span style={{ ...ts.blockDoneBadge, display: "inline-flex", alignItems: "center", gap: 2 }}>✓ Done</span>}
             </div>
           </div>
         </div>

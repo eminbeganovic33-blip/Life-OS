@@ -234,7 +234,16 @@ export default function Onboarding({ onFinish }) {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{ fontSize: 28 }}>{t.icon}</span>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: `${t.color}18`,
+                        border: `1.5px solid ${t.color}50`,
+                        fontSize: 13, fontWeight: 800, color: t.color,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                      }}>
+                        {t.label.substring(0, 2).toUpperCase()}
+                      </div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 14, color: selected ? t.color : "#E2E2EE" }}>
                           {t.label}

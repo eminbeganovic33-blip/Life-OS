@@ -65,7 +65,7 @@ function LifeOS() {
   const { state, loading, save, showOnboarding, setShowOnboarding } = useCloudSync(user);
   const { checkTrophies } = useTrophies();
   const toast = useToast();
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("home");
   const [modal, setModal] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [journalText, setJournalText] = useState("");
@@ -336,6 +336,7 @@ function LifeOS() {
     const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };
     save(finalState);
     playSound("questCheck");
+    navigator.vibrate?.(30);
     // Confetti only for trophy unlocks or completing all quests
     const allQuestsDone = dc.length === getDayQuests(day, state.customQuests, state).length;
     if (newlyUnlocked?.length > 0 || allQuestsDone) {
@@ -855,7 +856,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-          <Suspense fallback={<div style={{ padding: 40, textAlign: "center", opacity: 0.3 }}>Loading…</div>}>
+          <Suspense fallback={<div style={{ padding: "60px 24px", display: "flex", flexDirection: "column", gap: 12 }}>{[1,2,3,4].map(i => <div key={i} style={{ height: 72, borderRadius: 14, background: "rgba(255,255,255,0.04)", animation: "pulse 1.5s ease-in-out infinite" }} />)}</div>}>
             {view === "dashboard" && (
               <ErrorBoundary name="Dashboard" key="eb-dashboard">
                 <DashboardView state={state} user={user} onNavigate={handleViewChange} />
