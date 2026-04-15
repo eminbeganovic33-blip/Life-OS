@@ -178,11 +178,22 @@ export default function HomeView({
     currentDay: state.currentDay,
   };
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+  const userName = state.userName ? `, ${state.userName.split(" ")[0]}` : "";
+
   return (
     <div style={S.vc}>
       {/* ── Hero Header ── */}
       <div style={ts.hero}>
         <div style={ts.heroLeft}>
+          <div style={{ fontSize: 11, opacity: 0.38, fontWeight: 600, letterSpacing: 0.5, marginBottom: 2 }}>
+            {greeting}{userName}
+          </div>
           <div style={{ ...ts.heroDay, color: colors.text }}>Day {day}</div>
           <div style={ts.heroPhase}>
             {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery Mode"}

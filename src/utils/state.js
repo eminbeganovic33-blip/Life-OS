@@ -112,6 +112,8 @@ export const defaultState = () => {
     forgeGoals,
     // Sub-streaks
     subStreaks: {},
+    // Rest days (intentional skips that don't break streak)
+    restDays: [],
     // Custom quests
     customQuests,
     // Progression

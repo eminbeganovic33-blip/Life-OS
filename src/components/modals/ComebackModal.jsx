@@ -6,9 +6,9 @@ import { Flame, Heart, Shield, ArrowRight } from "lucide-react";
 const T = TOKENS;
 
 const MESSAGES = [
-  { min: 2, max: 4, title: "Welcome Back!", sub: "A short break, but you're here now. That's what matters.", Icon: Heart, color: "#EC4899" },
-  { min: 5, max: 13, title: "The Comeback", sub: "Every champion has setbacks. Your streak may have reset, but your progress hasn't.", Icon: Shield, color: "#7C5CFC" },
-  { min: 14, max: Infinity, title: "Rise Again", sub: "It's been a while, but showing up today proves you haven't given up. Let's rebuild, stronger.", Icon: Flame, color: "#F97316" },
+  { min: 2, max: 4, title: "You're back.", sub: "Life gets busy. What matters is you're here right now — that's not nothing, that's everything.", Icon: Heart, color: "#EC4899" },
+  { min: 5, max: 13, title: "Still here.", sub: "A pause is not a failure. Your habits are waiting for you, not judging you. Pick one and start.", Icon: Shield, color: "#7C5CFC" },
+  { min: 14, max: Infinity, title: "Welcome home.", sub: "It takes courage to come back. Everything you built is still here — your data, your progress, your potential. Begin again.", Icon: Flame, color: "#F97316" },
 ];
 
 export default function ComebackModal({ show, daysAway, streak, onClose }) {
