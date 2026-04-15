@@ -359,6 +359,13 @@ function LifeOS() {
     save(ns);
   }
 
+  function markRestDay(dayNum) {
+    const existing = state.restDays || [];
+    if (existing.includes(dayNum)) return;
+    save({ ...state, restDays: [...existing, dayNum] });
+    toast.show("Rest day marked — your streak is safe.", "success", 3000);
+  }
+
   function completeDay() {
     if (!allDone) return;
     // Feature Set 1: Temporal lock
@@ -739,7 +746,7 @@ function LifeOS() {
 
   const lifeOSValue = {
     state, save, view, setView, xpPopup,
-    checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
+    checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
@@ -878,6 +885,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   onRemoveCustomQuest={removeCustomQuest}
                   unlockedCustomCategories={unlockedCustomCategories}
                   onNavigate={handleViewChange}
+                  onMarkRestDay={markRestDay}
                 />
               </ErrorBoundary>
             )}

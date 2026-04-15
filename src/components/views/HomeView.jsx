@@ -67,7 +67,7 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 export default function HomeView({
   state, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate,
+  unlockedCustomCategories, onNavigate, onMarkRestDay,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -510,6 +510,31 @@ export default function HomeView({
             : "Come back tomorrow"
           : `${completed.length} / ${quests.length} Quests`}
       </button>
+
+      {/* ── Rest Day option ── shown only when day not yet completed and not all done */}
+      {!allDone && canCompleteDay && !(state.restDays || []).includes(day) && (
+        <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 11,
+              color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+              padding: "6px 12px",
+              letterSpacing: 0.3,
+            }}
+            onClick={() => onMarkRestDay?.(day)}
+          >
+            Mark as rest day — streak preserved
+          </button>
+        </div>
+      )}
+      {(state.restDays || []).includes(day) && (
+        <div style={{ textAlign: "center", marginTop: 4, fontSize: 11, color: "#3B82F6", opacity: 0.7 }}>
+          Rest day — your streak is safe
+        </div>
+      )}
 
       {/* ── Lifting Streak ── */}
       {state.liftingStreak > 0 && (

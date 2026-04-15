@@ -5,10 +5,9 @@ import { NavIcon } from "./Icon";
 import { MoreHorizontal, BookOpen, BarChart3, Users, User, X } from "lucide-react";
 
 const NAV = [
-  { id: "dashboard", label: "Home" },
-  { id: "home", label: "Quests" },
-  { id: "dojo", label: "Dojo" },
+  { id: "home", label: "Today" },
   { id: "forge", label: "Forge" },
+  { id: "dojo", label: "Dojo" },
   { id: "academy", label: "Academy" },
 ];
 

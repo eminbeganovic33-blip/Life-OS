@@ -14,7 +14,7 @@ import {
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
 import { CategoryIcon } from "../Icon";
-import { Flame, Zap, CalendarCheck, CheckCircle, BarChart3, TrendingUp, Grid3X3, Lightbulb, Crown, ChevronRight } from "lucide-react";
+import { Flame, Zap, CalendarCheck, CheckCircle, BarChart3, TrendingUp, Grid3X3, Lightbulb, Crown, ChevronRight, CalendarDays } from "lucide-react";
 import Skeleton from "../Skeleton";
 
 export default function AnalyticsView({ state }) {
@@ -63,6 +63,7 @@ export default function AnalyticsView({ state }) {
 
   const tabs = [
     { id: "overview", label: "Overview", Icon: TrendingUp },
+    { id: "pixels", label: "Year", Icon: CalendarDays },
     { id: "heatmap", label: "Heatmap", Icon: Grid3X3 },
     { id: "insights", label: "Insights", Icon: Lightbulb },
   ];
@@ -105,6 +106,7 @@ export default function AnalyticsView({ state }) {
       <AnimatePresence mode="wait">
         <motion.div key={tab} {...fadeIn}>
           {tab === "overview" && renderOverview()}
+          {tab === "pixels" && renderYearInPixels()}
           {tab === "heatmap" && renderHeatmap()}
           {tab === "insights" && renderInsights()}
         </motion.div>
@@ -243,6 +245,122 @@ export default function AnalyticsView({ state }) {
               })}
             </div>
           </>
+        )}
+      </>
+    );
+  }
+
+  function renderYearInPixels() {
+    const startDate = state.startDate ? new Date(state.startDate) : new Date();
+    const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    // Build day objects: { day (1-based), date, mood, questsDone }
+    const days = [];
+    for (let d = 1; d <= Math.min(state.currentDay, 365); d++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + d - 1);
+      days.push({
+        day: d,
+        date,
+        mood: state.moods?.[d] !== undefined ? state.moods[d] : null,
+        questsDone: (state.completedQuests?.[d] || []).length,
+      });
+    }
+
+    // Group by month label for display
+    const byMonth = {};
+    days.forEach((d) => {
+      const key = `${d.date.getFullYear()}-${d.date.getMonth()}`;
+      if (!byMonth[key]) byMonth[key] = { label: `${MONTH_NAMES[d.date.getMonth()]} ${d.date.getFullYear()}`, days: [] };
+      byMonth[key].days.push(d);
+    });
+    const months = Object.values(byMonth);
+
+    const moodDone = days.filter((d) => d.mood !== null).length;
+    const moodColors = MOODS.map((m) => m.color);
+
+    return (
+      <>
+        <div style={sectionLabel}>Year in Pixels</div>
+        <div style={{ padding: "0 14px 8px", fontSize: 11, opacity: 0.35, lineHeight: 1.5 }}>
+          Each pixel = one day · Color = mood · Gray = no entry
+        </div>
+
+        {/* Legend */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px", marginBottom: 16, flexWrap: "wrap" }}>
+          {MOODS.map((m, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: m.color }} />
+              <span style={{ fontSize: 10, opacity: 0.5 }}>{m.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Months */}
+        <div style={{ padding: "0 14px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {months.map((month, mi) => (
+            <motion.div
+              key={month.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: mi * 0.04 }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.4, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                {month.label}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                {month.days.map((d) => {
+                  const color = d.mood !== null ? moodColors[d.mood] : null;
+                  const hasActivity = d.questsDone > 0;
+                  return (
+                    <div
+                      key={d.day}
+                      title={`Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 4,
+                        background: color
+                          ? color
+                          : hasActivity
+                          ? "rgba(124,92,252,0.2)"
+                          : sub(0.06),
+                        border: color
+                          ? `1px solid ${color}60`
+                          : `1px solid ${sub(0.08)}`,
+                        transition: "transform 0.1s",
+                        cursor: "default",
+                        boxShadow: color ? `0 0 4px ${color}40` : "none",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Stats footer */}
+        <div style={{ display: "flex", gap: 8, padding: "20px 14px 8px" }}>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{days.length}</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Days Tracked</div>
+          </div>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{moodDone}</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Moods Logged</div>
+          </div>
+          <div style={heatStat}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>
+              {moodDone > 0 ? Math.round((moodDone / days.length) * 100) : 0}%
+            </div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Consistency</div>
+          </div>
+        </div>
+        {days.length < 7 && (
+          <div style={{ padding: "0 14px 12px", fontSize: 11, opacity: 0.3, textAlign: "center" }}>
+            Keep going — your year is just starting to fill in.
+          </div>
         )}
       </>
     );

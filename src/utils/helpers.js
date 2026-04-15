@@ -146,9 +146,19 @@ export function reconcileStreaks(s) {
   const lastActive = s.lastActiveDate;
   if (!lastActive || lastActive === today) return s;
 
+  // Check if any missed day was an intentional rest day
+  const restDays = s.restDays || [];
   const missedDays = daysBetween(lastActive);
+  const lastActiveDate = new Date(lastActive);
+  let allMissedWereRest = true;
+  for (let i = 1; i < missedDays; i++) {
+    const checkDate = new Date(lastActiveDate);
+    checkDate.setDate(checkDate.getDate() + i);
+    const checkDay = s.currentDay - (daysBetween(checkDate.toISOString().slice(0, 10)));
+    if (!restDays.includes(checkDay)) { allMissedWereRest = false; break; }
+  }
 
-  if (missedDays > 1) {
+  if (missedDays > 1 && !allMissedWereRest) {
     const freezes = s.streakFreezes || 0;
     if (freezes > 0 && missedDays <= 2) {
       s = {

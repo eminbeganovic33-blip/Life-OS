@@ -10,7 +10,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { usePomodoroContext } from "../../hooks";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
-import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles, Volume2, VolumeX, Download } from "lucide-react";
 import { getSoundsEnabled, setSoundsEnabled, playSound } from "../../utils/audio";
 
 const T = TOKENS;
@@ -525,6 +525,42 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         currentAvatar={avatar}
         onSave={handleAvatarSave}
       />
+
+      {/* ── Data Export ── */}
+      <SectionHeader title="Your Data" />
+      <div style={dangerSection}>
+        <button
+          style={exportBtn}
+          onClick={() => {
+            const exportData = {
+              exportedAt: new Date().toISOString(),
+              version: "life-os-v1",
+              profile: { userName: state.userName, currentDay: state.currentDay, xp: state.xp, streak: state.streak, bestStreak: state.bestStreak },
+              completedDays: state.completedDays,
+              completedQuests: state.completedQuests,
+              journal: state.journal,
+              moods: state.moods,
+              workoutLogs: state.workoutLogs,
+              sobrietyDates: state.sobrietyDates,
+              forgeGoals: state.forgeGoals,
+              recoveryJournals: state.recoveryJournals,
+              courseProgress: state.courseProgress,
+              customQuests: state.customQuests,
+              unlockedTrophies: state.unlockedTrophies,
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `life-os-backup-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          <Download size={14} style={{ marginRight: 6 }} />
+          Export All Data (JSON)
+        </button>
+      </div>
 
       {/* ── Account / Danger Zone ── */}
       <SectionHeader title="Account" />
@@ -1256,6 +1292,22 @@ const dangerSection = {
   display: "flex",
   flexDirection: "column",
   gap: T.space.sm,
+};
+
+const exportBtn = {
+  width: "100%",
+  padding: `${T.space.md}px`,
+  borderRadius: T.radii.md,
+  border: "1px solid rgba(124,92,252,0.2)",
+  background: "rgba(124,92,252,0.06)",
+  color: "#7C5CFC",
+  fontSize: T.font.sm,
+  fontWeight: T.weight.bold,
+  cursor: "pointer",
+  textAlign: "center",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const logoutBtn = {

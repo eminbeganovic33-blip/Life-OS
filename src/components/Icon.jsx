@@ -28,7 +28,7 @@ const CATEGORY_ICONS = {
 // Nav ID → Lucide icon mapping
 const NAV_ICONS = {
   dashboard: Home,
-  home: Swords,
+  home: Home,
   dojo: Dumbbell,
   forge: Flame,
   academy: GraduationCap,
