@@ -617,7 +617,7 @@ function StreakCalendar({ state, isDark }) {
         </button>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{monthName}</div>
-          <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>{monthCompletions} / {daysInMonth} days</div>
+          <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>{monthCompletions} / {daysInMonth} days</div>
         </div>
         <button style={{ ...calNavBtn, opacity: canGoForward ? 1 : 0.3 }} onClick={() => canGoForward && setMonthOffset((o) => o + 1)} disabled={!canGoForward} aria-label="Next month">
           <ChevronRight size={16} />
@@ -698,9 +698,9 @@ function MilestonesTimeline({ state, day }) {
             <div style={{ ...milestoneContent, opacity: reached ? 1 : isNext ? 0.8 : 0.35 }}>
               <div style={{ display: "flex", alignItems: "center", gap: T.space.sm }}>
                 <span style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{m.label}</span>
-                <span style={{ fontSize: 10, color: colors.textSecondary, fontWeight: T.weight.medium }}>Day {m.day}</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: T.weight.medium }}>Day {m.day}</span>
               </div>
-              <div style={{ fontSize: T.font.xs, color: colors.textSecondary, marginTop: 2 }}>{m.desc}</div>
+              <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.desc}</div>
               {isNext && (
                 <div style={{ fontSize: T.font.xs, color: m.color, fontWeight: T.weight.bold, marginTop: 4 }}>
                   {m.day - day} day{m.day - day !== 1 ? "s" : ""} away
@@ -808,7 +808,7 @@ const heroName = {
 
 const heroEmail = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   marginTop: 2,
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -890,9 +890,9 @@ const prestigeBtnCancel = {
   flex: 1,
   padding: "12px 16px",
   borderRadius: 12,
-  border: `1px solid ${colors.cardBorder}`,
+  border: "1px solid rgba(255,255,255,0.06)",
   background: "transparent",
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   fontSize: T.font.sm,
   fontWeight: T.weight.bold,
   cursor: "pointer",
@@ -915,13 +915,13 @@ const xpLabel = {
 };
 
 const xpNext = {
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const xpTrack = {
   height: 6,
   borderRadius: 3,
-  background: colors.surface,
+  background: "rgba(255,255,255,0.05)",
   overflow: "hidden",
 };
 
@@ -941,7 +941,7 @@ const primaryStats = {
 const primaryStat = {
   padding: T.space.lg,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
+  background: "rgba(255,255,255,0.04)",
   border: "1px solid",
   display: "flex",
   flexDirection: "column",
@@ -957,7 +957,7 @@ const primaryStatVal = {
 
 const primaryStatLbl = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const secGrid = {
@@ -970,8 +970,8 @@ const secGrid = {
 const secStat = {
   padding: T.space.md,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
   textAlign: "center",
 };
 
@@ -982,7 +982,7 @@ const secStatVal = {
 
 const secStatLbl = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   marginTop: 2,
 };
 
@@ -1003,7 +1003,7 @@ const sectionTitle = {
 
 const sectionSub = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const trophyProgressWrap = {
@@ -1013,7 +1013,7 @@ const trophyProgressWrap = {
 const trophyProgressTrack = {
   height: 4,
   borderRadius: 2,
-  background: colors.surface,
+  background: "rgba(255,255,255,0.05)",
   overflow: "hidden",
 };
 
@@ -1046,8 +1046,8 @@ const trophyUnlocked = {
 };
 
 const trophyLocked = {
-  background: colors.surface,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.06)",
   opacity: 0.6,
 };
 
@@ -1055,7 +1055,7 @@ const trophyProgWrap = {
   width: "100%",
   height: 4,
   borderRadius: 2,
-  background: colors.surface,
+  background: "rgba(255,255,255,0.05)",
   marginTop: 6,
   position: "relative",
   overflow: "hidden",
@@ -1097,8 +1097,8 @@ const dayDot = {
 const settingsSection = {
   margin: `0 ${T.space.lg}px`,
   borderRadius: T.radii.lg,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
   overflow: "hidden",
 };
 
@@ -1107,7 +1107,7 @@ const settingsRow = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: `${T.space.lg}px ${T.space.lg}px`,
-  borderBottom: `1px solid ${colors.cardBorder}`,
+  borderBottom: "1px solid rgba(255,255,255,0.06)",
 };
 
 const settingsRowLeft = {
@@ -1123,13 +1123,13 @@ const settingsRowTitle = {
 
 const settingsRowSub = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   marginTop: 1,
 };
 
 const settingsChevron = {
   fontSize: T.font.xl,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const timerExpanded = {
@@ -1137,7 +1137,7 @@ const timerExpanded = {
   flexDirection: "column",
   alignItems: "center",
   padding: `${T.space.lg}px ${T.space.lg}px ${T.space.xl}px`,
-  borderBottom: `1px solid ${colors.cardBorder}`,
+  borderBottom: "1px solid rgba(255,255,255,0.06)",
 };
 
 const timerText = {
@@ -1166,9 +1166,9 @@ const timerBtn = {
 const timerBtnSec = {
   padding: `${T.space.md}px ${T.space.xxl}px`,
   borderRadius: T.radii.md,
-  border: `1px solid ${colors.inputBorder}`,
+  border: "1px solid rgba(255,255,255,0.1)",
   background: "transparent",
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   fontSize: T.font.sm,
   fontWeight: T.weight.medium,
   cursor: "pointer",
@@ -1262,9 +1262,9 @@ const logoutBtn = {
   width: "100%",
   padding: `${T.space.md}px`,
   borderRadius: T.radii.md,
-  border: `1px solid ${colors.cardBorder}`,
+  border: "1px solid rgba(255,255,255,0.06)",
   background: "transparent",
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   fontSize: T.font.sm,
   fontWeight: T.weight.bold,
   cursor: "pointer",
@@ -1319,8 +1319,8 @@ const calendarWrap = {
   margin: `0 ${T.space.lg}px ${T.space.md}px`,
   padding: T.space.lg,
   borderRadius: T.radii.lg,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 
 const calendarNav = {
@@ -1334,7 +1334,7 @@ const calNavBtn = {
   width: 32,
   height: 32,
   borderRadius: T.radii.sm,
-  border: `1px solid ${colors.cardBorder}`,
+  border: "1px solid rgba(255,255,255,0.06)",
   background: "transparent",
   color: "inherit",
   cursor: "pointer",
@@ -1354,7 +1354,7 @@ const calDayLabel = {
   textAlign: "center",
   fontSize: 10,
   fontWeight: T.weight.bold,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   paddingBottom: T.space.xs,
 };
 

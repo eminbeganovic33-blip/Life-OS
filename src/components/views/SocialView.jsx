@@ -129,9 +129,9 @@ function LeaderboardTab({ user, state }) {
       {/* My rank banner */}
       {myRank > 0 && (
         <div style={myRankBanner}>
-          <span style={{ fontSize: T.font.xs, color: colors.textSecondary }}>Your rank</span>
+          <span style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Your rank</span>
           <span style={{ fontSize: T.font.xl, fontWeight: T.weight.black, color: "#7C5CFC" }}>#{myRank}</span>
-          <span style={{ fontSize: T.font.xs, color: colors.textSecondary }}>out of {board.length}</span>
+          <span style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>out of {board.length}</span>
         </div>
       )}
 
@@ -160,14 +160,14 @@ function LeaderboardTab({ user, state }) {
                 style={{ ...lbRow, ...(isMe ? lbRowMe : {}) }}
               >
                 <div style={{ width: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {i < 3 ? <Crown size={18} color={medalColors[i]} /> : <span style={{ fontSize: T.font.sm, fontWeight: T.weight.black, color: colors.textSecondary }}>{i + 1}</span>}
+                  {i < 3 ? <Crown size={18} color={medalColors[i]} /> : <span style={{ fontSize: T.font.sm, fontWeight: T.weight.black, color: "rgba(255,255,255,0.45)" }}>{i + 1}</span>}
                 </div>
                 <Avatar name={entry.displayName} photoURL={entry.photoURL} avatar={entry.avatar} size={34} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {entry.displayName || "Warrior"}{isMe ? " (You)" : ""}
                   </div>
-                  <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>Day {entry.currentDay || 1}</div>
+                  <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Day {entry.currentDay || 1}</div>
                 </div>
                 <div style={{ display: "flex", gap: T.space.sm, flexShrink: 0 }}>
                   <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {entry.xp || 0}</span>
@@ -297,7 +297,7 @@ function FriendsTab({ user }) {
               <Avatar name={f.displayName} photoURL={f.photoURL} avatar={f.avatar} size={34} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: T.font.md, fontWeight: T.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.displayName || "Friend"}</div>
-                <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>Day {f.currentDay || 1}</div>
+                <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Day {f.currentDay || 1}</div>
               </div>
               <div style={{ display: "flex", gap: T.space.sm }}>
                 <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {f.xp || 0}</span>
@@ -431,7 +431,7 @@ function ChallengesTab({ user }) {
                   <div key={ch.id} style={friendRow}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{ch.title}</div>
-                      <div style={{ fontSize: T.font.xs, color: colors.textSecondary, marginTop: 2 }}>
+                      <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
                         by {ch.creatorName} · <span style={{ color: tc.color }}>{ch.type}</span> · {(ch.participants || []).length} joined
                       </div>
                     </div>
@@ -522,7 +522,7 @@ function EmptyState({ icon, title, desc }) {
     <div style={emptyWrap}>
       <span style={{ display: "flex", justifyContent: "center" }}>{icon}</span>
       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, marginTop: T.space.sm }}>{title}</div>
-      <div style={{ fontSize: T.font.sm, color: colors.textSecondary, marginTop: T.space.xs, lineHeight: 1.4 }}>{desc}</div>
+      <div style={{ fontSize: T.font.sm, color: "rgba(255,255,255,0.45)", marginTop: T.space.xs, lineHeight: 1.4 }}>{desc}</div>
     </div>
   );
 }
@@ -551,7 +551,7 @@ const gateTitle = {
 
 const gateSub = {
   fontSize: T.font.sm,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   lineHeight: 1.5,
   margin: 0,
 };
@@ -568,8 +568,8 @@ const gateFeatureCard = {
   gap: T.space.lg,
   padding: T.space.lg,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 
 const gateFeatureTitle = {
@@ -580,7 +580,7 @@ const gateFeatureTitle = {
 
 const gateFeatureDesc = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const gateSignInBtn = {
@@ -600,7 +600,7 @@ const gateSignInBtn = {
 const gateNote = {
   textAlign: "center",
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   margin: 0,
 };
 
@@ -622,7 +622,7 @@ const headerTitle = {
 
 const headerSub = {
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   margin: `${T.space.xs}px 0 0`,
 };
 
@@ -642,9 +642,9 @@ const tabStyle = {
   fontSize: T.font.sm,
   fontWeight: T.weight.medium,
   cursor: "pointer",
-  border: `1px solid ${colors.cardBorder}`,
-  background: colors.cardBg,
-  color: colors.textSecondary,
+  border: "1px solid rgba(255,255,255,0.06)",
+  background: "rgba(255,255,255,0.04)",
+  color: "rgba(255,255,255,0.45)",
   fontFamily: "inherit",
   transition: "all 0.15s ease",
 };
@@ -663,7 +663,7 @@ const tabContent = {
 const sectionLabel = {
   fontSize: T.font.xs,
   fontWeight: T.weight.bold,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
   marginBottom: T.space.sm,
@@ -687,8 +687,8 @@ const lbRow = {
   gap: T.space.sm,
   padding: `${T.space.md}px ${T.space.md}px`,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 
 const lbRowMe = {
@@ -725,8 +725,8 @@ const searchInput = {
   padding: `${T.space.md}px ${T.space.md}px`,
   borderRadius: T.radii.md,
   fontSize: T.font.sm,
-  border: `1px solid ${colors.inputBorder}`,
-  background: colors.inputBg,
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.05)",
   color: "inherit",
   outline: "none",
   fontFamily: "inherit",
@@ -750,8 +750,8 @@ const friendRow = {
   gap: T.space.md,
   padding: `${T.space.md}px`,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 
 const accentBtn = {
@@ -776,14 +776,14 @@ const declineBtn = {
 const challengeCard = {
   padding: T.space.lg,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
 };
 
 const progressTrack = {
   height: 5,
   borderRadius: 3,
-  background: colors.surface,
+  background: "rgba(255,255,255,0.05)",
   overflow: "hidden",
   marginBottom: T.space.sm,
 };
@@ -798,7 +798,7 @@ const challengeMeta = {
   display: "flex",
   justifyContent: "space-between",
   fontSize: T.font.xs,
-  color: colors.textSecondary,
+  color: "rgba(255,255,255,0.45)",
 };
 
 const typeBadge = {
@@ -814,7 +814,7 @@ const createToggleBtn = {
   width: "100%",
   padding: `${T.space.md}px`,
   borderRadius: T.radii.md,
-  border: `1px dashed ${colors.inputBorder}`,
+  border: "1px dashed rgba(255,255,255,0.1)",
   background: "transparent",
   color: "#7C5CFC",
   fontSize: T.font.sm,
@@ -830,8 +830,8 @@ const createForm = {
   gap: T.space.sm,
   padding: T.space.lg,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
   marginBottom: T.space.md,
 };
 
@@ -839,8 +839,8 @@ const formInput = {
   padding: `${T.space.md}px`,
   borderRadius: T.radii.sm,
   fontSize: T.font.sm,
-  border: `1px solid ${colors.inputBorder}`,
-  background: colors.inputBg,
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.05)",
   color: "inherit",
   outline: "none",
   fontFamily: "inherit",
@@ -862,7 +862,7 @@ const emptyWrap = {
   textAlign: "center",
   padding: `${T.space.xxl}px ${T.space.lg}px`,
   borderRadius: T.radii.md,
-  background: colors.cardBg,
-  border: `1px solid ${colors.cardBorder}`,
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
   marginBottom: T.space.md,
 };

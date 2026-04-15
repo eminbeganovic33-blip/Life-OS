@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS } from "../styles/theme";
 import { useTheme } from "../hooks/useTheme";
-import { chatJournal, getJournalStarter, isAIConfigured } from "../utils/ai";
+import { chatJournal, getJournalStarter, isAIConfigured, AI_ERR_QUOTA, AI_ERR_NETWORK } from "../utils/ai";
 import { Send, Sparkles } from "lucide-react";
 
 const T = TOKENS;
@@ -65,7 +65,8 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
     if (isAIConfigured()) {
       getJournalStarter(state).then((starter) => {
         if (cancelled) return;
-        const text = starter || getFallbackStarter(day);
+        const isErr = starter === AI_ERR_QUOTA || starter === AI_ERR_NETWORK;
+        const text = (starter && !isErr) ? starter : getFallbackStarter(day);
         setMessages([{ role: "assistant", text }]);
         setStarterLoading(false);
       });
@@ -105,13 +106,15 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
 
     if (isAIConfigured()) {
       const reply = await chatJournal(newMessages, state);
-      if (reply) {
-        setMessages([...newMessages, { role: "assistant", text: reply }]);
+      if (reply === AI_ERR_QUOTA) {
+        setMessages([...newMessages, { role: "assistant", text: "The AI coach is on a short cooldown — daily quota reached. Keep writing, your entries are saved. Try again in a few hours." }]);
+      } else if (reply === AI_ERR_NETWORK || !reply) {
+        setMessages([...newMessages, { role: "assistant", text: "Couldn't reach the AI right now — check your connection. Your writing is saved, keep going." }]);
       } else {
-        setMessages([...newMessages, { role: "assistant", text: "I'm having trouble connecting right now. Your thoughts are still saved — keep writing, I'll be back shortly." }]);
+        setMessages([...newMessages, { role: "assistant", text: reply }]);
       }
     } else {
-      setMessages([...newMessages, { role: "assistant", text: "AI journaling isn't configured yet. Your entries are still being saved — write freely!" }]);
+      setMessages([...newMessages, { role: "assistant", text: "AI journaling isn't set up yet. Write freely — your entries are always saved." }]);
     }
     setLoading(false);
     inputRef.current?.focus();

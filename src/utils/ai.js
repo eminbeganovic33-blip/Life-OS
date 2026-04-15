@@ -68,6 +68,10 @@ function hashInput(prefix, data) {
 
 // --- Core Gemini API Call ---
 
+// Sentinel objects so callers can distinguish error types from null content
+export const AI_ERR_QUOTA = { __aiError: "quota" };
+export const AI_ERR_NETWORK = { __aiError: "network" };
+
 async function callAI(systemPrompt, userPrompt, cacheKey) {
   if (!GEMINI_URL) return null; // no API key configured
 
@@ -92,6 +96,7 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
     });
 
     if (!res.ok) {
+      if (res.status === 429) return AI_ERR_QUOTA;
       console.warn("Gemini API error:", res.status);
       return null;
     }
@@ -106,7 +111,7 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
     return content;
   } catch (err) {
     console.warn("AI call failed:", err.message);
-    return null;
+    return AI_ERR_NETWORK;
   }
 }
 
@@ -301,11 +306,14 @@ ${summary}`;
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 429) return AI_ERR_QUOTA;
+      return null;
+    }
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch {
-    return null;
+    return AI_ERR_NETWORK;
   }
 }
 
