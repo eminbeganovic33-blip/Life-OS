@@ -178,13 +178,14 @@ export function getCorrelationInsights(state) {
 
       if (Math.abs(diff) >= 0.3) {
         const action = categoryLabels[category] || category;
+        const pct = Math.abs(Math.round((diff / parseFloat(avgWithout)) * 100));
         if (diff > 0) {
           insights.push(
-            `On days you ${action}, your mood averages ${avgWith} vs ${avgWithout} when you don't.`
+            `When you ${action}, your mood is ~${pct}% better. Days with: ${avgWith}/6 vs without: ${avgWithout}/6.`
           );
         } else {
           insights.push(
-            `On days you ${action}, your mood averages ${avgWith} vs ${avgWithout} when you don't.`
+            `Skipping "${action}" seems to correlate with lower mood — avg ${avgWith}/6 vs ${avgWithout}/6 on non-skip days.`
           );
         }
       }
