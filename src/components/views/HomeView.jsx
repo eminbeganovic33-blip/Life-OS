@@ -2,15 +2,20 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { CATEGORIES } from "../../data";
-import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak } from "../../utils";
-import { getQuestSuggestions, getProactiveNudges } from "../../utils/intelligence";
+import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
+import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
+import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import SmartInsights from "../SmartInsights";
+import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar } from "lucide-react";
+
+function formatDate() {
+  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
 
 const SWIPE_THRESHOLD = 60;
 
@@ -65,7 +70,7 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 }
 
 export default function HomeView({
-  state, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
+  state, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
   unlockedCustomCategories, onNavigate, onMarkRestDay,
 }) {
@@ -82,6 +87,20 @@ export default function HomeView({
   const levelIdx = getLevelIndex(state.xp);
   const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
   const dayProgress = quests.length > 0 ? completed.length / quests.length : 0;
+
+  // Dashboard-layer data
+  const userName = user?.displayName?.split(" ")[0] || state.userName || null;
+  const activeTrackers = useMemo(() =>
+    Object.entries(state.sobrietyDates || {})
+      .filter(([, date]) => !!date)
+      .map(([id, date]) => {
+        const meta = SOBRIETY_DEFAULTS.find((s) => s.id === id) || { label: id, color: "#7C5CFC" };
+        return { ...meta, days: daysBetween(date) };
+      }),
+    [state.sobrietyDates]
+  );
+  const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
+  const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   const [activeGuide, setActiveGuide] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
@@ -184,33 +203,42 @@ export default function HomeView({
     if (h < 17) return "Good afternoon";
     return "Good evening";
   })();
-  const userName = state.userName ? `, ${state.userName.split(" ")[0]}` : "";
 
   return (
     <div style={S.vc}>
-      {/* ── Hero Header ── */}
-      <div style={ts.hero}>
+      {/* ── Dashboard Header ── */}
+      <motion.div
+        style={ts.hero}
+        onClick={() => onNavigate?.("profile")}
+        whileTap={{ scale: 0.985 }}
+      >
         <div style={ts.heroLeft}>
-          <div style={{ fontSize: 11, opacity: 0.38, fontWeight: 600, letterSpacing: 0.5, marginBottom: 2 }}>
-            {greeting}{userName}
+          <div style={ts.dateText}>{formatDate()}</div>
+          <div style={ts.greetingText}>
+            {greeting}{userName ? `, ${userName}` : ""}
           </div>
-          <div style={{ ...ts.heroDay, color: colors.text }}>Day {day}</div>
           <div style={ts.heroPhase}>
             {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery Mode"}
           </div>
           <div style={ts.heroLevel}>
             <span style={ts.levelBadge}>Lv.{levelIdx + 1}</span>
             <span style={ts.levelName}>{level.name}</span>
+            {state.prestige > 0 && (
+              <span style={ts.prestigeBadge}>✦ {state.prestige}</span>
+            )}
           </div>
           <div style={ts.xpRow}>
             <div style={ts.xpBarOuter}>
               <div style={{ ...ts.xpBarInner, width: `${xpProgress * 100}%` }} />
             </div>
-            <span style={ts.xpText}>{state.xp} XP</span>
+            <span style={ts.xpText}>
+              {nextLevel ? `${nextLevel.xpReq - state.xp} XP to ${nextLevel.name}` : `${state.xp} XP`}
+            </span>
           </div>
         </div>
 
         <div style={ts.heroRight}>
+          <span style={ts.profileChevron}>›</span>
           {/* Progress ring */}
           <div style={ts.ringWrap}>
             <ProgressRing
@@ -261,7 +289,8 @@ export default function HomeView({
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </motion.div>
 
       <AnimatePresence>
         {xpPopup && (
@@ -277,6 +306,33 @@ export default function HomeView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Forge Tracker Row ── */}
+      {activeTrackers.length > 0 && (
+        <motion.div
+          style={ts.forgeRow}
+          onClick={() => onNavigate?.("forge")}
+          whileTap={{ scale: 0.98 }}
+        >
+          {activeTrackers.map((t) => (
+            <div key={t.id} style={ts.forgeChip}>
+              <div style={{ ...ts.forgeDot, background: t.color }} />
+              <span style={ts.forgeLabel}>{t.label}</span>
+              <span style={{ ...ts.forgeDays, color: t.color }}>
+                {t.days}d
+              </span>
+            </div>
+          ))}
+          <span style={{ fontSize: 11, color: colors.textSecondary, marginLeft: "auto", paddingRight: 2 }}>Forge ›</span>
+        </motion.div>
+      )}
+
+      {/* ── Top Nudge ── */}
+      {topNudge && (
+        <div style={{ padding: "0 14px", marginBottom: 4 }}>
+          <NudgeBanner nudge={topNudge} onNavigate={onNavigate} />
+        </div>
+      )}
 
       {/* ── Active Category Streaks ── */}
       {Object.keys(categoryStreaks).length > 0 && (
@@ -347,29 +403,7 @@ export default function HomeView({
       ))}
 
       {/* ── Weekly Challenge Tracker ── */}
-      {(() => {
-        const wc = getWeeklyChallenge(state);
-        if (!wc) return null;
-        const claimedKey = `wc_${wc.weekNum}_${wc.id}`;
-        const claimed = state.weeklyChallengeClaimed?.[claimedKey];
-        return (
-          <div style={ts.weeklyCard}>
-            <div style={ts.weeklyHeader}>
-              <Trophy size={14} color="#FBBF24" />
-              <span style={ts.weeklyTitle}>Weekly Challenge</span>
-              {claimed && <span style={ts.weeklyDone}>Claimed!</span>}
-            </div>
-            <div style={ts.weeklyDesc}>{wc.description}</div>
-            <div style={ts.weeklyProgressRow}>
-              <div style={ts.weeklyBar}>
-                <div style={{ ...ts.weeklyBarFill, width: `${wc.percentComplete}%` }} />
-              </div>
-              <span style={ts.weeklyCount}>{wc.progress}/{wc.target}</span>
-            </div>
-            {!claimed && <div style={ts.weeklyReward}>+{wc.xpReward} XP on completion</div>}
-          </div>
-        );
-      })()}
+      <WeeklyChallengeBanner state={state} ts={ts} />
 
       {/* ── Inline AI Quest Suggestions ── */}
       {day > 3 && !allDone && (
@@ -383,114 +417,10 @@ export default function HomeView({
       )}
 
       {/* ── Daily Bonus Quest ── */}
-      {(() => {
-        const bonus = getDailyBonusQuest(state);
-        if (!bonus) return null;
-        const bonusDone = completed.includes(bonus.id);
-        const bonusCat = CATEGORIES.find((c) => c.id === bonus.category);
-        return (
-          <div style={{
-            margin: "12px 14px 0",
-            padding: "14px 16px",
-            borderRadius: 14,
-            background: bonusDone
-              ? "rgba(34,197,94,0.06)"
-              : "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.03))",
-            border: bonusDone
-              ? "1px solid rgba(34,197,94,0.15)"
-              : "1px solid rgba(251,191,36,0.15)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Star size={14} color="#FBBF24" />
-              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: "#FBBF24" }}>
-                Bonus Quest
-              </span>
-              <span style={{ fontSize: 10, opacity: 0.4, marginLeft: "auto" }}>2x XP</span>
-            </div>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              opacity: bonusDone ? 0.5 : 1,
-              textDecoration: bonusDone ? "line-through" : "none",
-            }}>
-              <div
-                style={{
-                  width: 22, height: 22, borderRadius: 7,
-                  border: bonusDone ? "none" : "2px solid rgba(251,191,36,0.4)",
-                  background: bonusDone ? "#22C55E" : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: bonusDone ? "default" : "pointer", flexShrink: 0,
-                }}
-                onClick={() => !bonusDone && onCheckQuest(bonus.id, bonus.xp)}
-              >
-                {bonusDone && <Check size={13} color="#fff" strokeWidth={3} />}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: colors.text }}>{bonus.text}</div>
-                <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>
-                  {bonusCat && <CategoryIcon id={bonusCat.id} size={10} color={bonusCat.color} />}{" "}
-                  {bonusCat?.label}
-                </div>
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24" }}>+{bonus.xp} XP</span>
-            </div>
-          </div>
-        );
-      })()}
+      <BonusQuestCard state={state} completed={completed} colors={colors} onCheckQuest={onCheckQuest} />
 
       {/* ── Weekly Challenge ── */}
-      {(() => {
-        const wc = getWeeklyChallenge(state);
-        if (!wc) return null;
-        return (
-          <div style={{
-            margin: "10px 14px 0",
-            padding: "14px 16px",
-            borderRadius: 14,
-            background: wc.completed
-              ? "rgba(34,197,94,0.06)"
-              : "rgba(124,92,252,0.04)",
-            border: wc.completed
-              ? "1px solid rgba(34,197,94,0.12)"
-              : "1px solid rgba(124,92,252,0.1)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Swords size={14} color={wc.completed ? "#22C55E" : "#7C5CFC"} />
-              <span style={{
-                fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1,
-                color: wc.completed ? "#22C55E" : "#7C5CFC",
-              }}>
-                Weekly Challenge
-              </span>
-              {wc.completed && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", marginLeft: "auto" }}>
-                  Completed!
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 10 }}>
-              {wc.text}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{
-                flex: 1, height: 6, borderRadius: 3, overflow: "hidden",
-                background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-              }}>
-                <div style={{
-                  width: `${wc.percentComplete}%`, height: "100%", borderRadius: 3,
-                  background: wc.completed
-                    ? "linear-gradient(90deg, #22C55E, #16A34A)"
-                    : "linear-gradient(90deg, #7C5CFC, #6D28D9)",
-                  transition: "width 0.5s ease",
-                }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, minWidth: 40, textAlign: "right" }}>
-                {wc.progress}/{wc.target}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#FBBF24" }}>+{wc.xpReward} XP</span>
-            </div>
-          </div>
-        );
-      })()}
+      <WeeklyChallengeCard state={state} colors={colors} isDark={isDark} />
 
       {/* ── Temporal Lock ── */}
       {isTimeLocked && (
@@ -558,38 +488,8 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Proactive AI Nudges ── */}
-      {(() => {
-        const nudges = getProactiveNudges(state);
-        if (nudges.length === 0) return null;
-        return (
-          <div style={ts.nudgesSection}>
-            {nudges.map((nudge, i) => (
-              <motion.div
-                key={nudge.type + i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1, duration: 0.3 }}
-                style={ts.nudgeCard}
-                onClick={() => nudge.action && onNavigate?.(nudge.action)}
-              >
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{nudge.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.text, marginBottom: 2 }}>
-                    {nudge.title}
-                  </div>
-                  <div style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 1.4 }}>
-                    {nudge.message}
-                  </div>
-                </div>
-                {nudge.action && (
-                  <span style={{ fontSize: 14, color: colors.textSecondary, flexShrink: 0 }}>→</span>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        );
-      })()}
+      {/* ── Proactive AI Nudges (secondary — top nudge shown in header) ── */}
+      <ProactiveNudgesList state={state} colors={colors} ts={ts} onNavigate={onNavigate} />
 
       {/* ── Smart Suggestions ── */}
       <SmartInsights
@@ -638,6 +538,131 @@ export default function HomeView({
           Custom quests unlock on Day 4. Complete your first 3 days to add your own.
         </div>
       )}
+
+      {/* ── Daily Quote ── */}
+      <div style={ts.quoteCard}>
+        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
+          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
+        </div>
+      </div>
+
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+// ── Extracted JSX helpers (avoid IIFE-in-JSX which breaks rolldown/SWC) ──
+
+function WeeklyChallengeBanner({ state, ts }) {
+  const wc = getWeeklyChallenge(state);
+  if (!wc) return null;
+  const claimedKey = `wc_${wc.weekNum}_${wc.id}`;
+  const claimed = state.weeklyChallengeClaimed?.[claimedKey];
+  return (
+    <div style={ts.weeklyCard}>
+      <div style={ts.weeklyHeader}>
+        <Trophy size={14} color="#FBBF24" />
+        <span style={ts.weeklyTitle}>Weekly Challenge</span>
+        {claimed && <span style={ts.weeklyDone}>Claimed!</span>}
+      </div>
+      <div style={ts.weeklyDesc}>{wc.description}</div>
+      <div style={ts.weeklyProgressRow}>
+        <div style={ts.weeklyBar}>
+          <div style={{ ...ts.weeklyBarFill, width: `${wc.percentComplete}%` }} />
+        </div>
+        <span style={ts.weeklyCount}>{wc.progress}/{wc.target}</span>
+      </div>
+      {!claimed && <div style={ts.weeklyReward}>+{wc.xpReward} XP on completion</div>}
+    </div>
+  );
+}
+
+function BonusQuestCard({ state, completed, colors, onCheckQuest }) {
+  const bonus = getDailyBonusQuest(state);
+  if (!bonus) return null;
+  const bonusDone = completed.includes(bonus.id);
+  const bonusCat = CATEGORIES.find((c) => c.id === bonus.category);
+  return (
+    <div style={{
+      margin: "12px 14px 0", padding: "14px 16px", borderRadius: 14,
+      background: bonusDone ? "rgba(34,197,94,0.06)" : "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.03))",
+      border: bonusDone ? "1px solid rgba(34,197,94,0.15)" : "1px solid rgba(251,191,36,0.15)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <Star size={14} color="#FBBF24" />
+        <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: "#FBBF24" }}>
+          Bonus Quest
+        </span>
+        <span style={{ fontSize: 10, opacity: 0.4, marginLeft: "auto" }}>2x XP</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: bonusDone ? 0.5 : 1, textDecoration: bonusDone ? "line-through" : "none" }}>
+        <div
+          style={{ width: 22, height: 22, borderRadius: 7, border: bonusDone ? "none" : "2px solid rgba(251,191,36,0.4)", background: bonusDone ? "#22C55E" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: bonusDone ? "default" : "pointer", flexShrink: 0 }}
+          onClick={() => !bonusDone && onCheckQuest(bonus.id, bonus.xp)}
+        >
+          {bonusDone && <Check size={13} color="#fff" strokeWidth={3} />}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: colors.text }}>{bonus.text}</div>
+          <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>
+            {bonusCat && <CategoryIcon id={bonusCat.id} size={10} color={bonusCat.color} />}{" "}
+            {bonusCat?.label}
+          </div>
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24" }}>+{bonus.xp} XP</span>
+      </div>
+    </div>
+  );
+}
+
+function WeeklyChallengeCard({ state, colors, isDark }) {
+  const wc = getWeeklyChallenge(state);
+  if (!wc) return null;
+  return (
+    <div style={{ margin: "10px 14px 0", padding: "14px 16px", borderRadius: 14, background: wc.completed ? "rgba(34,197,94,0.06)" : "rgba(124,92,252,0.04)", border: wc.completed ? "1px solid rgba(34,197,94,0.12)" : "1px solid rgba(124,92,252,0.1)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <Swords size={14} color={wc.completed ? "#22C55E" : "#7C5CFC"} />
+        <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: wc.completed ? "#22C55E" : "#7C5CFC" }}>
+          Weekly Challenge
+        </span>
+        {wc.completed && <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", marginLeft: "auto" }}>Completed!</span>}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 10 }}>{wc.text}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, height: 6, borderRadius: 3, overflow: "hidden", background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
+          <div style={{ width: `${wc.percentComplete}%`, height: "100%", borderRadius: 3, background: wc.completed ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #7C5CFC, #6D28D9)", transition: "width 0.5s ease" }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, minWidth: 40, textAlign: "right" }}>{wc.progress}/{wc.target}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#FBBF24" }}>+{wc.xpReward} XP</span>
+      </div>
+    </div>
+  );
+}
+
+function ProactiveNudgesList({ state, colors, ts, onNavigate }) {
+  const nudges = getProactiveNudges(state).slice(1); // top nudge shown in header
+  if (nudges.length === 0) return null;
+  return (
+    <div style={ts.nudgesSection}>
+      {nudges.map((nudge, i) => (
+        <motion.div
+          key={nudge.type + i}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1, duration: 0.3 }}
+          style={ts.nudgeCard}
+          onClick={() => nudge.action && onNavigate?.(nudge.action)}
+        >
+          <span style={{ fontSize: 18, flexShrink: 0 }}>{nudge.icon}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: colors.text, marginBottom: 2 }}>{nudge.title}</div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 1.4 }}>{nudge.message}</div>
+          </div>
+          {nudge.action && <span style={{ fontSize: 14, color: colors.textSecondary, flexShrink: 0 }}>›</span>}
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -749,6 +774,7 @@ function getStyles(isDark, colors) {
   return {
     // Hero
     hero: {
+      position: "relative",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
@@ -759,9 +785,32 @@ function getStyles(isDark, colors) {
         ? "linear-gradient(145deg, rgba(124,92,252,0.06), rgba(236,72,153,0.03))"
         : "linear-gradient(145deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))",
       border: `1px solid ${isDark ? "rgba(124,92,252,0.08)" : "rgba(124,92,252,0.12)"}`,
+      cursor: "pointer",
     },
     heroLeft: { flex: 1 },
-    heroDay: { fontSize: 28, fontWeight: 900, letterSpacing: -1, lineHeight: 1.1, color: colors.text },
+    dateText: {
+      fontSize: 10,
+      fontWeight: 600,
+      color: colors.textSecondary,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+      marginBottom: 2,
+    },
+    greetingText: {
+      fontSize: 20,
+      fontWeight: 800,
+      color: colors.text,
+      letterSpacing: -0.3,
+      lineHeight: 1.2,
+    },
+    profileChevron: {
+      position: "absolute",
+      top: 14,
+      right: 14,
+      fontSize: 20,
+      color: colors.textSecondary,
+      fontWeight: 300,
+    },
     heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500 },
     heroLevel: { display: "flex", alignItems: "center", gap: 6, marginTop: 8 },
     levelBadge: {
@@ -774,6 +823,14 @@ function getStyles(isDark, colors) {
       letterSpacing: 0.3,
     },
     levelName: { fontSize: 13, fontWeight: 700, color: "#7C5CFC" },
+    prestigeBadge: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: "#FBBF24",
+      background: "rgba(251,191,36,0.12)",
+      padding: "2px 7px",
+      borderRadius: 6,
+    },
     xpRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 6 },
     xpBarOuter: {
       flex: 1,
@@ -785,12 +842,69 @@ function getStyles(isDark, colors) {
     xpBarInner: {
       height: "100%",
       borderRadius: 2,
-      background: "linear-gradient(90deg,#F97316,#FACC15)",
+      background: "linear-gradient(90deg,#7C5CFC,#EC4899)",
       transition: "width 0.4s ease",
     },
-    xpText: { fontSize: 10, fontWeight: 700, color: colors.textSecondary, flexShrink: 0 },
-    heroRight: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6 },
+    xpText: { fontSize: 10, fontWeight: 700, color: colors.textSecondary, flexShrink: 0, maxWidth: 120, textAlign: "right" },
+    heroRight: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" },
     ringWrap: { position: "relative", width: 72, height: 72 },
+
+    // Forge tracker row
+    forgeRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "8px 14px",
+      margin: "4px 12px 2px",
+      borderRadius: 10,
+      background: subtle(0.03),
+      border: `1px solid ${subtle(0.05)}`,
+      cursor: "pointer",
+      overflow: "hidden",
+    },
+    forgeChip: {
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      padding: "3px 8px",
+      borderRadius: 8,
+      background: subtle(0.04),
+      border: `1px solid ${subtle(0.06)}`,
+      flexShrink: 0,
+    },
+    forgeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: "50%",
+      flexShrink: 0,
+    },
+    forgeLabel: { fontSize: 11, fontWeight: 600, color: colors.textSecondary },
+    forgeDays: { fontSize: 11, fontWeight: 800 },
+
+    // Quote
+    quoteCard: {
+      display: "flex",
+      gap: 10,
+      margin: "12px 14px 0",
+      padding: "14px 16px",
+      borderRadius: 12,
+      background: isDark ? "rgba(124,92,252,0.04)" : "rgba(124,92,252,0.03)",
+      border: `1px solid ${isDark ? "rgba(124,92,252,0.08)" : "rgba(124,92,252,0.08)"}`,
+    },
+    quoteText: {
+      fontSize: 12,
+      fontStyle: "italic",
+      color: colors.textSecondary,
+      lineHeight: 1.6,
+      margin: "0 0 4px",
+    },
+    quoteAuthor: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      opacity: 0.6,
+      margin: 0,
+      fontWeight: 500,
+    },
     ringCenter: {
       position: "absolute",
       inset: 0,

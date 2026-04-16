@@ -30,6 +30,8 @@ import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
+import InstallPrompt from "./components/InstallPrompt";
+import UpdateToast from "./components/UpdateToast";
 import DashboardView from "./components/views/DashboardView";
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
@@ -936,6 +938,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         </AnimatePresence>
       </main>
       <BottomNav view={view} setView={handleViewChange} />
+      <UpdateToast />
+      {state.onboarded && <InstallPrompt />}
     </div>
   );
 }

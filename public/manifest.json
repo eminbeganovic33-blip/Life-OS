@@ -1,18 +1,50 @@
 {
-  "name": "Life OS",
+  "name": "Life OS — Habits, Sobriety, Discipline",
   "short_name": "Life OS",
-  "description": "Gamified habit tracker — daily quests, streaks, and self-improvement",
+  "description": "Build discipline and break bad habits. Daily quests, streaks, sobriety tracking, workouts, and reflection — in one place.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#0A0B1A",
   "theme_color": "#7C5CFC",
-  "orientation": "portrait",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["health", "lifestyle", "productivity", "fitness"],
   "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "name": "Today's Quests",
+      "short_name": "Today",
+      "description": "Jump to today's quest list",
+      "url": "/?view=home",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Forge — Sobriety",
+      "short_name": "Forge",
+      "description": "Check your sobriety trackers",
+      "url": "/?view=forge",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Dojo — Workouts",
+      "short_name": "Dojo",
+      "description": "Log a workout",
+      "url": "/?view=dojo",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "description": "Write today's entry",
+      "url": "/?view=journal",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
