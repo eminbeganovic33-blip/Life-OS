@@ -32,7 +32,7 @@ import NotificationSettingsModal from "./components/modals/NotificationSettingsM
 import ComebackModal from "./components/modals/ComebackModal";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateToast from "./components/UpdateToast";
-import DashboardView from "./components/views/DashboardView";
+// DashboardView removed — merged into HomeView (Wave 1)
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
 const AcademyView = lazy(() => import("./components/views/AcademyView"));
@@ -657,7 +657,7 @@ function LifeOS() {
 
   function resetApp() {
     save(defaultState());
-    setView("dashboard");
+    setView("home");
   }
 
   // ── Modal Rendering ──
@@ -866,15 +866,11 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
           <Suspense fallback={<div style={{ padding: "60px 24px", display: "flex", flexDirection: "column", gap: 12 }}>{[1,2,3,4].map(i => <div key={i} style={{ height: 72, borderRadius: 14, background: "rgba(255,255,255,0.04)", animation: "pulse 1.5s ease-in-out infinite" }} />)}</div>}>
-            {view === "dashboard" && (
-              <ErrorBoundary name="Dashboard" key="eb-dashboard">
-                <DashboardView state={state} user={user} onNavigate={handleViewChange} />
-              </ErrorBoundary>
-            )}
-            {view === "home" && (
+            {(view === "home" || view === "dashboard") && (
               <ErrorBoundary name="Quests" key="eb-home">
                 <HomeView
                   state={state}
+                  user={user}
                   xpPopup={xpPopup}
                   onCheckQuest={checkQuest}
                   onUncheckQuest={uncheckQuest}
