@@ -781,15 +781,19 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // ── Library log handler ──
   function handleLogFromLibrary(exercise) {
+    // Save the currently active exercise if it has at least one valid set
     const filledSets = sets.filter(s => s.weight && s.reps);
     if (activeExercise && filledSets.length > 0) {
       onSaveWorkout(activeExercise, filledSets.map(s => ({ weight: Number(s.weight), reps: Number(s.reps) })));
     }
+    // Add this exercise to the session (does NOT override — previous was already saved above)
     setActiveExercise(exercise.id);
     setSets([{ weight: "", reps: "" }]);
     setMode("custom");
     setTab("workout");
     setSelectedExercise(null);
+    // Note: todayWorkouts (from state.workoutLogs) will reflect the saved previous exercise
+    // so the user can see their accumulated exercises for today
   }
 
   // (ExerciseLibraryTab and ProgramsTab extracted to dojo/ subdirectory)

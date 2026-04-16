@@ -9,6 +9,18 @@ import AIJournalInsight from "../AIJournalInsight";
 import ChatJournal from "../ChatJournal";
 import { MessageCircle, PenLine, Clock, BookOpen, Search, Calendar, Save } from "lucide-react";
 
+// Strip raw JSON chat format → readable plain text
+function sanitizeJournalText(raw) {
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed[0]?.role) {
+      return parsed.filter((m) => m.role === "user").map((m) => m.text || "").join("\n\n");
+    }
+  } catch {}
+  return raw;
+}
+
 export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -157,17 +169,7 @@ export default function JournalView({ state, journalText, setJournalText, select
               <textarea
                 style={textArea}
                 placeholder="What happened today? Write about your wins, struggles, or anything on your mind..."
-                value={journalText || (() => {
-                  const raw = state.journal[day];
-                  if (!raw) return "";
-                  try {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed[0]?.role) {
-                      return parsed.filter(m => m.role === "user").map(m => m.text).join("\n\n");
-                    }
-                  } catch {}
-                  return raw;
-                })()}
+                value={sanitizeJournalText(journalText || state.journal[day] || "")}
                 onChange={(e) => setJournalText(e.target.value)}
                 rows={8}
               />

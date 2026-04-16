@@ -552,7 +552,13 @@ export default function HomeView({
       {/* ── Smart Suggestions ── */}
       <SmartInsights
         suggestions={getQuestSuggestions(state)}
-        onAddQuest={() => { if (onOpenCustomQuest) onOpenCustomQuest(); }}
+        onAddQuest={(text, category) => {
+          if (onAddSuggestedQuest) {
+            onAddSuggestedQuest({ id: `s_${Date.now()}`, text, category: category || "mind" });
+          } else if (onOpenCustomQuest) {
+            onOpenCustomQuest();
+          }
+        }}
       />
 
       {/* ── Discovery cards for new users ── */}
