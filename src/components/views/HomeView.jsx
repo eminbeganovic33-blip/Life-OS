@@ -389,6 +389,9 @@ export default function HomeView({
         </div>
       )}
 
+      {/* ── Year in Pixels mini-strip ── */}
+      <JourneyStrip state={state} day={day} colors={colors} isDark={isDark} onNavigate={onNavigate} />
+
       {/* ── Active Category Streaks ── */}
       {Object.keys(categoryStreaks).length > 0 && (
         <div style={ts.streaksRow}>
@@ -719,6 +722,85 @@ function ProactiveNudgesList({ state, colors, ts, onNavigate }) {
         </motion.div>
       ))}
     </div>
+  );
+}
+
+// ── Year in Pixels mini-strip ──
+function JourneyStrip({ state, day, colors, isDark, onNavigate }) {
+  // Show last 35 days as small coloured dots
+  const DOTS = 35;
+  const dots = useMemo(() => {
+    const startDate = state.startDate ? new Date(state.startDate) : null;
+    const todayStr = getTodayStr();
+    return Array.from({ length: DOTS }, (_, i) => {
+      const dotDay = day - (DOTS - 1 - i); // oldest first
+      if (dotDay < 1) return { key: i, type: "future" };
+
+      // Compute date string for this dotDay
+      let dateStr = null;
+      if (startDate) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + dotDay - 1);
+        dateStr = d.toISOString().split("T")[0];
+      }
+      const isToday = dateStr === todayStr;
+      const completed = !!(state.completedDays || {})[dotDay];
+      const isRest = (state.restDays || []).includes(dotDay);
+      const type = isToday ? "today" : completed ? "done" : isRest ? "rest" : dotDay < day ? "missed" : "future";
+      return { key: i, type, dotDay };
+    });
+  }, [state.completedDays, state.restDays, state.startDate, day]);
+
+  const completedCount = dots.filter(d => d.type === "done").length;
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+
+  return (
+    <motion.div
+      style={{
+        padding: "8px 14px",
+        margin: "2px 12px 4px",
+        borderRadius: 10,
+        background: sub(0.02),
+        border: `1px solid ${sub(0.04)}`,
+        cursor: "pointer",
+      }}
+      onClick={() => onNavigate?.("profile")}
+      whileTap={{ scale: 0.99 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Your Journey
+        </span>
+        <span style={{ fontSize: 10, color: "#7C5CFC", fontWeight: 600 }}>
+          {completedCount}/{day} days ›
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", overflow: "hidden" }}>
+        {dots.map((dot) => {
+          const size = 8;
+          const color = dot.type === "done" ? "#7C5CFC"
+            : dot.type === "today" ? "#7C5CFC"
+            : dot.type === "rest" ? "#3B82F6"
+            : dot.type === "missed" ? sub(0.12)
+            : "transparent";
+          const borderColor = dot.type === "today" ? "#7C5CFC" : "transparent";
+          return (
+            <div
+              key={dot.key}
+              style={{
+                width: size,
+                height: size,
+                borderRadius: 2,
+                background: color,
+                border: `1.5px solid ${borderColor}`,
+                flexShrink: 0,
+                opacity: dot.type === "future" ? 0 : 1,
+              }}
+            />
+          );
+        })}
+      </div>
+    </motion.div>
   );
 }
 

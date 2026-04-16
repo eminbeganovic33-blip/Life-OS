@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { S } from "../styles/theme";
 import { CATEGORIES, SOBRIETY_DEFAULTS } from "../data";
 
@@ -116,31 +117,72 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Welcome */}
         {currentStep === "welcome" && (
           <div style={ob.slide}>
-            <HeroIllustration />
-            <h1 style={S.obTitle}>Life OS</h1>
-            <p style={ob.heroSub}>Your Operating System for Self-Mastery</p>
-            <p style={ob.description}>
-              Daily quests to build unbreakable habits,
-              break free from what holds you back, and become the
-              strongest version of yourself. No end date — just consistent growth.
-            </p>
-            <div style={ob.statRow}>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>6</div>
-                <div style={ob.statLabel}>Life Areas</div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+            >
+              <HeroIllustration />
+            </motion.div>
+
+            <motion.h1
+              style={S.obTitle}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, duration: 0.4 }}
+            >
+              Life OS
+            </motion.h1>
+
+            <motion.p
+              style={{ ...ob.heroSub, fontSize: 15, lineHeight: 1.5 }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.28, duration: 0.4 }}
+            >
+              Most people know <em>what</em> they should do.<br />
+              They just don't do it — consistently.
+            </motion.p>
+
+            <motion.div
+              style={ob.hookBox}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.38, duration: 0.4 }}
+            >
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>🔥</span>
+                <span>Break the habits that are holding you back</span>
               </div>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>8</div>
-                <div style={ob.statLabel}>Levels</div>
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>⚡</span>
+                <span>Build the rituals that make you unstoppable</span>
               </div>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>∞</div>
-                <div style={ob.statLabel}>Your Journey</div>
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>📈</span>
+                <span>Track your growth — one day at a time</span>
               </div>
-            </div>
-            <button style={S.primaryBtn} onClick={next}>
-              Begin Setup →
-            </button>
+            </motion.div>
+
+            <motion.p
+              style={ob.hookSub}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.4 }}
+            >
+              66 days to transform. No end date to your potential.
+            </motion.p>
+
+            <motion.button
+              style={S.primaryBtn}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.58, duration: 0.35 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={next}
+            >
+              Start My Transformation →
+            </motion.button>
           </div>
         )}
 
@@ -476,9 +518,42 @@ const ob = {
   },
   heroSub: {
     fontSize: 14,
-    opacity: 0.5,
+    opacity: 0.65,
     marginTop: 6,
     marginBottom: 16,
+    lineHeight: 1.6,
+  },
+  hookBox: {
+    width: "100%",
+    maxWidth: 320,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginBottom: 16,
+    padding: "16px 18px",
+    borderRadius: 14,
+    background: "rgba(124,92,252,0.07)",
+    border: "1px solid rgba(124,92,252,0.12)",
+    textAlign: "left",
+  },
+  hookItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    opacity: 0.85,
+    lineHeight: 1.4,
+  },
+  hookEmoji: {
+    fontSize: 18,
+    flexShrink: 0,
+  },
+  hookSub: {
+    fontSize: 12,
+    opacity: 0.4,
+    marginBottom: 20,
+    fontStyle: "italic",
   },
   description: {
     fontSize: 13,
