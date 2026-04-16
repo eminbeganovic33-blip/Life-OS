@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
-import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
+import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween, getTodayStr } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
@@ -11,7 +11,7 @@ import SmartInsights from "../SmartInsights";
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar, Heart } from "lucide-react";
 
 function formatDate() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -101,6 +101,30 @@ export default function HomeView({
   );
   const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
+
+  // Dojo: today's logged workouts
+  const todayWorkouts = useMemo(() => {
+    const key = getTodayStr();
+    return (state.workoutLogs || {})[key] || [];
+  }, [state.workoutLogs]);
+  const todayVolume = useMemo(() =>
+    todayWorkouts.reduce((sum, w) => sum + (w.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0),
+    [todayWorkouts]
+  );
+  const todayDojoXp = todayWorkouts.length > 0 ? 20 * todayWorkouts.length + Math.floor(todayVolume / 100) : 0;
+
+  // Wellness score: streak(35) + recent quest activity(40) + mood(25)
+  const wellnessScore = useMemo(() => {
+    const { streak = 0, completedQuests = {}, moods = {} } = state;
+    const streakPts = Math.min(streak, 35);
+    const recentDays = Array.from({ length: 7 }, (_, i) => day - 1 - i).filter(d => d > 0);
+    const activeDays = recentDays.filter(d => (completedQuests[d] || []).length > 2).length;
+    const questPts = recentDays.length > 0 ? Math.round((activeDays / recentDays.length) * 40) : 0;
+    const recentMoods = recentDays.map(d => moods[d]).filter(m => m != null && m >= 1);
+    const avgMood = recentMoods.length > 0 ? recentMoods.reduce((a, b) => a + b, 0) / recentMoods.length : null;
+    const moodPts = avgMood != null ? Math.round(((avgMood - 1) / 4) * 25) : Math.round(questPts * 0.3);
+    return Math.min(100, streakPts + questPts + moodPts);
+  }, [state.streak, state.completedQuests, state.moods, day]);
 
   const [activeGuide, setActiveGuide] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
@@ -235,6 +259,14 @@ export default function HomeView({
               {nextLevel ? `${nextLevel.xpReq - state.xp} XP to ${nextLevel.name}` : `${state.xp} XP`}
             </span>
           </div>
+          {/* Wellness score */}
+          <div style={ts.wellnessRow}>
+            <Heart size={11} color={wellnessScore >= 70 ? "#22C55E" : wellnessScore >= 40 ? "#FBBF24" : "#EF4444"} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: wellnessScore >= 70 ? "#22C55E" : wellnessScore >= 40 ? "#FBBF24" : "#EF4444" }}>
+              {wellnessScore}
+            </span>
+            <span style={{ fontSize: 10, color: colors.textSecondary, fontWeight: 500 }}>wellbeing</span>
+          </div>
         </div>
 
         <div style={ts.heroRight}>
@@ -324,6 +356,29 @@ export default function HomeView({
             </div>
           ))}
           <span style={{ fontSize: 11, color: colors.textSecondary, marginLeft: "auto", paddingRight: 2 }}>Forge ›</span>
+        </motion.div>
+      )}
+
+      {/* ── Dojo Activity (today's workouts) ── */}
+      {todayWorkouts.length > 0 && (
+        <motion.div
+          style={ts.dojoChip}
+          onClick={() => onNavigate?.("dojo")}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Dumbbell size={13} color="#7C5CFC" strokeWidth={2.5} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: colors.text }}>
+            {todayWorkouts.length} {todayWorkouts.length === 1 ? "exercise" : "exercises"} today
+          </span>
+          {todayVolume > 0 && (
+            <span style={{ fontSize: 11, color: colors.textSecondary }}>
+              · {todayVolume.toLocaleString()} vol
+            </span>
+          )}
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#7C5CFC", marginLeft: "auto" }}>
+            +{todayDojoXp} XP
+          </span>
+          <span style={{ fontSize: 11, color: colors.textSecondary, paddingRight: 2 }}>Dojo ›</span>
         </motion.div>
       )}
 
@@ -848,6 +903,27 @@ function getStyles(isDark, colors) {
     xpText: { fontSize: 10, fontWeight: 700, color: colors.textSecondary, flexShrink: 0, maxWidth: 120, textAlign: "right" },
     heroRight: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" },
     ringWrap: { position: "relative", width: 72, height: 72 },
+
+    // Wellness row (inside hero)
+    wellnessRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 5,
+    },
+
+    // Dojo activity chip
+    dojoChip: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "7px 14px",
+      margin: "4px 12px 2px",
+      borderRadius: 10,
+      background: subtle(0.02),
+      border: `1px solid rgba(124,92,252,0.08)`,
+      cursor: "pointer",
+    },
 
     // Forge tracker row
     forgeRow: {

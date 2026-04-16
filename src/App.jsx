@@ -694,7 +694,7 @@ function LifeOS() {
       );
     }
     if (modal === "boss") {
-      return <BossModal bossDay={bossDay} onProgress={progressLifecycle} />;
+      return <BossModal bossDay={bossDay} onProgress={progressLifecycle} state={state} />;
     }
     if (modal === "levelup") {
       return <LevelUpModal levelIndex={levelUpIndex} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
