@@ -1,54 +1,55 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Home, Dumbbell, BookOpen, Hammer, ArrowRight, ArrowLeft, X } from "lucide-react";
 import { useTheme } from "../hooks";
 
 const TOUR_KEY = "lifeOsTourDone_v1";
 
 const SLIDES = [
   {
-    emoji: "👋",
+    Icon: Sparkles,
     title: "Welcome to Life OS",
-    subtitle: "Your personal self-improvement RPG",
+    subtitle: "Your self-improvement OS",
     description:
-      "Life OS turns the boring work of self-improvement into an actual game. Complete daily habits, earn XP, level up, and unlock new content — all tied to your real life.",
+      "Life OS turns the grind of self-improvement into a real-life RPG. Build habits, train hard, read great books, and level up — every single day.",
     accentColor: "#7C5CFC",
   },
   {
-    emoji: "🏠",
+    Icon: Home,
     title: "Home & Habits",
     subtitle: "Your daily command centre",
     description:
-      "Check off daily quests, build streaks, and log your mood. Every action earns XP and feeds your stats. Miss a day? Take a rest day — Life OS never punishes you for being human.",
+      "Check off daily quests, build streaks, and log your mood. Every action earns XP. Miss a day? Take a rest day — Life OS never punishes you for being human.",
     accentColor: "#10B981",
   },
   {
-    emoji: "🥋",
+    Icon: Dumbbell,
     title: "The Dojo",
     subtitle: "Train hard. Log everything.",
     description:
-      "Log workouts with AI-generated plans or build your own. Browse a full exercise library with step-by-step instructions and tutorials. Track your total volume and lifting streak.",
+      "Log workouts with AI-generated plans or build your own. Browse a full exercise library with step-by-step instructions. Track volume, streaks, and progress over time.",
     accentColor: "#F97316",
   },
   {
-    emoji: "📚",
+    Icon: BookOpen,
     title: "The Academy",
-    subtitle: "Learn from the best minds in minutes",
+    subtitle: "Learn from the best minds",
     description:
-      "Absorb key insights from 30+ of the world's best books in 10–15 minutes each. Take structured courses on mindset, productivity, finance, and more. Focus on 2-3 at a time.",
+      "Absorb key insights from 30+ of the world's best books in 10–15 minutes each. Take structured courses on mindset, productivity, finance, and more.",
     accentColor: "#3B82F6",
   },
   {
-    emoji: "⚒️",
-    title: "The Forge & Journal",
+    Icon: Hammer,
+    title: "Forge & Journal",
     subtitle: "Build skills. Reflect. Grow.",
     description:
-      "The Forge tracks your long-term skill projects — coding, a new language, music, business. The Journal is your private space to reflect, capture wins, and track your mindset over time.",
+      "The Forge tracks long-term skill projects — coding, a language, music. The Journal is your private space to reflect, log wins, and track your mindset over time.",
     accentColor: "#EC4899",
   },
 ];
 
 export default function OnboardingTour() {
-  const { colors: C, theme } = useTheme();
+  const { theme } = useTheme();
   const isDark = theme === "dark";
   const [visible, setVisible] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -81,6 +82,14 @@ export default function OnboardingTour() {
   }
 
   const current = SLIDES[slide];
+  const { Icon } = current;
+
+  // Fully opaque solid surfaces — no transparency leak
+  const cardBg = isDark ? "#16161E" : "#FFFFFF";
+  const textPrimary = isDark ? "#F0F0F8" : "#0F0F14";
+  const textSecondary = isDark ? "rgba(240,240,248,0.55)" : "rgba(15,15,20,0.55)";
+  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const trackColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
 
   return (
     <AnimatePresence>
@@ -94,7 +103,7 @@ export default function OnboardingTour() {
             position: "fixed",
             inset: 0,
             zIndex: 99999,
-            background: isDark ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.7)",
+            background: "rgba(0,0,0,0.82)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -103,29 +112,32 @@ export default function OnboardingTour() {
         >
           <motion.div
             key="tour-card"
-            initial={{ opacity: 0, scale: 0.93, y: 24 }}
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.93, y: 24 }}
-            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+            exit={{ opacity: 0, scale: 0.94, y: 20 }}
+            transition={{ type: "spring", stiffness: 340, damping: 30 }}
             style={{
               width: "100%",
               maxWidth: 400,
-              borderRadius: 24,
-              background: C.surfaceElevated,
-              border: `1px solid ${C.cardBorder}`,
+              borderRadius: 22,
+              background: cardBg,
+              border: `1px solid ${borderColor}`,
               overflow: "hidden",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+              boxShadow: isDark
+                ? "0 28px 80px rgba(0,0,0,0.7)"
+                : "0 28px 80px rgba(0,0,0,0.18)",
             }}
           >
-            {/* Progress bar */}
-            <div style={{ height: 3, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
+            {/* Top progress track */}
+            <div style={{ height: 3, background: trackColor }}>
               <motion.div
                 style={{
                   height: "100%",
-                  background: `linear-gradient(90deg, ${current.accentColor}, ${current.accentColor}CC)`,
+                  background: `linear-gradient(90deg, ${current.accentColor}, ${current.accentColor}BB)`,
+                  borderRadius: 2,
                 }}
                 animate={{ width: `${((slide + 1) / SLIDES.length) * 100}%` }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
               />
             </div>
 
@@ -135,128 +147,141 @@ export default function OnboardingTour() {
                 key={slide}
                 custom={direction}
                 variants={{
-                  enter: (d) => ({ opacity: 0, x: d > 0 ? 40 : -40 }),
+                  enter: (d) => ({ opacity: 0, x: d > 0 ? 36 : -36 }),
                   center: { opacity: 1, x: 0 },
-                  exit: (d) => ({ opacity: 0, x: d > 0 ? -40 : 40 }),
+                  exit: (d) => ({ opacity: 0, x: d > 0 ? -36 : 36 }),
                 }}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.22 }}
-                style={{ padding: "32px 28px 24px" }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                style={{ padding: "30px 28px 22px" }}
               >
-                {/* Emoji icon */}
+                {/* Icon badge */}
                 <div style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 20,
-                  background: `${current.accentColor}18`,
-                  border: `1px solid ${current.accentColor}30`,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 18,
+                  background: `${current.accentColor}14`,
+                  border: `1.5px solid ${current.accentColor}30`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 34,
-                  marginBottom: 20,
+                  marginBottom: 22,
                 }}>
-                  {current.emoji}
+                  <Icon size={28} color={current.accentColor} strokeWidth={1.75} />
                 </div>
 
-                {/* Text */}
+                {/* Eyebrow label */}
                 <div style={{
-                  fontSize: 11,
-                  fontWeight: 700,
+                  fontSize: 10,
+                  fontWeight: 800,
                   textTransform: "uppercase",
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.4,
                   color: current.accentColor,
-                  marginBottom: 6,
+                  marginBottom: 7,
                 }}>
                   {current.subtitle}
                 </div>
+
+                {/* Title */}
                 <div style={{
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: 900,
-                  letterSpacing: -0.5,
-                  color: C.text,
+                  letterSpacing: -0.6,
+                  color: textPrimary,
                   marginBottom: 12,
-                  lineHeight: 1.2,
+                  lineHeight: 1.15,
                 }}>
                   {current.title}
                 </div>
+
+                {/* Body */}
                 <div style={{
                   fontSize: 14,
                   lineHeight: 1.65,
-                  color: C.textSecondary,
+                  color: textSecondary,
                 }}>
                   {current.description}
                 </div>
               </motion.div>
             </AnimatePresence>
 
+            {/* Divider */}
+            <div style={{ height: 1, background: borderColor, margin: "0 28px" }} />
+
             {/* Footer */}
             <div style={{
-              padding: "0 28px 28px",
+              padding: "16px 28px 24px",
               display: "flex",
               alignItems: "center",
               gap: 10,
             }}>
               {/* Dot indicators */}
-              <div style={{ display: "flex", gap: 5, flex: 1 }}>
+              <div style={{ display: "flex", gap: 5, flex: 1, alignItems: "center" }}>
                 {SLIDES.map((_, i) => (
                   <div
                     key={i}
                     style={{
-                      width: i === slide ? 18 : 6,
+                      width: i === slide ? 20 : 6,
                       height: 6,
                       borderRadius: 3,
-                      background: i === slide ? current.accentColor : isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
+                      background: i === slide ? current.accentColor : trackColor,
                       transition: "all 0.3s ease",
                     }}
                   />
                 ))}
               </div>
 
-              {/* Back button */}
+              {/* Back */}
               {slide > 0 && (
                 <button
                   onClick={goPrev}
                   style={{
-                    padding: "10px 18px",
-                    borderRadius: 12,
-                    border: `1px solid ${C.cardBorder}`,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    border: `1px solid ${borderColor}`,
                     background: "transparent",
-                    color: C.textSecondary,
-                    fontSize: 14,
-                    fontWeight: 600,
+                    color: textSecondary,
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  Back
+                  <ArrowLeft size={16} />
                 </button>
               )}
 
-              {/* Next / Let's Go button */}
+              {/* Next / Finish */}
               <button
                 onClick={goNext}
                 style={{
-                  padding: "12px 24px",
+                  padding: "11px 22px",
                   borderRadius: 12,
                   border: "none",
                   background: `linear-gradient(135deg, ${current.accentColor}, ${current.accentColor}CC)`,
                   color: "#fff",
                   fontSize: 14,
-                  fontWeight: 800,
+                  fontWeight: 700,
                   cursor: "pointer",
-                  boxShadow: `0 4px 18px ${current.accentColor}40`,
-                  letterSpacing: 0.2,
+                  boxShadow: `0 4px 16px ${current.accentColor}35`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexShrink: 0,
                 }}
               >
-                {slide === SLIDES.length - 1 ? "Let's Go 🚀" : "Next →"}
+                {slide === SLIDES.length - 1 ? "Get started" : "Next"}
+                {slide < SLIDES.length - 1 && <ArrowRight size={14} />}
               </button>
             </div>
 
-            {/* Skip link — shown on all but last slide */}
+            {/* Skip — subtle, below footer */}
             {slide < SLIDES.length - 1 && (
-              <div style={{ textAlign: "center", paddingBottom: 20 }}>
+              <div style={{ textAlign: "center", paddingBottom: 18 }}>
                 <button
                   onClick={complete}
                   style={{
@@ -264,9 +289,9 @@ export default function OnboardingTour() {
                     border: "none",
                     cursor: "pointer",
                     fontSize: 12,
-                    color: C.textSecondary,
-                    opacity: 0.5,
-                    textDecoration: "underline",
+                    color: textSecondary,
+                    opacity: 0.6,
+                    letterSpacing: 0.2,
                   }}
                 >
                   Skip tour
