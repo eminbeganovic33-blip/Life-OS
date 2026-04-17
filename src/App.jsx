@@ -44,6 +44,7 @@ import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
 import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
 import { playSound } from "./utils/audio";
 import InstallPrompt from "./components/InstallPrompt";
+import OnboardingTour from "./components/OnboardingTour";
 
 injectGlobalStyles();
 
@@ -933,6 +934,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
       </main>
       <BottomNav view={view} setView={handleViewChange} />
       <InstallPrompt />
+      <OnboardingTour />
     </div>
   );
 }

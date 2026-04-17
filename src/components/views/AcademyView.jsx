@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { LEVELS, BOOKS } from "../../data";
+import { LEVELS, BOOKS, BOOK_CATEGORIES } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
@@ -29,6 +29,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   const [now, setNow] = useState(Date.now());
   const [expandedBook, setExpandedBook] = useState(null);
   const [mode, setMode] = useState("courses"); // "courses" | "books"
+  const [bookCategory, setBookCategory] = useState("all");
 
   // Swipe state
   const touchStartX = useRef(0);
@@ -175,6 +176,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   });
   const booksRead = bookStates.filter((b) => b.isFinished).length;
   const booksInProgress = bookStates.filter((b) => b.readInsights.length > 0 && !b.isFinished).length;
+  const filteredBookStates = bookCategory === "all" ? bookStates : bookStates.filter((b) => b.book.category === bookCategory);
 
   return (
     <div style={S.vc}>
@@ -223,7 +225,55 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
             </div>
           </div>
 
-          {bookStates.map(({ book, readInsights, isFinished, pct }) => {
+          {/* Category filter chips */}
+          <div style={{ display: "flex", gap: 6, padding: "0 14px", marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+            {BOOK_CATEGORIES.map((cat) => {
+              const isActive = bookCategory === cat.id;
+              const count = cat.id === "all" ? BOOKS.length : BOOKS.filter((b) => b.category === cat.id).length;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setBookCategory(cat.id); setExpandedBook(null); }}
+                  style={{
+                    flexShrink: 0,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${isActive ? "rgba(124,92,252,0.35)" : sub(0.06)}`,
+                    background: isActive ? "rgba(124,92,252,0.12)" : "transparent",
+                    color: isActive ? "#7C5CFC" : sub(0.45),
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                  {count > 0 && (
+                    <span style={{
+                      fontSize: 10,
+                      background: isActive ? "#7C5CFC" : sub(0.1),
+                      color: isActive ? "#fff" : sub(0.5),
+                      padding: "1px 5px",
+                      borderRadius: 5,
+                      fontWeight: 800,
+                    }}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {filteredBookStates.length === 0 && (
+            <div style={{ textAlign: "center", padding: "30px 20px", opacity: 0.4, fontSize: 13 }}>
+              No books in this category yet
+            </div>
+          )}
+
+          {filteredBookStates.map(({ book, readInsights, isFinished, pct }) => {
             const isExpanded = expandedBook === book.id;
             return (
               <div

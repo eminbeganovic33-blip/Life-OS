@@ -23,6 +23,11 @@ export default function ExerciseLibraryTab({
 
   return (
     <>
+      {/* Library description */}
+      <div style={{ padding: "2px 14px 8px", fontSize: 12, opacity: 0.4, lineHeight: 1.6 }}>
+        A library of {EXERCISE_LIBRARY.length} exercises with step-by-step instructions, form tips, and muscle targeting. Tap any exercise to see a full breakdown — and jump straight into logging it.
+      </div>
+
       <input
         type="text"
         placeholder="Search exercises..."
@@ -106,11 +111,34 @@ function ExerciseDetail({ exercise, ds, onBack, onLogExercise }) {
         <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 4px", letterSpacing: -0.5 }}>
           {exercise.name}
         </h2>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
           <MuscleTag muscle={exercise.muscle} />
           <DifficultyBadge level={exercise.difficulty} />
           <span style={{ fontSize: 10, opacity: 0.4, textTransform: "capitalize" }}>{exercise.type}</span>
         </div>
+
+        {/* Watch Tutorial link */}
+        <a
+          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.name + " exercise tutorial proper form")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#EF4444",
+            textDecoration: "none",
+            background: "rgba(239,68,68,0.07)",
+            border: "1px solid rgba(239,68,68,0.2)",
+            borderRadius: 8,
+            padding: "6px 12px",
+            marginBottom: 16,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>▶</span> Watch Tutorial on YouTube
+        </a>
 
         {/* Equipment */}
         <div style={ds.detailSection}>
