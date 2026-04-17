@@ -115,8 +115,44 @@ export default function AnalyticsView({ state }) {
   );
 
   function renderOverview() {
+    const fallbackPhrases = ["Keep logging", "Not enough data", "Log more days"];
+    const hasRealInsights = insights.length > 0 && !fallbackPhrases.some((p) => insights[0].includes(p));
+    const overviewInsights = hasRealInsights ? insights.slice(0, isPremium ? 2 : 1) : [];
+
     return (
       <>
+        {/* Pattern Insight teaser */}
+        {hasRealInsights && (
+          <>
+            <div style={{ ...sectionLabel, display: "flex", alignItems: "center", gap: 6 }}>
+              <Lightbulb size={12} color="#FBBF24" strokeWidth={2} />
+              Pattern Insight
+            </div>
+            {overviewInsights.map((insight, i) => (
+              <motion.div
+                key={i}
+                style={{ ...insightCard, opacity: !isPremium ? 0.7 : 1 }}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: !isPremium ? 0.7 : 1, x: 0 }}
+                transition={{ delay: i * 0.06 }}
+              >
+                <div style={insightIconBg}>
+                  <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+                </div>
+                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>💡 {insight}</span>
+              </motion.div>
+            ))}
+            {!isPremium && (
+              <div
+                style={{ margin: "0 14px 10px", fontSize: 11, opacity: 0.45, cursor: "pointer", color: "#FBBF24", fontWeight: 600 }}
+                onClick={() => setTab("insights")}
+              >
+                See all insights →
+              </div>
+            )}
+          </>
+        )}
+
         {/* Personal Records */}
         <div style={sectionLabel}>Personal Records</div>
         <div style={recordsGrid}>

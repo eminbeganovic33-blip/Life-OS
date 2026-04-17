@@ -94,7 +94,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     const levelLocked = levelIdx < course.levelReq;
     const tierLocked = isTier2 && !bossClears[21];
     const premiumLocked = isTier2 && !hasAllCourses;
-    const locked = levelLocked || tierLocked || premiumLocked;
+    const dayLocked = (course.dayUnlock || 1) > 1 && (state.currentDay || 1) < (course.dayUnlock || 1);
+    const locked = levelLocked || tierLocked || premiumLocked || dayLocked;
 
     const progress = state.courseProgress?.[course.id];
     const completedSteps = progress?.steps || [];
@@ -115,8 +116,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     if (premiumLocked) lockReason = "Premium -- Upgrade to unlock";
     else if (tierLocked) lockReason = "Complete Day 21 to unlock";
     else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1} ${LEVELS[course.levelReq]?.name}`;
+    else if (dayLocked) lockReason = `Unlocks Day ${course.dayUnlock}`;
 
-    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, isFocused };
+    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, dayLocked, dayUnlock: course.dayUnlock || 1, isFocused };
   });
 
   const focused = courseStates.filter((c) => c.isFocused && !c.isCompleted && !c.locked);
@@ -465,7 +467,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         </div>
       )}
 
-      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, isFocused }) => {
+      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, dayLocked, dayUnlock, isFocused }) => {
         const isExpanded = expandedCourse === course.id;
         const skillBadge = course.skillLevel || "beginner";
         const canExpand = isFocused || isCompleted;
@@ -507,6 +509,11 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{course.title}</span>
                     {premiumLocked && <span style={{ fontSize: 12 }}>&#x1F512;</span>}
+                    {dayLocked && (
+                      <span style={{ fontSize: 11, opacity: 0.5, color: "#FBBF24", fontWeight: 600 }}>
+                        📅 Unlocks Day {dayUnlock}
+                      </span>
+                    )}
                     {isFocused && !isCompleted && (
                       <span style={focusBadge}>IN FOCUS</span>
                     )}

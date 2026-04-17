@@ -9,6 +9,90 @@ import AIJournalInsight from "../AIJournalInsight";
 import ChatJournal from "../ChatJournal";
 import { MessageCircle, PenLine, Clock, BookOpen, Search, Calendar, Save } from "lucide-react";
 
+// ── Journal Prompts ──
+
+const JOURNAL_PROMPTS = [
+  // discipline
+  { pillar: "discipline", text: "What did you do today that your future self will thank you for?" },
+  { pillar: "discipline", text: "What was the hardest habit to stick to today, and why?" },
+  { pillar: "discipline", text: "Describe a moment today where you chose discipline over comfort." },
+  { pillar: "discipline", text: "What would you do differently if you could live today again?" },
+  { pillar: "discipline", text: "What's the one thing you keep avoiding? Why?" },
+  { pillar: "discipline", text: "How did your actions today align with the person you want to become?" },
+  { pillar: "discipline", text: "What temptation did you overcome today — and what made that possible?" },
+  { pillar: "discipline", text: "Rate your focus today from 1–10. What brought it up or down?" },
+  { pillar: "discipline", text: "What does your morning routine reveal about your priorities?" },
+  { pillar: "discipline", text: "Which habit, if mastered, would change everything else?" },
+  { pillar: "discipline", text: "Where did you show up fully today — and where did you coast?" },
+  { pillar: "discipline", text: "What small win happened today because you stayed consistent?" },
+  { pillar: "discipline", text: "What would a 1% improvement in your daily discipline look like?" },
+  { pillar: "discipline", text: "What's the gap between the standards you set and the ones you actually live by?" },
+  { pillar: "discipline", text: "What did you sacrifice today in service of your long-term goals?" },
+
+  // resilience
+  { pillar: "resilience", text: "What knocked you down today and how did you get back up?" },
+  { pillar: "resilience", text: "When did you feel like quitting today? What kept you going?" },
+  { pillar: "resilience", text: "Describe a failure from this week. What did it teach you?" },
+  { pillar: "resilience", text: "What's the hardest truth you've had to accept recently?" },
+  { pillar: "resilience", text: "What would the strongest version of you have done differently today?" },
+  { pillar: "resilience", text: "What setback are you still carrying? What would it take to put it down?" },
+  { pillar: "resilience", text: "How have you grown from the hardest thing that happened this month?" },
+  { pillar: "resilience", text: "What's a belief that once held you back that you've since outgrown?" },
+  { pillar: "resilience", text: "When was the last time you chose discomfort on purpose? What happened?" },
+  { pillar: "resilience", text: "What does your response to today's problems say about who you're becoming?" },
+  { pillar: "resilience", text: "Who or what has tested your patience recently — and how did you respond?" },
+  { pillar: "resilience", text: "What would you tell a past version of yourself who was facing what you face now?" },
+  { pillar: "resilience", text: "How do you recover when things don't go to plan? Is it working?" },
+  { pillar: "resilience", text: "What's one thing you've survived that you didn't think you could?" },
+  { pillar: "resilience", text: "What part of your struggle right now is actually building something in you?" },
+
+  // purpose
+  { pillar: "purpose", text: "Why are you doing this? Write it out in full." },
+  { pillar: "purpose", text: "What does your ideal life look like in 5 years? Be specific." },
+  { pillar: "purpose", text: "Who are you becoming through this process?" },
+  { pillar: "purpose", text: "What motivates you more than anything else right now?" },
+  { pillar: "purpose", text: "If you could only keep one habit, what would it be and why?" },
+  { pillar: "purpose", text: "What does success look like for you — not society's version, yours?" },
+  { pillar: "purpose", text: "What do you want to be remembered for?" },
+  { pillar: "purpose", text: "What problem in the world do you most want to solve — and are you moving toward it?" },
+  { pillar: "purpose", text: "When do you feel most alive? How often does that happen?" },
+  { pillar: "purpose", text: "What are you building — and is the daily work actually matching the vision?" },
+  { pillar: "purpose", text: "What would you pursue if you knew you couldn't fail?" },
+  { pillar: "purpose", text: "What's the deeper reason behind the goal on the surface?" },
+  { pillar: "purpose", text: "Who do you want to show up for — and are you actually showing up?" },
+  { pillar: "purpose", text: "What would your life look like if you fully committed to your values?" },
+  { pillar: "purpose", text: "What's a version of your future that excites and terrifies you simultaneously?" },
+
+  // shadow
+  { pillar: "shadow", text: "What are you avoiding thinking about?" },
+  { pillar: "shadow", text: "Where did fear stop you today?" },
+  { pillar: "shadow", text: "What's the thing you most want to change about yourself?" },
+  { pillar: "shadow", text: "What habit is hardest to quit and why do you think that is?" },
+  { pillar: "shadow", text: "Be honest: are you making excuses anywhere in your life right now?" },
+  { pillar: "shadow", text: "What story do you keep telling yourself that might not be true?" },
+  { pillar: "shadow", text: "What do you secretly believe about your own potential — good and bad?" },
+  { pillar: "shadow", text: "Where are you seeking validation that you should be giving to yourself?" },
+  { pillar: "shadow", text: "What would you do if no one was watching — and what does that reveal?" },
+  { pillar: "shadow", text: "What emotion are you suppressing right now? What is it trying to tell you?" },
+  { pillar: "shadow", text: "Who have you been unfair to recently — and have you acknowledged it?" },
+  { pillar: "shadow", text: "What are you jealous of, and what does that jealousy point to?" },
+  { pillar: "shadow", text: "What truth about your situation are you softening to make it easier to live with?" },
+  { pillar: "shadow", text: "Where are you self-sabotaging, even in small ways?" },
+  { pillar: "shadow", text: "What would you do differently if you weren't trying to protect your ego?" },
+];
+
+const PILLAR_COLORS = {
+  discipline: "#7C5CFC",
+  resilience: "#F97316",
+  purpose: "#22C55E",
+  shadow: "#EC4899",
+};
+
+function getDailyPrompt(day) {
+  const index = ((day - 1) % JOURNAL_PROMPTS.length);
+  return JOURNAL_PROMPTS[index];
+}
+
 export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -18,6 +102,10 @@ export default function JournalView({ state, journalText, setJournalText, select
   const [viewMode, setViewMode] = useState("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedFeedback, setSavedFeedback] = useState(false);
+
+  // Daily prompt
+  const dailyPrompt = getDailyPrompt(day);
+  const pillarColor = PILLAR_COLORS[dailyPrompt.pillar];
 
   // Parse all journal entries for history
   const journalEntries = useMemo(() => {
@@ -154,9 +242,70 @@ export default function JournalView({ state, journalText, setJournalText, select
 
           {viewMode === "classic" && (
             <div style={classicSection}>
+              {/* Daily Prompt Banner */}
+              <div style={{
+                background: `${pillarColor}10`,
+                border: `1px solid ${pillarColor}25`,
+                borderRadius: 14,
+                padding: 16,
+                marginBottom: 12,
+              }}>
+                {/* Pillar badge */}
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: `${pillarColor}20`,
+                  border: `1px solid ${pillarColor}40`,
+                  borderRadius: 20,
+                  padding: "3px 10px",
+                  marginBottom: 10,
+                }}>
+                  <div style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: pillarColor,
+                    flexShrink: 0,
+                  }} />
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: 1,
+                    color: pillarColor,
+                    textTransform: "uppercase",
+                  }}>
+                    {dailyPrompt.pillar}
+                  </span>
+                </div>
+
+                {/* Prompt text */}
+                <div style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  fontStyle: "italic",
+                  lineHeight: 1.5,
+                  color: "inherit",
+                  opacity: 0.88,
+                  marginBottom: 10,
+                }}>
+                  {dailyPrompt.text}
+                </div>
+
+                {/* Affordance */}
+                <div style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  opacity: 0.35,
+                  letterSpacing: 0.2,
+                }}>
+                  Tap to write ↓
+                </div>
+              </div>
+
               <textarea
                 style={textArea}
-                placeholder="What happened today? Write about your wins, struggles, or anything on your mind..."
+                placeholder=""
                 value={journalText || (() => {
                   const raw = state.journal[day];
                   if (!raw) return "";

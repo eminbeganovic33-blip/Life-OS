@@ -204,6 +204,34 @@ export default function HomeView({
     return "Good evening";
   })();
 
+  const streakRingColor = allDone
+    ? "#22C55E"
+    : state.streak === 0
+    ? "#6B7280"
+    : state.streak >= 14
+    ? "#FBBF24"
+    : state.streak >= 7
+    ? "#F97316"
+    : "#7C5CFC";
+
+  const streakChipBg = state.streak === 0
+    ? "rgba(107,114,128,0.1)"
+    : state.streak >= 14
+    ? "rgba(251,191,36,0.1)"
+    : "rgba(249,115,22,0.1)";
+
+  const streakChipBorder = state.streak === 0
+    ? "1px solid rgba(107,114,128,0.2)"
+    : state.streak >= 14
+    ? "1px solid rgba(251,191,36,0.2)"
+    : "1px solid rgba(249,115,22,0.15)";
+
+  const streakChipColor = state.streak === 0
+    ? "#6B7280"
+    : state.streak >= 14
+    ? "#FBBF24"
+    : "#F97316";
+
   return (
     <div style={S.vc}>
       {/* ── Dashboard Header ── */}
@@ -220,18 +248,11 @@ export default function HomeView({
           <div style={ts.heroPhase}>
             {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery Mode"}
           </div>
-          <div style={ts.heroLevel}>
-            <span style={ts.levelBadge}>Lv.{levelIdx + 1}</span>
-            <span style={ts.levelName}>{level.name}</span>
-            {state.prestige > 0 && (
-              <span style={ts.prestigeBadge}>✦ {state.prestige}</span>
-            )}
-          </div>
-          <div style={ts.xpRow}>
-            <div style={ts.xpBarOuter}>
-              <div style={{ ...ts.xpBarInner, width: `${xpProgress * 100}%` }} />
-            </div>
-            <span style={ts.xpText}>
+          <div style={ts.heroLevelXp}>
+            <span style={ts.levelXpText}>
+              {level.name}
+              {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
+              {" · "}
               {nextLevel ? `${nextLevel.xpReq - state.xp} XP to ${nextLevel.name}` : `${state.xp} XP`}
             </span>
           </div>
@@ -245,7 +266,7 @@ export default function HomeView({
               progress={dayProgress}
               size={72}
               stroke={5}
-              color={allDone ? "#22C55E" : "#7C5CFC"}
+              color={streakRingColor}
               trackColor={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}
             />
             <div style={ts.ringCenter}>
@@ -254,11 +275,10 @@ export default function HomeView({
             </div>
           </div>
           {/* Streak + Multiplier */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-          <div style={ts.streakChip}>
-            <Flame size={13} color="#F97316" />
-            <span style={ts.streakNumber}>{state.streak}</span>
-            {getStreakMultiplier(state.streak).tier !== "none" && (
+          <div style={{ ...ts.streakChip, background: streakChipBg, border: streakChipBorder }}>
+            <Flame size={13} color={streakChipColor} />
+            <span style={{ ...ts.streakNumber, color: streakChipColor }}>{state.streak}</span>
+            {state.streak >= 7 && getStreakMultiplier(state.streak).tier !== "none" && (
               <span style={{
                 fontSize: 9,
                 fontWeight: 800,
@@ -283,12 +303,6 @@ export default function HomeView({
               </span>
             )}
           </div>
-          {[2, 6, 13, 29].includes(state.streak) && (
-            <div style={{ fontSize: 9, color: "#F97316", opacity: 0.75, fontWeight: 700, letterSpacing: 0.3 }}>
-              Tomorrow: {state.streak === 2 ? "1.2×" : state.streak === 6 ? "1.5×" : state.streak === 13 ? "1.8×" : "2×"} XP
-            </div>
-          )}
-        </div>
         </div>
       </motion.div>
 
@@ -331,31 +345,6 @@ export default function HomeView({
       {topNudge && (
         <div style={{ padding: "0 14px", marginBottom: 4 }}>
           <NudgeBanner nudge={topNudge} onNavigate={onNavigate} />
-        </div>
-      )}
-
-      {/* ── Active Category Streaks ── */}
-      {Object.keys(categoryStreaks).length > 0 && (
-        <div style={ts.streaksRow}>
-          {Object.entries(categoryStreaks)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 6)
-            .map(([catId, streak]) => {
-              const cat = CATEGORIES.find((c) => c.id === catId);
-              if (!cat) return null;
-              const mastery = getCategoryMastery(state, catId);
-              return (
-                <div key={catId} style={{ ...ts.streakItem, borderColor: `${cat.color}25` }}>
-                  <CategoryIcon id={catId} size={11} color={cat.color} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: cat.color }}>{streak}d</span>
-                  {mastery.levelIndex > 0 && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color: mastery.color, opacity: 0.8 }} title={mastery.level}>
-                      {mastery.level.charAt(0)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
         </div>
       )}
 
@@ -749,41 +738,10 @@ function getStyles(isDark, colors) {
       color: colors.textSecondary,
       fontWeight: 300,
     },
-    heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500 },
-    heroLevel: { display: "flex", alignItems: "center", gap: 6, marginTop: 8 },
-    levelBadge: {
-      fontSize: 10,
-      fontWeight: 800,
-      color: "#7C5CFC",
-      background: "rgba(124,92,252,0.12)",
-      padding: "2px 8px",
-      borderRadius: 6,
-      letterSpacing: 0.3,
-    },
-    levelName: { fontSize: 13, fontWeight: 700, color: "#7C5CFC" },
-    prestigeBadge: {
-      fontSize: 10,
-      fontWeight: 800,
-      color: "#FBBF24",
-      background: "rgba(251,191,36,0.12)",
-      padding: "2px 7px",
-      borderRadius: 6,
-    },
-    xpRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 6 },
-    xpBarOuter: {
-      flex: 1,
-      height: 4,
-      borderRadius: 2,
-      background: subtle(0.08),
-      overflow: "hidden",
-    },
-    xpBarInner: {
-      height: "100%",
-      borderRadius: 2,
-      background: "linear-gradient(90deg,#7C5CFC,#EC4899)",
-      transition: "width 0.4s ease",
-    },
-    xpText: { fontSize: 10, fontWeight: 700, color: colors.textSecondary, flexShrink: 0, maxWidth: 120, textAlign: "right" },
+    heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500, opacity: 0.4 },
+    heroLevelXp: { marginTop: 8 },
+    levelXpText: { fontSize: 12, fontWeight: 600, color: "#7C5CFC" },
+    prestigeInline: { fontSize: 10, fontWeight: 800, color: "#FBBF24" },
     heroRight: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" },
     ringWrap: { position: "relative", width: 72, height: 72 },
 

@@ -9,6 +9,7 @@ export const COURSES = [
     icon: "🚀",
     category: "general",
     levelReq: 0,
+    dayUnlock: 1,
     skillLevel: "beginner",
     description: "Your first steps to building lasting habits",
     steps: [
@@ -47,6 +48,7 @@ export const COURSES = [
     icon: "🌙",
     category: "sleep",
     levelReq: 0,
+    dayUnlock: 1,
     skillLevel: "beginner",
     description: "Build a sleep routine that actually works",
     steps: [
@@ -83,6 +85,7 @@ export const COURSES = [
     icon: "🌅",
     category: "sleep",
     levelReq: 3,
+    dayUnlock: 1,
     skillLevel: "advanced",
     tier: 2,
     description: "Master your biological clock for peak performance",
@@ -122,6 +125,7 @@ export const COURSES = [
     icon: "💧",
     category: "water",
     levelReq: 0,
+    dayUnlock: 1,
     skillLevel: "beginner",
     description: "Optimize your water intake for energy and focus",
     steps: [
@@ -158,6 +162,7 @@ export const COURSES = [
     icon: "🥗",
     category: "water",
     levelReq: 3,
+    dayUnlock: 5,
     skillLevel: "intermediate",
     tier: 2,
     description: "Fuel your body for performance and recovery",
@@ -197,6 +202,7 @@ export const COURSES = [
     icon: "🏋️",
     category: "exercise",
     levelReq: 0,
+    dayUnlock: 3,
     skillLevel: "beginner",
     description: "Build a foundation of functional strength",
     steps: [
@@ -233,6 +239,7 @@ export const COURSES = [
     icon: "📊",
     category: "exercise",
     levelReq: 3,
+    dayUnlock: 1,
     skillLevel: "advanced",
     tier: 2,
     description: "Program your training for continuous progress",
@@ -272,6 +279,7 @@ export const COURSES = [
     icon: "🧘",
     category: "mind",
     levelReq: 0,
+    dayUnlock: 1,
     skillLevel: "beginner",
     description: "Build a sustainable meditation practice from scratch",
     steps: [
@@ -308,6 +316,7 @@ export const COURSES = [
     icon: "🌬️",
     category: "mind",
     levelReq: 2,
+    dayUnlock: 1,
     skillLevel: "intermediate",
     description: "Harness your breath for energy, calm, and focus",
     steps: [
@@ -344,6 +353,7 @@ export const COURSES = [
     icon: "🏛️",
     category: "mind",
     levelReq: 3,
+    dayUnlock: 30,
     skillLevel: "advanced",
     tier: 2,
     description: "Ancient philosophy for modern resilience",
@@ -383,6 +393,7 @@ export const COURSES = [
     icon: "📵",
     category: "screen",
     levelReq: 0,
+    dayUnlock: 21,
     skillLevel: "beginner",
     description: "Reclaim your attention from addictive technology",
     steps: [
@@ -421,6 +432,7 @@ export const COURSES = [
     icon: "🥶",
     category: "shower",
     levelReq: 0,
+    dayUnlock: 3,
     skillLevel: "beginner",
     description: "Build mental toughness one cold second at a time",
     steps: [
