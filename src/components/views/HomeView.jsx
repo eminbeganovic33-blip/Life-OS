@@ -11,7 +11,7 @@ import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyC
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Shield, Quote, Calendar } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Shield, Quote, Calendar, BookOpen } from "lucide-react";
 
 function formatDate() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -479,22 +479,22 @@ export default function HomeView({
         <div style={ts.discoverySection}>
           {day <= 2 && (
             <div style={ts.discoveryCard} onClick={() => onNavigate?.("academy")}>
-              <span style={{ fontSize: 18 }}>📚</span>
+              <BookOpen size={16} color={colors.textSecondary} strokeWidth={2} style={{ flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Learn the science</div>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>Why each quest works — start with "Getting Started"</div>
               </div>
-              <span style={{ color: colors.textSecondary }}>→</span>
+              <span style={{ color: colors.textSecondary, fontSize: 14 }}>→</span>
             </div>
           )}
           {Object.keys(state.sobrietyDates || {}).length > 0 && day <= 3 && (
             <div style={ts.discoveryCard} onClick={() => onNavigate?.("forge")}>
-              <span style={{ fontSize: 18 }}>🔥</span>
+              <Flame size={16} color="#F97316" strokeWidth={2} style={{ flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Check your Forge</div>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>Tips and support for breaking bad habits</div>
               </div>
-              <span style={{ color: colors.textSecondary }}>→</span>
+              <span style={{ color: colors.textSecondary, fontSize: 14 }}>→</span>
             </div>
           )}
           {day === 3 && (

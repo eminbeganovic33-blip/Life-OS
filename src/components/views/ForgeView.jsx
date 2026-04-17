@@ -8,7 +8,7 @@ import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
 import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
-import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle } from "lucide-react";
+import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign } from "lucide-react";
 
 // ── Constants ──
 
@@ -314,8 +314,8 @@ function ImpactStats({ trackerId, daysClean, color }) {
       {money && (
         <div style={{ flex: 1, textAlign: "center" }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: "#22C55E" }}>${money.toLocaleString()}</div>
-          <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3 }}>
-            💰 {cfg.moneyLabel}
+          <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+            <DollarSign size={10} strokeWidth={2} /> {cfg.moneyLabel}
           </div>
         </div>
       )}

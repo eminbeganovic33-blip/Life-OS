@@ -5,6 +5,10 @@ import { LEVELS, BOOKS, BOOK_CATEGORIES } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
+import {
+  GraduationCap, BookOpen, ChevronDown, Check, Lock, Crown,
+  Target, Clock, Award, Trophy,
+} from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
 const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
@@ -185,22 +189,26 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
       {/* Mode toggle: Courses / Books */}
       <div style={modeToggleRow}>
         {[
-          { id: "courses", label: "Courses", icon: "\uD83C\uDF93" },
-          { id: "books", label: "Books", icon: "\uD83D\uDCDA" },
-        ].map((m) => (
-          <button
-            key={m.id}
-            style={{
-              ...modeToggleBtn,
-              background: mode === m.id ? "rgba(124,92,252,0.12)" : "transparent",
-              color: mode === m.id ? "#7C5CFC" : sub(0.4),
-              borderColor: mode === m.id ? "rgba(124,92,252,0.25)" : sub(0.06),
-            }}
-            onClick={() => setMode(m.id)}
-          >
-            <span>{m.icon}</span> {m.label}
-          </button>
-        ))}
+          { id: "courses", label: "Courses", Icon: GraduationCap },
+          { id: "books", label: "Books", Icon: BookOpen },
+        ].map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              style={{
+                ...modeToggleBtn,
+                background: active ? "rgba(124,92,252,0.12)" : "transparent",
+                color: active ? "#7C5CFC" : sub(0.4),
+                borderColor: active ? "rgba(124,92,252,0.25)" : sub(0.06),
+              }}
+              onClick={() => setMode(m.id)}
+            >
+              <m.Icon size={15} strokeWidth={active ? 2.2 : 1.6} />
+              {m.label}
+            </button>
+          );
+        })}
       </div>
 
       {mode === "books" && (
@@ -337,9 +345,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     {!isFinished && pct > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: book.coverColor }}>{pct}%</span>
                     )}
-                    <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                      &#x25BC;
-                    </span>
+                    <ChevronDown size={14} style={{ opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }} />
                   </div>
                 </div>
 
@@ -381,7 +387,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                                 else onCheckInsight(book.id, idx);
                               }}
                             >
-                              {isRead && <span style={{ fontSize: 10, color: "#fff" }}>&#x2713;</span>}
+                              {isRead && <Check size={10} color="#fff" strokeWidth={3} />}
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{
@@ -402,7 +408,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     })}
                     {isFinished && (
                       <div style={completionBox}>
-                        <span style={{ fontSize: 24 }}>{book.icon}</span>
+                        <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Book Complete!</div>
                           <div style={{ fontSize: 11, opacity: 0.4 }}>
@@ -489,7 +495,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
       {!hasAllCourses && filter !== "mastered" && (
         <div style={premiumCourseBanner} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>&#x1F451;</span>
+            <Crown size={16} color="#FFD700" strokeWidth={1.75} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Unlock Advanced Courses</div>
               <div style={{ fontSize: 10, opacity: 0.5 }}>Premium includes Tier 2 deep-dive courses</div>
@@ -502,7 +508,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
       {/* Empty state for focused tab */}
       {filter === "focused" && focused.length === 0 && available.length > 0 && (
         <div style={emptyState}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F3AF;</div>
+          <Target size={32} color="#7C5CFC" strokeWidth={1.25} style={{ marginBottom: 8, opacity: 0.5 }} />
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Choose courses to focus on below</div>
           <div style={{ fontSize: 11, opacity: 0.4 }}>Pick 2-3 courses to actively work through. Focus beats overwhelm.</div>
         </div>
@@ -511,7 +517,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
       {/* Empty state for mastered tab */}
       {filteredCourses.length === 0 && filter === "mastered" && (
         <div style={emptyState}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F4DA;</div>
+          <Trophy size={32} color="#10B981" strokeWidth={1.25} style={{ marginBottom: 8, opacity: 0.5 }} />
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No mastered courses yet</div>
           <div style={{ fontSize: 11, opacity: 0.4 }}>Complete all steps in a focused course to master it and earn +50 XP</div>
         </div>
@@ -558,7 +564,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{course.title}</span>
-                    {premiumLocked && <span style={{ fontSize: 12 }}>&#x1F512;</span>}
+                    {premiumLocked && <Lock size={12} color="#FFD700" strokeWidth={2} />}
                     {dayLocked && (
                       <span style={{ fontSize: 11, opacity: 0.5, color: "#FBBF24", fontWeight: 600 }}>
                         📅 Unlocks Day {dayUnlock}
@@ -592,14 +598,12 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {xpAwarded && <span style={{ color: "#10B981", fontSize: 12, fontWeight: 700 }}>+50 XP</span>}
-                {isCompleted && <span style={{ fontSize: 18 }}>&#x1F393;</span>}
+                {isCompleted && <Award size={18} color="#10B981" strokeWidth={1.75} />}
                 {!locked && !isCompleted && pct > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>{pct}%</span>
                 )}
                 {!locked && canExpand && (
-                  <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                    &#x25BC;
-                  </span>
+                  <ChevronDown size={14} style={{ opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)", flexShrink: 0 }} />
                 )}
               </div>
             </div>
@@ -702,9 +706,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                             handleStepClick(course.id, idx, checked, false);
                           }}
                         >
-                          {checked && <span style={{ fontSize: 10 }}>&#x2713;</span>}
+                          {checked && <Check size={10} color="#fff" strokeWidth={3} />}
                           {isRateLocked && !checked && (
-                            <span style={{ fontSize: 11, color: "rgba(255,165,0,0.7)" }}>&#x1F512;</span>
+                            <Lock size={10} color="rgba(255,165,0,0.8)" strokeWidth={2.5} />
                           )}
                         </div>
 
@@ -725,7 +729,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                           {/* Rate-limit countdown */}
                           {isRateLocked && !checked && (
                             <div style={countdownStyle}>
-                              &#x23F3; Unlocks in {formatCountdown(remaining)}
+                              <Clock size={10} /> Unlocks in {formatCountdown(remaining)}
                             </div>
                           )}
 
@@ -754,9 +758,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                         </div>
 
                         {/* Expand indicator */}
-                        <span style={{ fontSize: 10, opacity: 0.3, flexShrink: 0, transition: "transform 0.2s", transform: isStepExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                          &#x25BC;
-                        </span>
+                        <ChevronDown size={12} style={{ opacity: 0.3, flexShrink: 0, transition: "transform 0.2s", transform: isStepExpanded ? "rotate(180deg)" : "rotate(0)" }} />
                       </div>
                     </div>
                   );
@@ -765,7 +767,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                 {/* Completion celebration */}
                 {isCompleted && (
                   <div style={completionBox}>
-                    <span style={{ fontSize: 24 }}>&#x1F393;</span>
+                    <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
                       <div style={{ fontSize: 11, opacity: 0.4 }}>

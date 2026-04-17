@@ -139,7 +139,7 @@ export default function AnalyticsView({ state }) {
                 <div style={insightIconBg}>
                   <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
                 </div>
-                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>💡 {insight}</span>
+                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{insight}</span>
               </motion.div>
             ))}
             {!isPremium && (
