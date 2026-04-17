@@ -117,7 +117,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
               ...(activeTab === tab ? fs.tabActive : {}),
             }}
           >
-            {tab === "trackers" ? "Trackers" : "Journal"}
+            {tab === "trackers" ? "Trackers" : "Recovery Log"}
             {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
               <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
             )}
@@ -231,6 +231,95 @@ function TrackersTab({
         </div>
       )}
     </>
+  );
+}
+
+// ── Impact Stats (money/time saved — inspired by I Am Sober) ──
+
+const IMPACT_CONFIG = {
+  smoking: {
+    label: "cigarettes skipped",
+    perDay: 20,
+    moneyPerUnit: 0.50, // ~$10/pack of 20
+    moneyLabel: "saved",
+    icon: "🚬",
+  },
+  alcohol: {
+    label: "drinks skipped",
+    perDay: 3,
+    moneyPerUnit: 7,
+    moneyLabel: "saved",
+    icon: "🍺",
+  },
+  porn: {
+    label: "hours reclaimed",
+    perDay: 1.5,
+    moneyPerUnit: null,
+    moneyLabel: null,
+    icon: "⏱️",
+  },
+  doomscrolling: {
+    label: "hours reclaimed",
+    perDay: 2,
+    moneyPerUnit: null,
+    moneyLabel: null,
+    icon: "📱",
+  },
+  weed: {
+    label: "sessions skipped",
+    perDay: 2,
+    moneyPerUnit: 5,
+    moneyLabel: "saved",
+    icon: "🌿",
+  },
+  gambling: {
+    label: "bets avoided",
+    perDay: 3,
+    moneyPerUnit: 20,
+    moneyLabel: "protected",
+    icon: "🎰",
+  },
+  junkfood: {
+    label: "bad meals skipped",
+    perDay: 1,
+    moneyPerUnit: 8,
+    moneyLabel: "saved",
+    icon: "🍔",
+  },
+};
+
+function ImpactStats({ trackerId, daysClean, color }) {
+  const cfg = IMPACT_CONFIG[trackerId];
+  if (!cfg) return null;
+
+  const units = Math.round(daysClean * cfg.perDay);
+  const money = cfg.moneyPerUnit ? Math.round(daysClean * cfg.perDay * cfg.moneyPerUnit) : null;
+
+  return (
+    <div style={{
+      display: "flex",
+      gap: 8,
+      marginTop: 10,
+      padding: "10px 12px",
+      borderRadius: 10,
+      background: `${color}0A`,
+      border: `1px solid ${color}20`,
+    }}>
+      <div style={{ flex: 1, textAlign: "center", borderRight: money ? `1px solid ${color}15` : "none", paddingRight: money ? 8 : 0 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color }}>{units.toLocaleString()}</div>
+        <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3 }}>
+          {cfg.icon} {cfg.label}
+        </div>
+      </div>
+      {money && (
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#22C55E" }}>${money.toLocaleString()}</div>
+          <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3 }}>
+            💰 {cfg.moneyLabel}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -425,6 +514,11 @@ function TrackerCard({
         </div>
       )}
 
+      {/* Impact Stats — money/time saved */}
+      {isActive && daysClean >= 1 && (
+        <ImpactStats trackerId={tracker.id} daysClean={daysClean} color={tracker.color} />
+      )}
+
       {/* Day-specific tip */}
       {isActive && (() => {
         const dayInfo = getProgramDay(tracker.id, daysClean || 1);
@@ -445,7 +539,7 @@ function TrackerCard({
   );
 }
 
-// ── Journal Tab ──
+// ── Recovery Log Tab ──
 
 function JournalTab({ journals, filter, setFilter, state, save }) {
   const [newEntry, setNewEntry] = useState("");
@@ -481,7 +575,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <textarea
             value={newEntry}
             onChange={(e) => setNewEntry(e.target.value)}
-            placeholder="Write a recovery journal entry..."
+            placeholder="Log how you're feeling, what triggered you, what helped..."
             style={styles.journalInput}
             rows={3}
           />

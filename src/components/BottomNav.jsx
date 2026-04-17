@@ -1,148 +1,60 @@
-import { useState } from "react";
 import { S } from "../styles/theme";
 import { useTheme } from "../hooks";
 import { NavIcon } from "./Icon";
-import { MoreHorizontal, BookOpen, BarChart3, Users, User, X } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 const NAV = [
-  { id: "home", label: "Today" },
-  { id: "forge", label: "Forge" },
-  { id: "dojo", label: "Dojo" },
+  { id: "home",    label: "Today"   },
+  { id: "journal", label: "Journal", LucideIcon: BookOpen },
+  { id: "forge",   label: "Forge"   },
+  { id: "dojo",    label: "Dojo"    },
   { id: "academy", label: "Academy" },
-];
-
-const MORE_ITEMS = [
-  { id: "journal", label: "Journal", Icon: BookOpen, color: "#7C5CFC" },
-  { id: "analytics", label: "Analytics", Icon: BarChart3, color: "#3B82F6" },
-  { id: "social", label: "Social", Icon: Users, color: "#06B6D4" },
-  { id: "profile", label: "Profile", Icon: User, color: "#F97316" },
 ];
 
 export default function BottomNav({ view, setView }) {
   const { theme, themed } = useTheme();
   const isDark = theme !== "light";
   const inactiveColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
-  const [showMore, setShowMore] = useState(false);
-  const isMoreActive = MORE_ITEMS.some((m) => m.id === view);
 
   return (
-    <>
-      {/* More menu overlay */}
-      {showMore && (
-        <div style={overlayStyle} onClick={() => setShowMore(false)} role="dialog" aria-label="More navigation">
-          <div
-            style={{ ...menuStyle, background: isDark ? "#1E293B" : "#fff", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
-            onClick={(e) => e.stopPropagation()}
+    <nav
+      style={{ ...S.bottomNav, ...themed("bottomNav") }}
+      data-bottom-nav
+      role="tablist"
+      aria-label="Main navigation"
+    >
+      {NAV.map((n) => {
+        const active = view === n.id;
+        const color = active ? "#7C5CFC" : inactiveColor;
+        return (
+          <button
+            key={n.id}
+            role="tab"
+            aria-selected={active}
+            aria-label={n.label}
+            style={{
+              ...S.navItem,
+              color,
+              background: "none",
+              border: "none",
+              padding: "8px 0",
+              minHeight: 48,
+              flex: 1,
+              cursor: "pointer",
+            }}
+            onClick={() => setView(n.id)}
           >
-            <div style={menuHeader}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)" }}>More</span>
-              <button aria-label="Close menu" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)" }} onClick={() => setShowMore(false)}>
-                <X size={16} />
-              </button>
+            {n.LucideIcon
+              ? <n.LucideIcon size={20} color={color} strokeWidth={active ? 2 : 1.5} />
+              : <NavIcon id={n.id} size={20} color={color} strokeWidth={active ? 2 : 1.5} />
+            }
+            <div style={{ fontSize: 10, marginTop: 3, fontWeight: active ? 700 : 500, letterSpacing: 0.2 }}>
+              {n.label}
             </div>
-            <div style={menuGrid} role="menu">
-              {MORE_ITEMS.map((item) => {
-                const active = view === item.id;
-                const labelColor = active ? item.color : isDark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.65)";
-                return (
-                  <button
-                    key={item.id}
-                    role="menuitem"
-                    aria-label={item.label}
-                    style={{
-                      ...menuItem,
-                      background: active ? `${item.color}18` : isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                      border: active ? `1px solid ${item.color}40` : `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
-                    }}
-                    onClick={() => { setView(item.id); setShowMore(false); }}
-                  >
-                    <item.Icon size={22} color={active ? item.color : isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)"} strokeWidth={active ? 2 : 1.5} />
-                    <span style={{ fontSize: 12, fontWeight: active ? 700 : 600, color: labelColor, marginTop: 6 }}>
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav style={themed("bottomNav")} data-bottom-nav role="tablist" aria-label="Main navigation">
-        {NAV.map((n) => {
-          const active = view === n.id;
-          return (
-            <button
-              key={n.id}
-              role="tab"
-              aria-selected={active}
-              aria-label={n.label}
-              style={{ ...S.navItem, color: active ? "#7C5CFC" : inactiveColor, background: "none", border: "none", padding: "8px 0", minHeight: 48, minWidth: 48, cursor: "pointer" }}
-              onClick={() => { setView(n.id); setShowMore(false); }}
-            >
-              <NavIcon id={n.id} size={20} color={active ? "#7C5CFC" : inactiveColor} strokeWidth={active ? 2 : 1.5} />
-              <div style={{ fontSize: 10, marginTop: 3, fontWeight: active ? 700 : 500, letterSpacing: 0.2 }}>{n.label}</div>
-              {active && <div style={S.navDot} />}
-            </button>
-          );
-        })}
-        {/* More button */}
-        <button
-          role="tab"
-          aria-selected={isMoreActive}
-          aria-expanded={showMore}
-          aria-label="More navigation options"
-          style={{ ...S.navItem, color: isMoreActive ? "#7C5CFC" : inactiveColor, background: "none", border: "none", padding: "8px 0", minHeight: 48, minWidth: 48, cursor: "pointer" }}
-          onClick={() => setShowMore(!showMore)}
-        >
-          <MoreHorizontal size={20} color={isMoreActive ? "#7C5CFC" : inactiveColor} strokeWidth={isMoreActive ? 2 : 1.5} />
-          <div style={{ fontSize: 10, marginTop: 3, fontWeight: isMoreActive ? 700 : 500, letterSpacing: 0.2 }}>More</div>
-          {isMoreActive && <div style={S.navDot} />}
-        </button>
-      </nav>
-    </>
+            {active && <div style={S.navDot} />}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
-
-const overlayStyle = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.4)",
-  zIndex: 998,
-  display: "flex",
-  alignItems: "flex-end",
-  justifyContent: "center",
-};
-
-const menuStyle = {
-  width: "100%",
-  maxWidth: 430,
-  borderRadius: "20px 20px 0 0",
-  padding: "16px 16px calc(24px + env(safe-area-inset-bottom, 0px) + 56px)",
-  boxShadow: "0 -8px 32px rgba(0,0,0,0.2)",
-};
-
-const menuHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 12,
-  padding: "0 4px",
-};
-
-const menuGrid = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 8,
-};
-
-const menuItem = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "16px 8px",
-  borderRadius: 14,
-  cursor: "pointer",
-  transition: "all 0.15s",
-};
