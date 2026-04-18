@@ -593,6 +593,10 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         onSave={handleAvatarSave}
       />
 
+      {/* ── Share Card ── */}
+      <SectionHeader title="Share Your Progress" />
+      <ShareCard state={state} displayName={displayName} level={level} levelIdx={levelIdx} />
+
       {/* ── Data Export ── */}
       <SectionHeader title="Your Data" />
       <div style={dangerSection}>
@@ -662,6 +666,204 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         )}
       </div>
 
+    </div>
+  );
+}
+
+// ── Share Card ────────────────────────────────────────────────────────────────
+
+function ShareCard({ state, displayName, level, levelIdx }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const [generating, setGenerating] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  async function generateAndShare() {
+    setGenerating(true);
+    try {
+      const canvas = document.createElement("canvas");
+      const W = 800, H = 420;
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // Background gradient
+      ctx.fillStyle = "#0D0D1A";
+      ctx.fillRect(0, 0, W, H);
+
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "rgba(124,92,252,0.18)");
+      grad.addColorStop(1, "rgba(236,72,153,0.10)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Border
+      ctx.strokeStyle = "rgba(124,92,252,0.35)";
+      ctx.lineWidth = 2;
+      const r = 24;
+      ctx.beginPath();
+      ctx.roundRect(2, 2, W - 4, H - 4, r);
+      ctx.stroke();
+
+      // App name
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.font = "bold 16px system-ui, sans-serif";
+      ctx.fillText("LIFE OS", 48, 52);
+
+      // Name
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 40px system-ui, sans-serif";
+      ctx.fillText(displayName, 48, 110);
+
+      // Level
+      ctx.fillStyle = "rgba(124,92,252,0.9)";
+      ctx.font = "bold 18px system-ui, sans-serif";
+      ctx.fillText(`Lv.${levelIdx + 1} ${level.name}`, 48, 145);
+
+      // Stats row
+      const stats = [
+        { label: "Day", value: state.currentDay },
+        { label: "Streak", value: `${state.streak}🔥` },
+        { label: "XP", value: state.xp?.toLocaleString() },
+        { label: "Trophies", value: Object.keys(state.unlockedTrophies || {}).length },
+      ];
+
+      stats.forEach((s, i) => {
+        const x = 48 + i * 186;
+        const y = 220;
+        // Card bg
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        const rr = 14;
+        ctx.beginPath();
+        ctx.roundRect(x, y, 168, 80, rr);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, 168, 80, rr);
+        ctx.stroke();
+
+        // Value
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 28px system-ui, sans-serif";
+        ctx.fillText(String(s.value), x + 16, y + 43);
+
+        // Label
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.font = "600 13px system-ui, sans-serif";
+        ctx.fillText(s.label.toUpperCase(), x + 16, y + 66);
+      });
+
+      // Prestige badge
+      if (state.prestige > 0) {
+        ctx.fillStyle = "rgba(250,204,21,0.12)";
+        ctx.beginPath();
+        ctx.roundRect(48, 320, 120, 32, 10);
+        ctx.fill();
+        ctx.fillStyle = "#FACC15";
+        ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.fillText(`⚜ Prestige ×${state.prestige}`, 62, 341);
+      }
+
+      // Footer
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.font = "500 13px system-ui, sans-serif";
+      ctx.fillText("life-os.app", W - 110, H - 24);
+
+      // Download or share
+      const dataUrl = canvas.toDataURL("image/png");
+
+      if (navigator.share && navigator.canShare) {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], "life-os-progress.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: `${displayName}'s Life OS Progress` });
+          setShared(true);
+          setTimeout(() => setShared(false), 3000);
+          return;
+        }
+      }
+
+      // Fallback: download
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "life-os-progress.png";
+      a.click();
+      setShared(true);
+      setTimeout(() => setShared(false), 3000);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div style={{ padding: "0 16px 8px" }}>
+      {/* Preview card */}
+      <div style={{
+        borderRadius: 16,
+        background: "linear-gradient(135deg, rgba(124,92,252,0.12), rgba(236,72,153,0.06))",
+        border: "1px solid rgba(124,92,252,0.2)",
+        padding: "20px 20px 16px",
+        marginBottom: 10,
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
+          LIFE OS · Preview
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>{displayName}</div>
+        <div style={{ fontSize: 13, color: "#7C5CFC", fontWeight: 600, marginBottom: 14 }}>
+          Lv.{levelIdx + 1} {level.name}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[
+            { label: "Day", val: state.currentDay },
+            { label: "Streak", val: `${state.streak}🔥` },
+            { label: "XP", val: state.xp?.toLocaleString() },
+            { label: "Trophies", val: Object.keys(state.unlockedTrophies || {}).length },
+          ].map((s, i) => (
+            <div key={i} style={{
+              flex: 1,
+              padding: "8px 10px",
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{s.val}</div>
+              <div style={{ fontSize: 9, opacity: 0.35, marginTop: 3, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <motion.button
+        style={{
+          width: "100%",
+          padding: "13px",
+          borderRadius: 12,
+          background: shared ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, rgba(124,92,252,0.2), rgba(236,72,153,0.15))",
+          border: shared ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(124,92,252,0.25)",
+          color: shared ? "#22C55E" : "#7C5CFC",
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+        }}
+        whileTap={{ scale: 0.97 }}
+        onClick={generating ? undefined : generateAndShare}
+        disabled={generating}
+      >
+        {generating ? (
+          <>Generating…</>
+        ) : shared ? (
+          <><CheckCircle size={15} /> Saved!</>
+        ) : (
+          <><Sparkles size={15} /> Share Progress Card</>
+        )}
+      </motion.button>
     </div>
   );
 }
