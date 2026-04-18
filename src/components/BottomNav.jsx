@@ -1,14 +1,15 @@
 import { S } from "../styles/theme";
 import { useTheme } from "../hooks";
 import { NavIcon } from "./Icon";
-import { BookOpen } from "lucide-react";
+import { BookOpen, BarChart3 } from "lucide-react";
 
 const NAV = [
-  { id: "home",    label: "Today"   },
-  { id: "journal", label: "Journal", LucideIcon: BookOpen },
-  { id: "forge",   label: "Forge"   },
-  { id: "dojo",    label: "Dojo"    },
-  { id: "academy", label: "Academy" },
+  { id: "home",      label: "Today"   },
+  { id: "journal",   label: "Journal", LucideIcon: BookOpen },
+  { id: "forge",     label: "Forge"   },
+  { id: "dojo",      label: "Dojo"    },
+  { id: "analytics", label: "Stats",  LucideIcon: BarChart3 },
+  { id: "academy",   label: "Academy" },
 ];
 
 export default function BottomNav({ view, setView }) {
@@ -45,10 +46,10 @@ export default function BottomNav({ view, setView }) {
             onClick={() => setView(n.id)}
           >
             {n.LucideIcon
-              ? <n.LucideIcon size={20} color={color} strokeWidth={active ? 2 : 1.5} />
-              : <NavIcon id={n.id} size={20} color={color} strokeWidth={active ? 2 : 1.5} />
+              ? <n.LucideIcon size={18} color={color} strokeWidth={active ? 2 : 1.5} />
+              : <NavIcon id={n.id} size={18} color={color} strokeWidth={active ? 2 : 1.5} />
             }
-            <div style={{ fontSize: 10, marginTop: 3, fontWeight: active ? 700 : 500, letterSpacing: 0.2 }}>
+            <div style={{ fontSize: 9, marginTop: 3, fontWeight: active ? 700 : 500, letterSpacing: 0.1 }}>
               {n.label}
             </div>
             {active && <div style={S.navDot} />}
