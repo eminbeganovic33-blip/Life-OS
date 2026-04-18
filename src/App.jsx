@@ -330,8 +330,17 @@ function LifeOS() {
     dc.push(questId);
     const boostedXp = applyStreakMultiplier(xpVal, state.streak);
     const newXp = state.xp + boostedXp;
+    // Track completion timestamp for analytics (time-of-day patterns)
+    const prevTimes = state.questCompletedAt?.[day] || {};
+    const newTimes = { ...prevTimes, [questId]: Date.now() };
     showXp(boostedXp);
-    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
+    const ns = {
+      ...state,
+      xp: newXp,
+      lifetimeXp: (state.lifetimeXp || state.xp) + boostedXp,
+      completedQuests: { ...state.completedQuests, [day]: dc },
+      questCompletedAt: { ...(state.questCompletedAt || {}), [day]: newTimes },
+    };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
     const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };

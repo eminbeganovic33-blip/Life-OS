@@ -92,11 +92,14 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
 
   const handlePrestige = () => {
     const today = new Date().toISOString().slice(0, 10);
+    const newPrestige = prestige + 1;
     save({
       ...state,
-      xp: 0,
-      prestige: prestige + 1,
-      prestigeHistory: [...(state.prestigeHistory || []), { date: today, atStreak: state.streak }],
+      xp: 0,                         // level resets so the climb feels meaningful again
+      lifetimeXp: state.lifetimeXp || state.xp, // never resets — true career total
+      prestigeXpBonus: (state.prestigeXpBonus || 0) + Math.round(state.xp * 0.1), // 10% of peak XP banked
+      prestige: newPrestige,
+      prestigeHistory: [...(state.prestigeHistory || []), { date: today, atStreak: state.streak, xpAtPrestige: state.xp }],
     });
     setConfirmPrestige(false);
     playSound("levelUp");
@@ -164,18 +167,20 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
               <div style={{ fontSize: T.font.md, fontWeight: T.weight.heavy, color: "#FACC15" }}>
                 Ready to Prestige
               </div>
-              <div style={{ fontSize: T.font.xs, opacity: 0.65, marginTop: 2 }}>
-                Reset XP to gain a permanent crown. Trophies and streak stay.
+              <div style={{ fontSize: T.font.xs, opacity: 0.65, marginTop: 2, lineHeight: 1.5 }}>
+                Your level resets so the climb feels meaningful again.{" "}
+                <strong style={{ color: "#FACC15" }}>10% of your XP ({Math.round((state.xp || 0) * 0.1).toLocaleString()} XP)</strong>{" "}
+                is banked permanently. Crown added. Streak and trophies stay.
               </div>
             </div>
           </div>
           {!confirmPrestige ? (
             <button style={prestigeBtn} onClick={() => setConfirmPrestige(true)}>
-              Prestige Now
+              Prestige
             </button>
           ) : (
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button style={prestigeBtnConfirm} onClick={handlePrestige}>Confirm Reset</button>
+              <button style={prestigeBtnConfirm} onClick={handlePrestige}>Confirm Prestige</button>
               <button style={prestigeBtnCancel} onClick={() => setConfirmPrestige(false)}>Cancel</button>
             </div>
           )}

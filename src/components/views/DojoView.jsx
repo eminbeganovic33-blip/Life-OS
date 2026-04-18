@@ -3,7 +3,7 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { getTodayStr } from "../../utils";
 import { chatWithCoach } from "../../utils/ai";
-import { Bot, Pencil, Trash2, Flame } from "lucide-react";
+import { Bot, Pencil, Trash2, Flame, TrendingUp, History } from "lucide-react";
 import {
   EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES,
   getExerciseById,
@@ -362,9 +362,30 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       )
   );
 
-  function renderSetLogger(setsList, setFn, onSave, exerciseName, hint) {
+  // Look up the last logged session for an exercise (excluding today)
+  function getLastSession(exerciseId) {
+    if (!exerciseId) return null;
+    const pastDates = Object.keys(workoutLogs)
+      .filter((d) => d !== today)
+      .sort((a, b) => b.localeCompare(a));
+    for (const d of pastDates) {
+      const entry = (workoutLogs[d] || []).find((e) => e.exercise === exerciseId);
+      if (entry?.sets?.length > 0) {
+        const maxWeight = Math.max(...entry.sets.map((s) => Number(s.weight) || 0));
+        const totalVol = entry.sets.reduce((sum, s) => sum + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+        return { sets: entry.sets, maxWeight, totalVol, date: d };
+      }
+    }
+    return null;
+  }
+
+  function renderSetLogger(setsList, setFn, onSave, exerciseName, hint, exerciseId) {
     const filledSets = setsList.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
     const totalVolume = filledSets.reduce((sum, s) => sum + Number(s.weight) * Number(s.reps), 0);
+    const lastSession = getLastSession(exerciseId);
+    const isBeatingVolume = lastSession && filledSets.length > 0 && totalVolume > lastSession.totalVol;
+    const isBeatingWeight = lastSession && filledSets.length > 0 &&
+      Math.max(...filledSets.map((s) => Number(s.weight) || 0)) > lastSession.maxWeight;
 
     return (
       <div style={ds.loggerCard}>
@@ -373,31 +394,63 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           {hint && <span style={{ fontSize: 11, opacity: 0.4 }}>{hint}</span>}
         </div>
 
-        {setsList.map((set, i) => (
-          <div key={i} style={ds.setRow}>
-            <div style={ds.setLabel}>Set {i + 1}</div>
-            <input
-              type="number"
-              placeholder="kg"
-              value={set.weight}
-              onChange={(e) => handleSetChange(setsList, setFn, i, "weight", e.target.value)}
-              style={S.setInput}
-            />
-            <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
-            <input
-              type="number"
-              placeholder="reps"
-              value={set.reps}
-              onChange={(e) => handleSetChange(setsList, setFn, i, "reps", e.target.value)}
-              style={S.setInput}
-            />
-            {setsList.length > 1 && (
-              <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
-                &times;
-              </button>
+        {/* Last session reference — the key progressive overload cue */}
+        {lastSession && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 10px",
+            borderRadius: 8,
+            background: isBeatingVolume ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
+            border: `1px solid ${isBeatingVolume ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)"}`,
+            marginBottom: 10,
+            fontSize: 11,
+          }}>
+            {isBeatingVolume
+              ? <TrendingUp size={12} color="#22C55E" strokeWidth={2.5} />
+              : <History size={12} style={{ opacity: 0.4 }} strokeWidth={2} />
+            }
+            <span style={{ opacity: isBeatingVolume ? 1 : 0.5, color: isBeatingVolume ? "#22C55E" : "inherit" }}>
+              {isBeatingVolume
+                ? `New PR! Last: ${lastSession.maxWeight}kg × ${lastSession.sets[0]?.reps || "?"} — you're beating it`
+                : `Last session: ${lastSession.maxWeight}kg × ${lastSession.sets[0]?.reps || "?"} reps (${lastSession.sets.length} sets · ${lastSession.totalVol.toLocaleString()} kg vol)`
+              }
+            </span>
+            {isBeatingWeight && !isBeatingVolume && (
+              <span style={{ color: "#F97316", fontWeight: 700, marginLeft: 2 }}>↑ weight PR</span>
             )}
           </div>
-        ))}
+        )}
+
+        {setsList.map((set, i) => {
+          const prevSet = lastSession?.sets[i];
+          return (
+            <div key={i} style={ds.setRow}>
+              <div style={ds.setLabel}>Set {i + 1}</div>
+              <input
+                type="number"
+                placeholder={prevSet ? `${prevSet.weight}` : "kg"}
+                value={set.weight}
+                onChange={(e) => handleSetChange(setsList, setFn, i, "weight", e.target.value)}
+                style={S.setInput}
+              />
+              <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
+              <input
+                type="number"
+                placeholder={prevSet ? `${prevSet.reps}` : "reps"}
+                value={set.reps}
+                onChange={(e) => handleSetChange(setsList, setFn, i, "reps", e.target.value)}
+                style={S.setInput}
+              />
+              {setsList.length > 1 && (
+                <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
+                  &times;
+                </button>
+              )}
+            </div>
+          );
+        })}
 
         <button style={ds.addSetLink} onClick={() => handleAddSet(setsList, setFn)}>
           + Add Set
@@ -408,7 +461,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <div style={ds.saveSummary}>
             <span>{filledSets.length} set{filledSets.length !== 1 ? "s" : ""}</span>
             <span style={{ opacity: 0.3 }}>&middot;</span>
-            <span>{totalVolume.toLocaleString()} kg total volume</span>
+            <span style={{ color: isBeatingVolume ? "#22C55E" : "inherit" }}>
+              {totalVolume.toLocaleString()} kg total volume
+              {isBeatingVolume && " 🏆"}
+            </span>
           </div>
         )}
 
@@ -539,7 +595,9 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <div style={{ padding: "0 14px" }}>
             {renderSetLogger(
               sets, setSets, saveCustomExercise,
-              getExerciseById(activeExercise)?.name || activeExercise
+              getExerciseById(activeExercise)?.name || activeExercise,
+              undefined,
+              activeExercise
             )}
           </div>
         )}
@@ -773,7 +831,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           const hint = current.suggestedWeight
             ? `${current.sets}×${current.reps} | ${current.suggestedWeight}`
             : `${current.sets}×${current.reps}${current.rest ? ` | Rest: ${current.rest}` : ""}`;
-          return renderSetLogger(currentSets, setCurrentSets, onSave, exerciseName, hint);
+          return renderSetLogger(currentSets, setCurrentSets, onSave, exerciseName, hint, current.exerciseId);
         })()}
       </div>
     );
