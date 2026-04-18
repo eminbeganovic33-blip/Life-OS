@@ -211,6 +211,68 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         ))}
       </div>
 
+      {/* ── Next Trophies ── */}
+      {(() => {
+        const nextTrophies = TROPHIES
+          .filter((t) => !state.unlockedTrophies?.[t.id] && (trophyProgress[t.id] || 0) > 0)
+          .sort((a, b) => (trophyProgress[b.id] || 0) - (trophyProgress[a.id] || 0))
+          .slice(0, 3);
+        if (nextTrophies.length === 0) return null;
+        return (
+          <>
+            <SectionHeader title="Chase These Next" sub="Your closest trophies" />
+            <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              {nextTrophies.map((t, i) => {
+                const prog = trophyProgress[t.id] || 0;
+                const tier = getTrophyTierColor(t.tier);
+                return (
+                  <motion.div
+                    key={t.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      background: `${tier.bg}`,
+                      border: `1px solid ${tier.border}`,
+                    }}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 12,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 18, flexShrink: 0,
+                    }}>
+                      {t.icon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{t.name}</div>
+                      <div style={{ fontSize: 11, opacity: 0.4, marginBottom: 5, lineHeight: 1.3 }}>{t.desc}</div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                        <motion.div
+                          style={{ height: "100%", borderRadius: 2, background: tier.text || "#7C5CFC" }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.round(prog * 100)}%` }}
+                          transition={{ duration: 0.7, delay: i * 0.08 }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: tier.text || "#7C5CFC", flexShrink: 0, minWidth: 36, textAlign: "right" }}>
+                      {Math.round(prog * 100)}%
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
       {/* ── Trophy Room ── */}
       <SectionHeader title="Trophy Room" sub={`${unlockedTrophyCount} / ${totalTrophies} unlocked`} />
       {/* Overall progress bar */}
