@@ -127,7 +127,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={heroName}>{displayName}</div>
-          {displayEmail && <div style={heroEmail}>{displayEmail}</div>}
+          {displayEmail && <div style={{ ...heroEmail, color: colors.textSecondary }}>{displayEmail}</div>}
           <div style={levelRow}>
             <span style={levelPill}>{level.name}</span>
             {prestige > 0 && (
@@ -146,9 +146,9 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
       <div style={xpSection}>
         <div style={xpTop}>
           <span style={xpLabel}>{state.xp} XP</span>
-          <span style={xpNext}>{nextLevel ? `${nextLevel.xpReq - state.xp} to ${nextLevel.name}` : "Max level"}</span>
+          <span style={{ ...xpNext, color: colors.textSecondary }}>{nextLevel ? `${nextLevel.xpReq - state.xp} to ${nextLevel.name}` : "Max level"}</span>
         </div>
-        <div style={xpTrack}>
+        <div style={{ ...xpTrack, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.07)" }}>
           <motion.div
             style={xpFill}
             initial={{ width: 0 }}
@@ -204,9 +204,13 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
           { v: unlockedTrophyCount, l: "Trophies" },
           { v: state.liftingStreak || 0, l: "Lift Streak" },
         ].map((s, i) => (
-          <div key={i} style={secStat}>
-            <div style={secStatVal}>{s.v}</div>
-            <div style={secStatLbl}>{s.l}</div>
+          <div key={i} style={{
+            ...secStat,
+            background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+          }}>
+            <div style={{ ...secStatVal, color: colors.text }}>{s.v}</div>
+            <div style={{ ...secStatLbl, color: colors.textSecondary }}>{s.l}</div>
           </div>
         ))}
       </div>
@@ -243,17 +247,17 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
                   >
                     <div style={{
                       width: 38, height: 38, borderRadius: 12,
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+                      border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 18, flexShrink: 0,
                     }}>
                       {t.icon}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{t.name}</div>
-                      <div style={{ fontSize: 11, opacity: 0.4, marginBottom: 5, lineHeight: 1.3 }}>{t.desc}</div>
-                      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: colors.text }}>{t.name}</div>
+                      <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7, marginBottom: 5, lineHeight: 1.3 }}>{t.desc}</div>
+                      <div style={{ height: 4, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)", overflow: "hidden" }}>
                         <motion.div
                           style={{ height: "100%", borderRadius: 2, background: tier.text || "#7C5CFC" }}
                           initial={{ width: 0 }}
@@ -411,7 +415,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
 
       {/* ── Milestones ── */}
       <SectionHeader title="Milestones" sub={day > 66 ? "Journey complete" : "Your path"} />
-      <MilestonesTimeline state={state} day={day} />
+      <MilestonesTimeline state={state} day={day} isDark={isDark} colors={colors} />
 
       {/* ── Settings ── */}
       <SectionHeader title="Settings" />
@@ -874,8 +878,8 @@ function SectionHeader({ title, sub }) {
   const { colors } = useTheme();
   return (
     <div style={sectionHeader}>
-      <span style={sectionTitle}>{title}</span>
-      {sub && <span style={sectionSub}>{sub}</span>}
+      <span style={{ ...sectionTitle, color: colors.text }}>{title}</span>
+      {sub && <span style={{ ...sectionSub, color: colors.textSecondary }}>{sub}</span>}
     </div>
   );
 }
@@ -922,7 +926,7 @@ function StreakCalendar({ state, isDark }) {
         </button>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{monthName}</div>
-          <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>{monthCompletions} / {daysInMonth} days</div>
+          <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>{monthCompletions} / {daysInMonth} days</div>
         </div>
         <button style={{ ...calNavBtn, opacity: canGoForward ? 1 : 0.3 }} onClick={() => canGoForward && setMonthOffset((o) => o + 1)} disabled={!canGoForward} aria-label="Next month">
           <ChevronRight size={16} />
@@ -973,8 +977,8 @@ const MILESTONES = [
   { day: 66, label: "Boss Day II", desc: "Journey complete — mastery unlocked", Icon: Sparkles, color: "#7C5CFC" },
 ];
 
-function MilestonesTimeline({ state, day }) {
-  const { colors } = useTheme();
+function MilestonesTimeline({ state, day, isDark, colors }) {
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   return (
     <div style={milestonesWrap}>
       {MILESTONES.map((m, i) => {
@@ -986,26 +990,26 @@ function MilestonesTimeline({ state, day }) {
             <div style={milestoneLineCol}>
               <div style={{
                 ...milestoneDot,
-                background: reached ? m.color : isNext ? "rgba(124,92,252,0.2)" : "rgba(255,255,255,0.06)",
+                background: reached ? m.color : isNext ? "rgba(124,92,252,0.2)" : sub(0.06),
                 border: isNext ? `2px solid ${m.color}` : "2px solid transparent",
                 boxShadow: reached ? `0 0 12px ${m.color}44` : "none",
               }}>
-                <m.Icon size={14} color={reached ? "#fff" : isNext ? m.color : "rgba(255,255,255,0.2)"} />
+                <m.Icon size={14} color={reached ? "#fff" : isNext ? m.color : sub(0.2)} />
               </div>
               {i < MILESTONES.length - 1 && (
                 <div style={{
                   ...milestoneConnector,
-                  background: reached && day >= (MILESTONES[i + 1]?.day || Infinity) ? "linear-gradient(180deg, #7C5CFC, #EC4899)" : reached ? `linear-gradient(180deg, ${m.color}88, rgba(255,255,255,0.06))` : "rgba(255,255,255,0.06)",
+                  background: reached && day >= (MILESTONES[i + 1]?.day || Infinity) ? "linear-gradient(180deg, #7C5CFC, #EC4899)" : reached ? `linear-gradient(180deg, ${m.color}88, ${sub(0.06)})` : sub(0.06),
                 }} />
               )}
             </div>
             {/* Content */}
             <div style={{ ...milestoneContent, opacity: reached ? 1 : isNext ? 0.8 : 0.35 }}>
               <div style={{ display: "flex", alignItems: "center", gap: T.space.sm }}>
-                <span style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{m.label}</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: T.weight.medium }}>Day {m.day}</span>
+                <span style={{ fontSize: T.font.md, fontWeight: T.weight.bold, color: colors.text }}>{m.label}</span>
+                <span style={{ fontSize: 10, color: colors.textSecondary, fontWeight: T.weight.medium }}>Day {m.day}</span>
               </div>
-              <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.desc}</div>
+              <div style={{ fontSize: T.font.xs, color: colors.textSecondary, marginTop: 2 }}>{m.desc}</div>
               {isNext && (
                 <div style={{ fontSize: T.font.xs, color: m.color, fontWeight: T.weight.bold, marginTop: 4 }}>
                   {m.day - day} day{m.day - day !== 1 ? "s" : ""} away
@@ -1020,12 +1024,18 @@ function MilestonesTimeline({ state, day }) {
 }
 
 function StatBig({ value, label, color, icon }) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
+  const isDark = theme === "dark";
   return (
-    <div style={{ ...primaryStat, borderColor: `${color}22` }}>
+    <div style={{
+      ...primaryStat,
+      borderColor: `${color}22`,
+      background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+      border: `1px solid ${isDark ? `${color}22` : `${color}18`}`,
+    }}>
       <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
       <div style={{ ...primaryStatVal, color }}>{value}</div>
-      <div style={primaryStatLbl}>{label}</div>
+      <div style={{ ...primaryStatLbl, color: colors.textSecondary }}>{label}</div>
     </div>
   );
 }
@@ -1226,7 +1236,6 @@ const xpNext = {
 const xpTrack = {
   height: 6,
   borderRadius: 3,
-  background: "rgba(255,255,255,0.05)",
   overflow: "hidden",
 };
 

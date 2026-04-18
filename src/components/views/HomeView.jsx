@@ -103,7 +103,7 @@ export default function HomeView({
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   const [activeGuide, setActiveGuide] = useState(null);
-  const [collapsedBlocks, setCollapsedBlocks] = useState({});
+  const [collapsedBlocks, setCollapsedBlocks] = useState({ morning: true, afternoon: true, evening: true });
   const [swipeHint, setSwipeHint] = useState(null);
   const swipeHintTimer = useRef(null);
   const touchStartX = useRef(0);

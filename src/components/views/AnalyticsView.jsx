@@ -289,16 +289,18 @@ export default function AnalyticsView({ state }) {
     const startDate = state.startDate ? new Date(state.startDate) : new Date();
     const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-    // Build day objects: { day (1-based), date, mood, questsDone }
+    // Build day objects for all 365 days — future/untracked days shown as empty
     const days = [];
-    for (let d = 1; d <= Math.min(state.currentDay, 365); d++) {
+    for (let d = 1; d <= 365; d++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + d - 1);
+      const isFuture = d > state.currentDay;
       days.push({
         day: d,
         date,
-        mood: state.moods?.[d] !== undefined ? state.moods[d] : null,
-        questsDone: (state.completedQuests?.[d] || []).length,
+        mood: !isFuture && state.moods?.[d] !== undefined ? state.moods[d] : null,
+        questsDone: !isFuture ? (state.completedQuests?.[d] || []).length : 0,
+        isFuture,
       });
     }
 
@@ -347,25 +349,28 @@ export default function AnalyticsView({ state }) {
                 {month.days.map((d) => {
                   const color = d.mood !== null ? moodColors[d.mood] : null;
                   const hasActivity = d.questsDone > 0;
+                  const cellBg = d.isFuture
+                    ? sub(0.03)
+                    : color
+                    ? color
+                    : hasActivity
+                    ? "rgba(124,92,252,0.2)"
+                    : sub(0.06);
                   return (
                     <div
                       key={d.day}
-                      title={`Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
+                      title={d.isFuture ? `Day ${d.day}` : `Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
                       style={{
                         width: 18,
                         height: 18,
                         borderRadius: 4,
-                        background: color
-                          ? color
-                          : hasActivity
-                          ? "rgba(124,92,252,0.2)"
-                          : sub(0.06),
+                        background: cellBg,
                         border: color
                           ? `1px solid ${color}60`
-                          : `1px solid ${sub(0.08)}`,
-                        transition: "transform 0.1s",
+                          : `1px solid ${sub(d.isFuture ? 0.04 : 0.08)}`,
                         cursor: "default",
                         boxShadow: color ? `0 0 4px ${color}40` : "none",
+                        opacity: d.isFuture ? 0.4 : 1,
                       }}
                     />
                   );
@@ -378,7 +383,7 @@ export default function AnalyticsView({ state }) {
         {/* Stats footer */}
         <div style={{ display: "flex", gap: 8, padding: "20px 14px 8px" }}>
           <div style={heatStat}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{days.length}</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{state.currentDay}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Days Tracked</div>
           </div>
           <div style={heatStat}>
@@ -387,28 +392,28 @@ export default function AnalyticsView({ state }) {
           </div>
           <div style={heatStat}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
-              {moodDone > 0 ? Math.round((moodDone / days.length) * 100) : 0}%
+              {moodDone > 0 ? Math.round((moodDone / Math.max(state.currentDay, 1)) * 100) : 0}%
             </div>
-            <div style={{ fontSize: 10, opacity: 0.4 }}>Consistency</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Mood Rate</div>
           </div>
         </div>
-        {days.length < 7 && (
-          <div style={{ padding: "0 14px 12px", fontSize: 11, opacity: 0.3, textAlign: "center" }}>
-            Keep going — your year is just starting to fill in.
-          </div>
-        )}
+        <div style={{ padding: "0 14px 16px", fontSize: 11, color: colors.textSecondary, opacity: 0.45, textAlign: "center" }}>
+          {state.currentDay} of 365 days filled · keep going
+        </div>
       </>
     );
   }
 
   function renderHeatmap() {
+    const emptyColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)";
+    const levelColors = [emptyColor, ...heatColors.slice(1)];
     return (
       <>
         <div style={sectionLabel}>90-Day Activity Heatmap</div>
         <div style={heatmapLegend}>
           <span style={{ fontSize: 10, opacity: 0.35 }}>Less</span>
-          {[0, 1, 2, 3, 4].map((level) => (
-            <div key={level} style={{ ...heatCell, background: heatColors[level] }} />
+          {[1, 2, 3, 4].map((level) => (
+            <div key={level} style={{ width: 12, height: 12, borderRadius: 2, background: levelColors[level], flexShrink: 0 }} />
           ))}
           <span style={{ fontSize: 10, opacity: 0.35 }}>More</span>
         </div>
@@ -418,7 +423,7 @@ export default function AnalyticsView({ state }) {
               key={i}
               style={{
                 ...heatCell,
-                background: heatColors[d.intensity],
+                background: levelColors[d.intensity],
               }}
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -724,7 +729,8 @@ const heatCell = {
   width: "100%",
   aspectRatio: "1",
   borderRadius: 3,
-  minWidth: 8,
+  minWidth: 0,
+  maxWidth: 26,
 };
 const heatColors = [
   "rgba(255,255,255,0.04)",
