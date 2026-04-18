@@ -124,79 +124,233 @@ export function getMoodTrend(state) {
   return result;
 }
 
+// Human-readable category action verbs for insight copy
+const CATEGORY_ACTIONS = {
+  sleep: "get quality sleep",
+  water: "stay hydrated",
+  exercise: "exercise",
+  mind: "meditate",
+  screen: "limit screen time",
+  shower: "take a cold shower",
+  nutrition: "eat well",
+  reading: "read",
+  work: "focus on deep work",
+  social: "connect socially",
+  finance: "track your finances",
+  creative: "create something",
+};
+
+function avg(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+
 /**
- * Returns array of insight strings comparing mood on days with/without specific categories.
+ * Returns an array of up to 8 insight strings, sorted by signal strength.
+ * Covers: mood-category correlation, quest volume vs mood, best weekday,
+ * early-bird pattern, streak momentum, and category combos.
  */
 export function getCorrelationInsights(state) {
-  const { completedQuests = {}, moods = {} } = state || {};
+  const {
+    completedQuests = {},
+    moods = {},
+    questCompletedAt = {},
+    startDate,
+  } = state || {};
+
   const insights = [];
+  const moodDays = Object.keys(moods).filter(
+    (d) => moods[d] !== undefined && moods[d] !== null
+  );
 
-  const categoryLabels = {
-    sleep: "get good sleep",
-    water: "stay hydrated",
-    exercise: "exercise",
-    mind: "meditate",
-    screen: "limit screen time",
-    shower: "take a cold shower",
-  };
+  if (moodDays.length < 5) return insights; // not enough data yet
 
-  const categories = ["sleep", "water", "exercise", "mind", "screen", "shower"];
+  // ── 1. Mood vs category correlation (all categories) ──
+  for (const [catId, action] of Object.entries(CATEGORY_ACTIONS)) {
+    const withMoods = [];
+    const withoutMoods = [];
 
-  for (const category of categories) {
-    const moodsWithCategory = [];
-    const moodsWithoutCategory = [];
-
-    for (const day of Object.keys(moods)) {
-      const moodIndex = moods[day];
-      if (moodIndex === undefined || moodIndex === null) continue;
-
-      // Convert 0-5 index to 1-6 scale for display
-      const moodScore = moodIndex + 1;
-
+    for (const day of moodDays) {
+      const score = moods[day] + 1; // 1-6
       const quests = completedQuests[day];
-      const hasCategory =
-        Array.isArray(quests) && quests.some((qId) => qId.startsWith(category));
-
-      if (hasCategory) {
-        moodsWithCategory.push(moodScore);
-      } else {
-        moodsWithoutCategory.push(moodScore);
-      }
+      const has = Array.isArray(quests) && quests.some((q) => q.startsWith(catId));
+      if (has) withMoods.push(score);
+      else withoutMoods.push(score);
     }
 
-    // Need at least 3 data points in each group for meaningful insight
-    if (moodsWithCategory.length >= 3 && moodsWithoutCategory.length >= 3) {
-      const avgWith = (
-        moodsWithCategory.reduce((a, b) => a + b, 0) / moodsWithCategory.length
-      ).toFixed(1);
-      const avgWithout = (
-        moodsWithoutCategory.reduce((a, b) => a + b, 0) /
-        moodsWithoutCategory.length
-      ).toFixed(1);
+    if (withMoods.length >= 3 && withoutMoods.length >= 3) {
+      const avgWith = avg(withMoods);
+      const avgWithout = avg(withoutMoods);
+      const diff = avgWith - avgWithout;
 
-      const diff = parseFloat(avgWith) - parseFloat(avgWithout);
-
-      if (Math.abs(diff) >= 0.3) {
-        const action = categoryLabels[category] || category;
-        const pct = Math.abs(Math.round((diff / parseFloat(avgWithout)) * 100));
-        if (diff > 0) {
-          insights.push(
-            `When you ${action}, your mood is ~${pct}% better. Days with: ${avgWith}/6 vs without: ${avgWithout}/6.`
-          );
-        } else {
-          insights.push(
-            `Skipping "${action}" seems to correlate with lower mood — avg ${avgWith}/6 vs ${avgWithout}/6 on non-skip days.`
-          );
-        }
+      if (Math.abs(diff) >= 0.4) {
+        const pct = Math.abs(Math.round((diff / avgWithout) * 100));
+        const direction = diff > 0 ? "better" : "lower";
+        insights.push({
+          text: diff > 0
+            ? `Days you ${action}, your mood runs ${pct}% ${direction} (avg ${avgWith.toFixed(1)}/6 vs ${avgWithout.toFixed(1)}/6).`
+            : `Skipping "${action}" links to a ${pct}% ${direction} mood — avg ${avgWith.toFixed(1)}/6 vs ${avgWithout.toFixed(1)}/6.`,
+          strength: Math.abs(diff),
+        });
       }
     }
   }
 
-  if (insights.length === 0) {
-    insights.push("Keep logging your moods and quests to unlock mood insights!");
+  // ── 2. Quest volume vs mood ──
+  const highOutput = []; // 5+ quests → mood
+  const lowOutput = [];  // 1-2 quests → mood
+
+  for (const day of moodDays) {
+    const count = (completedQuests[day] || []).length;
+    const score = moods[day] + 1;
+    if (count >= 5) highOutput.push(score);
+    else if (count <= 2 && count > 0) lowOutput.push(score);
   }
 
-  return insights;
+  if (highOutput.length >= 3 && lowOutput.length >= 3) {
+    const diff = avg(highOutput) - avg(lowOutput);
+    if (Math.abs(diff) >= 0.4) {
+      insights.push({
+        text: diff > 0
+          ? `High-output days (5+ quests) give you a ${diff.toFixed(1)}-point mood boost vs low-output days.`
+          : `Surprisingly, lighter days feel better for you — might be a recovery signal.`,
+        strength: Math.abs(diff) * 0.9,
+      });
+    }
+  }
+
+  // ── 3. Best day of week ──
+  if (startDate) {
+    const weekdayMoods = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+    const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    for (const day of moodDays) {
+      const dateStr = getDateForDay(startDate, parseInt(day));
+      const date = new Date(dateStr + "T00:00:00");
+      weekdayMoods[date.getDay()].push(moods[day] + 1);
+    }
+
+    let bestDay = -1, bestAvg = 0, worstDay = -1, worstAvg = 7;
+    for (let wd = 0; wd <= 6; wd++) {
+      if (weekdayMoods[wd].length >= 2) {
+        const a = avg(weekdayMoods[wd]);
+        if (a > bestAvg) { bestAvg = a; bestDay = wd; }
+        if (a < worstAvg) { worstAvg = a; worstDay = wd; }
+      }
+    }
+
+    if (bestDay >= 0 && worstDay >= 0 && bestDay !== worstDay && bestAvg - worstAvg >= 0.5) {
+      insights.push({
+        text: `${weekdayNames[bestDay]}s are your strongest days (avg mood ${bestAvg.toFixed(1)}/6). ${weekdayNames[worstDay]}s tend to be tougher — plan light on those.`,
+        strength: (bestAvg - worstAvg) * 0.8,
+      });
+    }
+  }
+
+  // ── 4. Early bird vs evening pattern (from questCompletedAt) ──
+  const morningMoods = [];
+  const eveningMoods = [];
+
+  for (const day of moodDays) {
+    const times = questCompletedAt[day];
+    if (!times || typeof times !== "object") continue;
+    const timestamps = Object.values(times).filter(Boolean);
+    if (timestamps.length === 0) continue;
+
+    const medianTs = timestamps.sort((a, b) => a - b)[Math.floor(timestamps.length / 2)];
+    const hour = new Date(medianTs).getHours();
+    const score = moods[day] + 1;
+
+    if (hour < 12) morningMoods.push(score);
+    else if (hour >= 18) eveningMoods.push(score);
+  }
+
+  if (morningMoods.length >= 3 && eveningMoods.length >= 3) {
+    const diff = avg(morningMoods) - avg(eveningMoods);
+    if (Math.abs(diff) >= 0.4) {
+      insights.push({
+        text: diff > 0
+          ? `Morning completions link to ${diff.toFixed(1)}-point higher mood vs evening sessions. You thrive by front-loading your quests.`
+          : `Evening sessions actually feel better for you — avg ${avg(eveningMoods).toFixed(1)}/6 vs ${avg(morningMoods).toFixed(1)}/6 for mornings.`,
+        strength: Math.abs(diff) * 0.85,
+      });
+    }
+  }
+
+  // ── 5. Streak momentum ──
+  let streakDayMoods = [];
+  let nonStreakMoods = [];
+  let currentStreak = 0;
+
+  for (let d = 1; d <= (state.currentDay || 0); d++) {
+    const quests = completedQuests[d] || [];
+    const hasMood = moods[d] !== undefined && moods[d] !== null;
+    const hasActivity = quests.length > 0;
+
+    if (hasActivity) currentStreak++;
+    else currentStreak = 0;
+
+    if (hasMood) {
+      if (currentStreak >= 3) streakDayMoods.push(moods[d] + 1);
+      else nonStreakMoods.push(moods[d] + 1);
+    }
+  }
+
+  if (streakDayMoods.length >= 3 && nonStreakMoods.length >= 3) {
+    const diff = avg(streakDayMoods) - avg(nonStreakMoods);
+    if (diff >= 0.4) {
+      insights.push({
+        text: `On streak days (3+ consecutive), your mood is ${diff.toFixed(1)} points higher — momentum is real for you.`,
+        strength: diff * 0.75,
+      });
+    }
+  }
+
+  // ── 6. Category combo detection ──
+  const comboCounts = {};
+  const catSingleCounts = {};
+  const allCatIds = Object.keys(CATEGORY_ACTIONS);
+
+  for (const day of Object.keys(completedQuests)) {
+    const quests = completedQuests[day] || [];
+    const presentCats = allCatIds.filter((c) => quests.some((q) => q.startsWith(c)));
+
+    for (const c of presentCats) {
+      catSingleCounts[c] = (catSingleCounts[c] || 0) + 1;
+    }
+
+    for (let i = 0; i < presentCats.length; i++) {
+      for (let j = i + 1; j < presentCats.length; j++) {
+        const key = [presentCats[i], presentCats[j]].sort().join("+");
+        comboCounts[key] = (comboCounts[key] || 0) + 1;
+      }
+    }
+  }
+
+  // Find combo that appears together >70% of either category's solo days
+  for (const [combo, count] of Object.entries(comboCounts)) {
+    const [c1, c2] = combo.split("+");
+    const solo1 = catSingleCounts[c1] || 1;
+    const solo2 = catSingleCounts[c2] || 1;
+    const coRate = Math.min(count / solo1, count / solo2);
+
+    if (coRate >= 0.7 && count >= 4) {
+      const a1 = CATEGORY_ACTIONS[c1] || c1;
+      const a2 = CATEGORY_ACTIONS[c2] || c2;
+      const label1 = a1.replace(/^(get|take|stay|limit|track|eat|focus on|connect|create) /, "");
+      const label2 = a2.replace(/^(get|take|stay|limit|track|eat|focus on|connect|create) /, "");
+      insights.push({
+        text: `You almost always pair ${label1} with ${label2} — a powerful combo. ${Math.round(coRate * 100)}% of those days include both.`,
+        strength: 0.5 + coRate * 0.3,
+      });
+      break; // one combo insight is enough
+    }
+  }
+
+  // Sort by signal strength, return top 8 as strings
+  return insights
+    .sort((a, b) => b.strength - a.strength)
+    .slice(0, 8)
+    .map((ins) => ins.text);
 }
 
 /**

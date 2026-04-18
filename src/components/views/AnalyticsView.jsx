@@ -115,8 +115,7 @@ export default function AnalyticsView({ state }) {
   );
 
   function renderOverview() {
-    const fallbackPhrases = ["Keep logging", "Not enough data", "Log more days"];
-    const hasRealInsights = insights.length > 0 && !fallbackPhrases.some((p) => insights[0].includes(p));
+    const hasRealInsights = insights.length > 0;
     const overviewInsights = hasRealInsights ? insights.slice(0, isPremium ? 2 : 1) : [];
 
     return (
@@ -478,7 +477,10 @@ export default function AnalyticsView({ state }) {
 
     return (
       <>
-        <div style={sectionLabel}>Correlation Insights</div>
+        <div style={sectionLabel}>Pattern Insights</div>
+        <div style={{ padding: "0 16px 10px", fontSize: 11, opacity: 0.35, lineHeight: 1.5 }}>
+          Computed from your actual mood logs, quest completions, and timing data.
+        </div>
         {insights.length > 0 ? (
           insights.map((insight, i) => (
             <motion.div
@@ -486,18 +488,23 @@ export default function AnalyticsView({ state }) {
               style={insightCard}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08 }}
+              transition={{ delay: i * 0.07 }}
             >
               <div style={insightIconBg}>
                 <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
               </div>
-              <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{insight}</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 12, lineHeight: 1.6 }}>{insight}</span>
+              </div>
             </motion.div>
           ))
         ) : (
           <div style={emptyState}>
             <Lightbulb size={20} color="rgba(255,255,255,0.2)" strokeWidth={1.5} />
-            <div style={{ marginTop: 8 }}>Complete a few more days with mood tracking to unlock correlation insights.</div>
+            <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>Not enough data yet</div>
+            <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
+              Log your mood for 5+ days to unlock real pattern insights across sleep, exercise, timing, and more.
+            </div>
           </div>
         )}
 
