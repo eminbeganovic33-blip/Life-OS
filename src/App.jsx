@@ -934,6 +934,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   setSelectedMood={setSelectedMood}
                   onSave={saveJournal}
                   onSaveRaw={saveJournalRaw}
+                  onNavigate={handleViewChange}
                 />
               </ErrorBoundary>
             )}

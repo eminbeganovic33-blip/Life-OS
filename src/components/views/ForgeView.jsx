@@ -8,7 +8,21 @@ import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
 import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
-import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign } from "lucide-react";
+import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign, Zap } from "lucide-react";
+
+// ── Cross-module: related quests per tracker ──
+
+const TRACKER_RELATED_QUESTS = {
+  smoking: { text: "Take a 15 min walk when a craving hits", category: "exercise", color: "#F97316" },
+  alcohol: { text: "Replace your evening drink with herbal tea and journaling", category: "mind", color: "#EC4899" },
+  vaping: { text: "Do 10 deep breaths whenever you feel the urge", category: "mind", color: "#EC4899" },
+  porn: { text: "When tempted, do 20 push-ups and take a cold shower", category: "exercise", color: "#F97316" },
+  doomscrolling: { text: "Put your phone in another room for the next hour", category: "screen", color: "#22D3EE" },
+  weed: { text: "Drink a large glass of water and go for a walk", category: "water", color: "#38BDF8" },
+  gambling: { text: "Track every impulse to gamble in your journal today", category: "mind", color: "#EC4899" },
+  junkfood: { text: "Prep healthy snacks before you get hungry", category: "nutrition", color: "#84CC16" },
+  caffeine: { text: "Go for a 10 min walk instead of reaching for coffee", category: "exercise", color: "#F97316" },
+};
 
 // ── Constants ──
 
@@ -531,6 +545,31 @@ function TrackerCard({
             <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 6 }}>{dayInfo.tip}</div>
             <div style={{ fontSize: 11, opacity: 0.6, lineHeight: 1.4 }}>
               <strong style={{ color: tracker.color }}>Action:</strong> {dayInfo.action}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Cross-module: related quest suggestion */}
+      {isActive && TRACKER_RELATED_QUESTS[tracker.id] && (() => {
+        const rq = TRACKER_RELATED_QUESTS[tracker.id];
+        return (
+          <div style={{
+            marginTop: 8,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: `${rq.color}08`,
+            border: `1px solid ${rq.color}18`,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+          }}>
+            <Zap size={13} color={rq.color} strokeWidth={2} style={{ marginTop: 2, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: rq.color, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>
+                Complementary Quest
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.4 }}>{rq.text}</div>
             </div>
           </div>
         );

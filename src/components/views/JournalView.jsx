@@ -93,7 +93,27 @@ function getDailyPrompt(day) {
   return JOURNAL_PROMPTS[index];
 }
 
-export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw }) {
+// Minimal keyword→course map for cross-module course nudges
+const JOURNAL_COURSE_HINTS = [
+  { keywords: ["sleep", "tired", "exhausted", "insomnia", "rest", "groggy", "fatigue"], courseId: "sleep_hygiene", label: "Sleep Optimization", icon: "🌙", color: "#7C5CFC" },
+  { keywords: ["stress", "anxious", "anxiety", "overwhelm", "calm", "breathe", "meditat", "mindful", "focus"], courseId: "meditation_basics", label: "Mindfulness & Meditation", icon: "🧘", color: "#EC4899" },
+  { keywords: ["water", "hydrat", "drink", "thirsty", "dehydrat"], courseId: "hydration", label: "Hydration Science", icon: "💧", color: "#38BDF8" },
+  { keywords: ["workout", "exercise", "gym", "lift", "run", "cardio", "training", "muscle", "strength"], courseId: "strength_training", label: "Strength Training Basics", icon: "💪", color: "#F97316" },
+  { keywords: ["money", "financ", "budget", "saving", "invest", "debt", "spend"], courseId: "money_basics", label: "Financial Clarity", icon: "💰", color: "#34D399" },
+  { keywords: ["read", "book", "learn", "study", "knowledge"], courseId: "reading_habit", label: "Deep Reading Habit", icon: "📖", color: "#A78BFA" },
+  { keywords: ["porn", "relaps", "addict", "quit", "sober", "clean"], courseId: "dopamine_detox", label: "Dopamine Detox Protocol", icon: "⚡", color: "#F59E0B" },
+];
+
+function suggestCourseFromJournal(text) {
+  if (!text || text.length < 30) return null;
+  const lower = text.toLowerCase();
+  for (const hint of JOURNAL_COURSE_HINTS) {
+    if (hint.keywords.some((kw) => lower.includes(kw))) return hint;
+  }
+  return null;
+}
+
+export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw, onNavigate }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
@@ -102,6 +122,7 @@ export default function JournalView({ state, journalText, setJournalText, select
   const [viewMode, setViewMode] = useState("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedFeedback, setSavedFeedback] = useState(false);
+  const [courseNudge, setCourseNudge] = useState(null);
 
   // Daily prompt
   const dailyPrompt = getDailyPrompt(day);
@@ -148,6 +169,8 @@ export default function JournalView({ state, journalText, setJournalText, select
   function handleSave() {
     onSave();
     setSavedFeedback(true);
+    const hint = suggestCourseFromJournal(journalText);
+    if (hint) setCourseNudge(hint);
     setTimeout(() => setSavedFeedback(false), 2000);
   }
 
@@ -334,6 +357,59 @@ export default function JournalView({ state, journalText, setJournalText, select
                 </motion.button>
               </div>
               <AIJournalInsight entry={journalText || state.journal[day] || ""} state={state} />
+              {/* Cross-module: Academy course nudge based on journal content */}
+              <AnimatePresence>
+                {courseNudge && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    style={{
+                      margin: "8px 0",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      background: `${courseNudge.color}08`,
+                      border: `1px solid ${courseNudge.color}18`,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>{courseNudge.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.4, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
+                        Related Course
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{courseNudge.label}</div>
+                      <div style={{ fontSize: 11, opacity: 0.4, marginTop: 1 }}>Matches topics in your entry</div>
+                    </div>
+                    {onNavigate && (
+                      <button
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          background: `${courseNudge.color}15`,
+                          border: `1px solid ${courseNudge.color}30`,
+                          color: courseNudge.color,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                        onClick={() => { onNavigate("academy"); setCourseNudge(null); }}
+                      >
+                        Learn →
+                      </button>
+                    )}
+                    <button
+                      style={{ background: "none", border: "none", opacity: 0.3, cursor: "pointer", fontSize: 14, padding: 4, flexShrink: 0 }}
+                      onClick={() => setCourseNudge(null)}
+                    >
+                      ✕
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <SmartInsights sentiment={analyzeJournalSentiment(state)} />
             </div>
           )}
