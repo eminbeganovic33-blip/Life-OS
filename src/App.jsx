@@ -30,6 +30,7 @@ import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
+import MilestoneUnlockModal from "./components/modals/MilestoneUnlockModal";
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
 const AcademyView = lazy(() => import("./components/views/AcademyView"));
@@ -106,6 +107,9 @@ function LifeOS() {
   // Comeback modal
   const [comebackInfo, setComebackInfo] = useState(null);
 
+  // Milestone unlock modal (days 2, 3, 7)
+  const [milestoneDay, setMilestoneDay] = useState(null);
+
   // Notification scheduler
   const notifIntervalRef = useRef(null);
 
@@ -144,6 +148,22 @@ function LifeOS() {
       setComebackInfo({ daysAway: diffDays, streak: state.streak });
     }
   }, [state?.lastActiveDate]);
+
+  // Milestone unlock moments — Days 2, 3, 7
+  useEffect(() => {
+    if (!state) return;
+    const MILESTONE_DAYS = [2, 3, 7];
+    const seen = state.seenMilestones || {};
+    // currentDay advances when user completes a day — check if we just hit a milestone
+    const d = state.currentDay;
+    if (MILESTONE_DAYS.includes(d) && !seen[d] && !milestoneDay) {
+      // Show after a short delay so the day-complete animation can settle
+      setTimeout(() => {
+        setMilestoneDay(d);
+        setConfettiBurst((c) => c + 1);
+      }, 900);
+    }
+  }, [state?.currentDay]);
 
   // Weekly challenge completion check
   useEffect(() => {
@@ -829,6 +849,15 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         streak={comebackInfo?.streak || 0}
         onClose={onDismissComeback}
       />
+      {milestoneDay && (
+        <MilestoneUnlockModal
+          day={milestoneDay}
+          onDismiss={() => {
+            save({ ...state, seenMilestones: { ...(state.seenMilestones || {}), [milestoneDay]: true } });
+            setMilestoneDay(null);
+          }}
+        />
+      )}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       {showTrialBanner && (
         <button
