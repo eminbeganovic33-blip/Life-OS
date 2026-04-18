@@ -797,6 +797,11 @@ function LifeOS() {
           setShowWeeklySummary={setShowWeeklySummary}
           comebackInfo={comebackInfo}
           onDismissComeback={() => setComebackInfo(null)}
+          milestoneDay={milestoneDay}
+          onDismissMilestone={() => {
+            save({ ...state, seenMilestones: { ...(state.seenMilestones || {}), [milestoneDay]: true } });
+            setMilestoneDay(null);
+          }}
         />
       </LifeOSProvider>
       </PomodoroProvider>
@@ -804,7 +809,7 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback }) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone }) {
   const {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
@@ -852,10 +857,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
       {milestoneDay && (
         <MilestoneUnlockModal
           day={milestoneDay}
-          onDismiss={() => {
-            save({ ...state, seenMilestones: { ...(state.seenMilestones || {}), [milestoneDay]: true } });
-            setMilestoneDay(null);
-          }}
+          onDismiss={onDismissMilestone}
         />
       )}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
