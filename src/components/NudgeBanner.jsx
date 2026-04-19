@@ -17,11 +17,13 @@ const NUDGE_THEMES = {
 const DEFAULT_THEME = { bg: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))", accent: "#7C5CFC", border: "rgba(124,92,252,0.1)" };
 
 export default function NudgeBanner({ nudge, onNavigate }) {
-  const { colors } = useTheme();
+  const { theme: colorTheme, colors } = useTheme();
+  const isDark = colorTheme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   if (!nudge) return null;
 
   const theme = NUDGE_THEMES[nudge.type] || DEFAULT_THEME;
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, sub);
 
   return (
     <motion.div
@@ -48,7 +50,7 @@ export default function NudgeBanner({ nudge, onNavigate }) {
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, sub) {
   return {
     banner: {
       display: "flex",
@@ -66,7 +68,7 @@ function getStyles(colors) {
       width: 40,
       height: 40,
       borderRadius: T.radii.md,
-      background: "rgba(255,255,255,0.06)",
+      background: sub(0.06),
       display: "flex",
       alignItems: "center",
       justifyContent: "center",

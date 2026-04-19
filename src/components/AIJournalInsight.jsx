@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "../hooks/useTheme";
 import { isAIConfigured, analyzeJournalEntryAI, getAIJournalPrompt } from "../utils/ai";
 import { analyzeJournalSentiment } from "../utils/intelligence";
 
@@ -9,6 +10,10 @@ const SENTIMENT_EMOJI = {
 };
 
 export default function AIJournalInsight({ entry, state }) {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState(null);
@@ -51,6 +56,8 @@ export default function AIJournalInsight({ entry, state }) {
   // Don't render if nothing to show
   if (!aiEnabled && !hasLocalInsights && !hasEntry) return null;
 
+  const s = getStyles(isDark, colors, sub);
+
   return (
     <div style={s.container}>
       <div style={s.header} onClick={() => setExpanded(!expanded)}>
@@ -89,7 +96,7 @@ export default function AIJournalInsight({ entry, state }) {
                             ? "#4ADE80"
                             : analysis.sentiment === "negative"
                               ? "#FBBF24"
-                              : "rgba(226,226,238,0.6)",
+                              : colors.textSecondary,
                       }}
                     >
                       {analysis.sentiment
@@ -179,183 +186,185 @@ export default function AIJournalInsight({ entry, state }) {
   );
 }
 
-const s = {
-  container: {
-    margin: "12px 14px 0",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.02)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    overflow: "hidden",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 14px",
-    cursor: "pointer",
-    userSelect: "none",
-  },
-  headerLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  icon: {
-    fontSize: 16,
-    lineHeight: 1,
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#E2E2EE",
-  },
-  aiBadge: {
-    fontSize: 11,
-    fontWeight: 700,
-    padding: "1px 6px",
-    borderRadius: 4,
-    background: "rgba(124,92,252,0.2)",
-    color: "#7C5CFC",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  arrow: {
-    fontSize: 12,
-    color: "rgba(226,226,238,0.45)",
-  },
-  body: {
-    padding: "0 14px 14px",
-  },
-  analysisCard: {
-    padding: "12px 14px",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.05)",
-    marginBottom: 10,
-  },
-  sentimentRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  sentimentEmoji: {
-    fontSize: 18,
-    lineHeight: 1,
-  },
-  sentimentLabel: {
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  scoreTag: {
-    fontSize: 10,
-    fontWeight: 700,
-    padding: "1px 6px",
-    borderRadius: 4,
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(226,226,238,0.5)",
-    marginLeft: "auto",
-  },
-  insightText: {
-    fontSize: 12,
-    lineHeight: 1.6,
-    color: "rgba(226,226,238,0.75)",
-    marginBottom: 6,
-  },
-  patternRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 6,
-    marginTop: 6,
-    padding: "6px 8px",
-    borderRadius: 6,
-    background: "rgba(124,92,252,0.06)",
-  },
-  patternIcon: {
-    fontSize: 12,
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  patternText: {
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: "rgba(226,226,238,0.65)",
-    fontStyle: "italic",
-  },
-  suggestionRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 6,
-    marginTop: 6,
-    padding: "6px 8px",
-    borderRadius: 6,
-    background: "rgba(249,115,22,0.06)",
-  },
-  suggestionIcon: {
-    fontSize: 12,
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  suggestionText: {
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: "rgba(226,226,238,0.65)",
-  },
-  loadingRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "4px 0",
-  },
-  spinner: {
-    display: "inline-block",
-    width: 14,
-    height: 14,
-    border: "2px solid rgba(124,92,252,0.2)",
-    borderTopColor: "#7C5CFC",
-    borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-    flexShrink: 0,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: "rgba(226,226,238,0.5)",
-    fontStyle: "italic",
-  },
-  emptyText: {
-    fontSize: 12,
-    color: "rgba(226,226,238,0.35)",
-    fontStyle: "italic",
-    textAlign: "center",
-    padding: "4px 0",
-  },
-  promptSection: {
-    marginTop: 2,
-  },
-  promptBtn: {
-    width: "100%",
-    padding: "9px 14px",
-    borderRadius: 8,
-    border: "1px solid rgba(124,92,252,0.2)",
-    background: "rgba(124,92,252,0.08)",
-    color: "#7C5CFC",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    transition: "background 0.15s",
-    textAlign: "center",
-  },
-  promptCard: {
-    marginTop: 8,
-    padding: "12px 14px",
-    borderRadius: 10,
-    background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))",
-    border: "1px solid rgba(124,92,252,0.12)",
-  },
-  promptText: {
-    fontSize: 13,
-    lineHeight: 1.6,
-    color: "rgba(226,226,238,0.85)",
-    fontStyle: "italic",
-  },
-};
+function getStyles(isDark, colors, sub) {
+  return {
+    container: {
+      margin: "12px 14px 0",
+      borderRadius: 14,
+      background: sub(0.02),
+      border: `1px solid ${sub(0.06)}`,
+      overflow: "hidden",
+    },
+    header: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "12px 14px",
+      cursor: "pointer",
+      userSelect: "none",
+    },
+    headerLeft: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+    },
+    icon: {
+      fontSize: 16,
+      lineHeight: 1,
+    },
+    title: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: colors.text,
+    },
+    aiBadge: {
+      fontSize: 11,
+      fontWeight: 700,
+      padding: "1px 6px",
+      borderRadius: 4,
+      background: "rgba(124,92,252,0.2)",
+      color: "#7C5CFC",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    arrow: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    body: {
+      padding: "0 14px 14px",
+    },
+    analysisCard: {
+      padding: "12px 14px",
+      borderRadius: 10,
+      background: sub(0.03),
+      border: `1px solid ${sub(0.05)}`,
+      marginBottom: 10,
+    },
+    sentimentRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 8,
+    },
+    sentimentEmoji: {
+      fontSize: 18,
+      lineHeight: 1,
+    },
+    sentimentLabel: {
+      fontSize: 13,
+      fontWeight: 700,
+    },
+    scoreTag: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "1px 6px",
+      borderRadius: 4,
+      background: sub(0.06),
+      color: colors.textSecondary,
+      marginLeft: "auto",
+    },
+    insightText: {
+      fontSize: 12,
+      lineHeight: 1.6,
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    patternRow: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 6,
+      marginTop: 6,
+      padding: "6px 8px",
+      borderRadius: 6,
+      background: "rgba(124,92,252,0.06)",
+    },
+    patternIcon: {
+      fontSize: 12,
+      flexShrink: 0,
+      marginTop: 1,
+    },
+    patternText: {
+      fontSize: 11,
+      lineHeight: 1.5,
+      color: colors.textSecondary,
+      fontStyle: "italic",
+    },
+    suggestionRow: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 6,
+      marginTop: 6,
+      padding: "6px 8px",
+      borderRadius: 6,
+      background: "rgba(249,115,22,0.06)",
+    },
+    suggestionIcon: {
+      fontSize: 12,
+      flexShrink: 0,
+      marginTop: 1,
+    },
+    suggestionText: {
+      fontSize: 11,
+      lineHeight: 1.5,
+      color: colors.textSecondary,
+    },
+    loadingRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "4px 0",
+    },
+    spinner: {
+      display: "inline-block",
+      width: 14,
+      height: 14,
+      border: "2px solid rgba(124,92,252,0.2)",
+      borderTopColor: "#7C5CFC",
+      borderRadius: "50%",
+      animation: "spin 0.8s linear infinite",
+      flexShrink: 0,
+    },
+    loadingText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: "italic",
+    },
+    emptyText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: "italic",
+      textAlign: "center",
+      padding: "4px 0",
+    },
+    promptSection: {
+      marginTop: 2,
+    },
+    promptBtn: {
+      width: "100%",
+      padding: "9px 14px",
+      borderRadius: 8,
+      border: "1px solid rgba(124,92,252,0.2)",
+      background: "rgba(124,92,252,0.08)",
+      color: "#7C5CFC",
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: "pointer",
+      transition: "background 0.15s",
+      textAlign: "center",
+    },
+    promptCard: {
+      marginTop: 8,
+      padding: "12px 14px",
+      borderRadius: 10,
+      background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(236,72,153,0.04))",
+      border: "1px solid rgba(124,92,252,0.12)",
+    },
+    promptText: {
+      fontSize: 13,
+      lineHeight: 1.6,
+      color: colors.text,
+      fontStyle: "italic",
+    },
+  };
+}

@@ -133,7 +133,17 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
 
   let filteredCourses;
   if (filter === "focused") {
-    filteredCourses = [...focused, ...available, ...lockedCourses];
+    const items = [];
+    if (focused.length > 0) {
+      items.push({ __divider: true, label: "In Focus" });
+      items.push(...focused);
+    }
+    if (available.length > 0) {
+      items.push({ __divider: true, label: "Available to Add" });
+      items.push(...available);
+    }
+    if (lockedCourses.length > 0) items.push(...lockedCourses);
+    filteredCourses = items;
   } else if (filter === "mastered") {
     filteredCourses = mastered;
   } else {
@@ -523,7 +533,23 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         </div>
       )}
 
-      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, dayLocked, dayUnlock, isFocused }) => {
+      {filteredCourses.map((item) => {
+        if (item.__divider) {
+          return (
+            <div key={item.label} style={{
+              padding: "2px 14px 6px",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              color: colors.textSecondary,
+              opacity: 0.6,
+            }}>
+              {item.label}
+            </div>
+          );
+        }
+        const { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, dayLocked, dayUnlock, isFocused } = item;
         const isExpanded = expandedCourse === course.id;
         const skillBadge = course.skillLevel || "beginner";
         const canExpand = isFocused || isCompleted;
