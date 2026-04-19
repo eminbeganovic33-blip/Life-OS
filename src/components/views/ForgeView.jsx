@@ -353,6 +353,7 @@ function TrackerCard({
   const phase = getPhase(daysClean);
   const streakIconData = getStreakIcon(daysClean);
   const [showCustom, setShowCustom] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div style={{ ...S.forgeCard, borderLeft: `3px solid ${tracker.color}` }}>
@@ -387,12 +388,34 @@ function TrackerCard({
           </div>
         </div>
         {isActive ? (
-          <button
-            style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.3)", color: "#EF4444" }}
-            onClick={() => onTriggerRelapse(tracker.id)}
-          >
-            Reset
-          </button>
+          confirmReset ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <div style={{ fontSize: 11, color: "#EF4444", fontWeight: 600 }}>
+                Erase {daysClean} day{daysClean !== 1 ? "s" : ""}?
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.5)", color: "#EF4444", fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => { onTriggerRelapse(tracker.id); setConfirmReset(false); }}
+                >
+                  Yes, reset
+                </button>
+                <button
+                  style={{ ...S.forgeBtn, fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => setConfirmReset(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.3)", color: "#EF4444" }}
+              onClick={() => setConfirmReset(true)}
+            >
+              Reset
+            </button>
+          )
         ) : (
           <button
             style={{ ...S.forgeBtn, borderColor: `${tracker.color}44`, color: tracker.color }}

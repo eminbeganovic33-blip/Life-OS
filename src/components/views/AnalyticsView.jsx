@@ -458,25 +458,48 @@ export default function AnalyticsView({ state }) {
   }
 
   function renderInsights() {
+    const SAMPLE_INSIGHTS = [
+      "Days you complete 5+ quests, your mood averages 1.8 points higher.",
+      "Your best day of the week is Monday — 94% quest completion on average.",
+      "Sleep + Hydration together on the same day correlates with your peak mood.",
+      "You complete quests 2× faster before noon than after 6 PM.",
+    ];
+
     if (!hasAdvancedAnalytics) {
       return (
-        <motion.div
-          style={premiumGate}
-          onClick={() => setShowUpgrade(true)}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div style={premiumIconBg}>
-            <Crown size={24} color="#FFD700" strokeWidth={1.5} />
+        <div style={{ position: "relative" }}>
+          {/* Blurred preview — gives a sense of what's locked */}
+          <div style={{ filter: "blur(3px)", pointerEvents: "none", opacity: 0.5 }}>
+            <div style={{ ...sectionLabel }}>Pattern Insights</div>
+            {SAMPLE_INSIGHTS.map((text, i) => (
+              <div key={i} style={insightCard}>
+                <div style={insightIconBg}>
+                  <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+                </div>
+                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{text}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#FFD700", marginTop: 8 }}>Premium Insights</div>
-          <div style={{ fontSize: 12, opacity: 0.45, marginTop: 4, lineHeight: 1.6, maxWidth: 260 }}>
-            Unlock correlation insights, trend analysis, and category streaks.
-          </div>
-          <div style={premiumGateBtn}>
-            <span>Upgrade to Premium</span>
-            <ChevronRight size={14} />
-          </div>
-        </motion.div>
+
+          {/* Gate overlay centered over the preview */}
+          <motion.div
+            style={premiumGateOverlay}
+            onClick={() => setShowUpgrade(true)}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div style={premiumIconBg}>
+              <Crown size={24} color="#FFD700" strokeWidth={1.5} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#FFD700", marginTop: 8 }}>Premium Insights</div>
+            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4, lineHeight: 1.6, maxWidth: 240, textAlign: "center" }}>
+              Unlock correlation insights, trend analysis, and category streaks.
+            </div>
+            <div style={premiumGateBtn}>
+              <span>Upgrade to Premium</span>
+              <ChevronRight size={14} />
+            </div>
+          </motion.div>
+        </div>
       );
     }
 
@@ -814,6 +837,26 @@ const premiumGate = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+};
+
+const premiumGateOverlay = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "calc(100% - 28px)",
+  padding: "24px 20px",
+  borderRadius: 18,
+  background: "linear-gradient(135deg, rgba(15,10,30,0.92), rgba(20,10,40,0.88))",
+  border: "1px solid rgba(255,215,0,0.2)",
+  backdropFilter: "blur(8px)",
+  textAlign: "center",
+  cursor: "pointer",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+  zIndex: 2,
 };
 const premiumIconBg = {
   width: 48,

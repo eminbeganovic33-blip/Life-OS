@@ -17,6 +17,18 @@ const FALLBACK_STARTERS = [
   "If today had a theme, what would it be?",
 ];
 
+// Follow-up prompts that feel coach-like even without AI
+const FALLBACK_FOLLOW_UPS = [
+  "That's honest. What do you think is underneath that?",
+  "Keep going — what else is on your mind right now?",
+  "How does that sit with you when you say it out loud?",
+  "What would you tell a close friend who shared the same thing?",
+  "What's one small thing you could do tomorrow based on what you just wrote?",
+  "Is this something that's been building for a while, or did it surface today?",
+  "What would change if you let yourself fully accept that?",
+  "What's the part of this you haven't fully said yet?",
+];
+
 function getFallbackStarter(day) {
   return FALLBACK_STARTERS[(day - 1) % FALLBACK_STARTERS.length];
 }
@@ -114,7 +126,9 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
         setMessages([...newMessages, { role: "assistant", text: reply }]);
       }
     } else {
-      setMessages([...newMessages, { role: "assistant", text: "AI journaling isn't set up yet. Write freely — your entries are always saved." }]);
+      const userCount = newMessages.filter((m) => m.role === "user").length;
+      const followUp = FALLBACK_FOLLOW_UPS[(userCount - 1) % FALLBACK_FOLLOW_UPS.length];
+      setMessages([...newMessages, { role: "assistant", text: followUp }]);
     }
     setLoading(false);
     inputRef.current?.focus();
