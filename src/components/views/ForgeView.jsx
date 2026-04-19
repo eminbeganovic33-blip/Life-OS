@@ -63,8 +63,9 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
       ...styles,
       tabBar: { ...styles.tabBar, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
       tab: { ...styles.tab, color: colors.textSecondary },
-      goalBtn: { ...styles.goalBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.text },
+      goalBtn: { ...styles.goalBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.text, fontWeight: 600 },
       customGoalInput: { ...styles.customGoalInput, background: colors.inputBg, color: colors.text, border: `1px solid ${colors.inputBorder}` },
+      goalPicker: { ...styles.goalPicker, background: "rgba(124,92,252,0.04)", border: "1px solid rgba(124,92,252,0.15)" },
       tipCard: { ...styles.tipCard, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
       miniJournalEntry: { ...styles.miniJournalEntry, background: colors.cardBg },
       filterBtn: { ...styles.filterBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.textSecondary },
@@ -154,6 +155,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
           canAddCustom={canAddCustom}
           hasUnlimitedForge={hasUnlimitedForge}
           setShowUpgrade={setShowUpgrade}
+          fs={fs}
         />
       )}
 
@@ -191,7 +193,7 @@ function TrackersTab({
   state, forgeGoals, expandedGoal, setExpandedGoal,
   customGoalInput, setCustomGoalInput,
   onSelectGoal, onCustomGoalSubmit, onExtendGoal,
-  onTriggerRelapse, canAddCustom, hasUnlimitedForge, setShowUpgrade,
+  onTriggerRelapse, canAddCustom, hasUnlimitedForge, setShowUpgrade, fs,
 }) {
   return (
     <>
@@ -209,6 +211,7 @@ function TrackersTab({
           onCustomGoalSubmit={onCustomGoalSubmit}
           onExtendGoal={onExtendGoal}
           onTriggerRelapse={onTriggerRelapse}
+          fs={fs}
         />
       ))}
 
@@ -342,7 +345,7 @@ function ImpactStats({ trackerId, daysClean, color }) {
 function TrackerCard({
   tracker, state, forgeGoals, isExpanded,
   onExpandGoal, customGoalInput, setCustomGoalInput,
-  onSelectGoal, onCustomGoalSubmit, onExtendGoal, onTriggerRelapse,
+  onSelectGoal, onCustomGoalSubmit, onExtendGoal, onTriggerRelapse, fs,
 }) {
   const startDate = state.sobrietyDates?.[tracker.id];
   const daysClean = startDate ? daysBetween(startDate) : 0;
@@ -428,8 +431,8 @@ function TrackerCard({
 
       {/* Goal Selection (inline expand) */}
       {!isActive && isExpanded && (
-        <div style={styles.goalPicker}>
-          <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.5, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div style={(fs || styles).goalPicker}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5, color: tracker.color, opacity: 0.8 }}>
             Choose your goal
           </div>
           <div style={styles.goalOptions}>
@@ -437,8 +440,8 @@ function TrackerCard({
               <button
                 key={opt.days}
                 style={{
-                  ...styles.goalBtn,
-                  ...(opt.days === 0 && showCustom ? { borderColor: "#7C5CFC", color: "#7C5CFC" } : {}),
+                  ...(fs || styles).goalBtn,
+                  ...(opt.days === 0 && showCustom ? { borderColor: "#7C5CFC", color: "#7C5CFC", background: "rgba(124,92,252,0.08)" } : {}),
                 }}
                 onClick={() => {
                   if (opt.days === 0) {
@@ -461,7 +464,7 @@ function TrackerCard({
                 placeholder="Min 21 days"
                 value={customGoalInput}
                 onChange={(e) => setCustomGoalInput(e.target.value)}
-                style={styles.customGoalInput}
+                style={(fs || styles).customGoalInput}
               />
               <button
                 style={styles.customGoalSubmit}

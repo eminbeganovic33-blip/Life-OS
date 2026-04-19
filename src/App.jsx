@@ -470,8 +470,7 @@ function LifeOS() {
       journal: { ...state.journal, [day]: journalText || state.journal[day] },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
-    toast.show("Journal saved", "success", 2000);
-    setView("home");
+    toast.show("Journal saved ✓", "success", 2000);
   }
 
   // Save raw journal content (used by chat journal for auto-save)
@@ -671,7 +670,13 @@ function LifeOS() {
   function addCustomQuest(quest) {
     // Validate max length for quest text
     if (!quest || !quest.text || quest.text.length > 200) return;
-    save({ ...state, customQuests: [...(state.customQuests || []), quest] });
+    // Prevent duplicate quest text
+    const existing = state.customQuests || [];
+    if (existing.some((q) => q.text.trim().toLowerCase() === quest.text.trim().toLowerCase())) {
+      toast.show("Quest already added", "info", 2000);
+      return;
+    }
+    save({ ...state, customQuests: [...existing, quest] });
     setModal(null);
     toast.show("Custom quest added!", "success", 2000);
   }

@@ -328,16 +328,24 @@ export default function HomeView({
           onClick={() => onNavigate?.("forge")}
           whileTap={{ scale: 0.98 }}
         >
-          {activeTrackers.map((t) => (
-            <div key={t.id} style={ts.forgeChip}>
-              <div style={{ ...ts.forgeDot, background: t.color }} />
-              <span style={ts.forgeLabel}>{t.label}</span>
-              <span style={{ ...ts.forgeDays, color: t.color }}>
-                {t.days}d
-              </span>
+          <div style={ts.forgeRowTop}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Flame size={14} color="#F97316" strokeWidth={2} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Forge</span>
             </div>
-          ))}
-          <span style={{ fontSize: 11, color: colors.textSecondary, marginLeft: "auto", paddingRight: 2 }}>Forge ›</span>
+            <span style={{ fontSize: 11, color: colors.textSecondary, fontWeight: 500 }}>View all ›</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {activeTrackers.map((t) => (
+              <div key={t.id} style={ts.forgeChip}>
+                <div style={{ ...ts.forgeDot, background: t.color }} />
+                <span style={ts.forgeLabel}>{t.label}</span>
+                <span style={{ ...ts.forgeDays, color: t.color }}>
+                  {t.days} {t.days === 1 ? "day" : "days"}
+                </span>
+              </div>
+            ))}
+          </div>
         </motion.div>
       )}
 
@@ -355,25 +363,33 @@ export default function HomeView({
       </div>
 
       {/* ── Focus Quest Highlight ── */}
-      {focusQuest && !completed.includes(focusQuest.id) && (
-        <div
-          style={ts.focusCard}
-          onClick={() => handleQuestClick(focusQuest)}
-        >
-          <div style={ts.focusHeader}>
-            <Target size={11} strokeWidth={2.5} />
-            <span style={ts.focusLabel}>Priority Quest</span>
-          </div>
-          <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
-          <div style={ts.focusFooter}>
-            <span style={{ color: CATEGORIES.find((c) => c.id === focusQuest.category)?.color, fontSize: 11 }}>
-              {CATEGORIES.find((c) => c.id === focusQuest.category)?.icon}{" "}
-              {CATEGORIES.find((c) => c.id === focusQuest.category)?.label}
-            </span>
-            <span style={ts.focusXp}>+{focusQuest.xp} XP</span>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {focusQuest && !completed.includes(focusQuest.id) && (
+          <motion.div
+            key={focusQuest.id}
+            style={ts.focusCard}
+            onClick={() => handleQuestClick(focusQuest)}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: -4 }}
+            transition={{ duration: 0.22 }}
+            layout
+          >
+            <div style={ts.focusHeader}>
+              <Target size={11} strokeWidth={2.5} />
+              <span style={ts.focusLabel}>Priority Quest</span>
+            </div>
+            <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
+            <div style={ts.focusFooter}>
+              <span style={{ color: CATEGORIES.find((c) => c.id === focusQuest.category)?.color, fontSize: 11 }}>
+                {CATEGORIES.find((c) => c.id === focusQuest.category)?.icon}{" "}
+                {CATEGORIES.find((c) => c.id === focusQuest.category)?.label}
+              </span>
+              <span style={ts.focusXp}>+{focusQuest.xp} XP →</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Time Block Sections ── */}
       {["morning", "afternoon", "evening"].map((key) => (
@@ -393,6 +409,15 @@ export default function HomeView({
 
       {/* ── Weekly Challenge Tracker ── */}
       <WeeklyChallengeBanner state={state} ts={ts} />
+
+      {/* ── Daily Quote ── (just below weekly summary) */}
+      <div style={ts.quoteCard}>
+        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
+          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
+        </div>
+      </div>
 
       {/* ── Inline AI Quest Suggestions ── */}
       {day > 3 && !allDone && (
@@ -516,15 +541,6 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Daily Quote ── */}
-      <div style={ts.quoteCard}>
-        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
-        <div style={{ flex: 1 }}>
-          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
-          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
-        </div>
-      </div>
-
       <div style={{ height: 24 }} />
     </div>
   );
@@ -599,6 +615,7 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAd
   const [suggestions, setSuggestions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [addedIndexes, setAddedIndexes] = useState(new Set());
   const hasFetched = useRef(false);
 
   useEffect(() => {
@@ -665,6 +682,8 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAd
               cursor: "pointer",
             }}
             onClick={() => {
+              if (addedIndexes.has(i)) return;
+              setAddedIndexes((prev) => new Set([...prev, i]));
               if (onAddSuggestedQuest) {
                 onAddSuggestedQuest({ id: `ai_${Date.now()}_${i}`, text: s.text, category: s.category || "mind" });
               } else {
@@ -685,7 +704,9 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAd
                 {s.reason}
               </div>
             </div>
-            <span style={{ fontSize: 10, color: "#7C5CFC", fontWeight: 600, flexShrink: 0 }}>+ Add</span>
+            <span style={{ fontSize: 10, color: addedIndexes.has(i) ? "#22C55E" : "#7C5CFC", fontWeight: 600, flexShrink: 0 }}>
+              {addedIndexes.has(i) ? "✓ Added" : "+ Add"}
+            </span>
           </motion.div>
         ))
       )}
@@ -748,34 +769,40 @@ function getStyles(isDark, colors) {
     // Forge tracker row
     forgeRow: {
       display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "8px 14px",
+      flexDirection: "column",
+      gap: 8,
+      padding: "12px 14px",
       margin: "4px 12px 2px",
-      borderRadius: 10,
-      background: subtle(0.03),
-      border: `1px solid ${subtle(0.05)}`,
+      borderRadius: 12,
+      background: isDark
+        ? "linear-gradient(135deg, rgba(249,115,22,0.06), rgba(251,191,36,0.02))"
+        : "linear-gradient(135deg, rgba(249,115,22,0.07), rgba(251,191,36,0.03))",
+      border: `1px solid ${isDark ? "rgba(249,115,22,0.12)" : "rgba(249,115,22,0.15)"}`,
       cursor: "pointer",
-      overflow: "hidden",
+    },
+    forgeRowTop: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     forgeChip: {
       display: "flex",
       alignItems: "center",
-      gap: 4,
-      padding: "3px 8px",
+      gap: 5,
+      padding: "5px 10px",
       borderRadius: 8,
       background: subtle(0.04),
       border: `1px solid ${subtle(0.06)}`,
       flexShrink: 0,
     },
     forgeDot: {
-      width: 6,
-      height: 6,
+      width: 7,
+      height: 7,
       borderRadius: "50%",
       flexShrink: 0,
     },
-    forgeLabel: { fontSize: 11, fontWeight: 600, color: colors.textSecondary },
-    forgeDays: { fontSize: 11, fontWeight: 800 },
+    forgeLabel: { fontSize: 12, fontWeight: 600, color: colors.text },
+    forgeDays: { fontSize: 12, fontWeight: 800 },
 
     // Quote
     quoteCard: {
