@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "../firebase";
-import { defaultState } from "../utils/state";
+import { defaultState, devSeedState } from "../utils/state";
 import { reconcileStreaks } from "../utils";
+
+// In dev, start with seeded data so all features are exercisable immediately.
+// In production, always start blank so real users see a clean first-run.
+const freshState = () => import.meta.env.DEV ? devSeedState() : defaultState();
 
 const STORAGE_KEY = "life-os-state";
 const DEBOUNCE_MS = 1000;
@@ -82,7 +86,7 @@ export default function useCloudSync(user) {
             setState(merged);
             if (!local.onboarded) setShowOnboarding(true);
           } else {
-            const fresh = defaultState();
+            const fresh = freshState();
             setState(fresh);
             if (!fresh.onboarded) setShowOnboarding(true);
           }
@@ -119,7 +123,7 @@ export default function useCloudSync(user) {
             } catch {}
             if (!merged.onboarded) setShowOnboarding(true);
           } else {
-            const fresh = defaultState();
+            const fresh = freshState();
             setState(fresh);
             if (!fresh.onboarded) setShowOnboarding(true);
           }
@@ -134,7 +138,7 @@ export default function useCloudSync(user) {
           setState(merged);
           if (!local.onboarded) setShowOnboarding(true);
         } else {
-          const fresh = defaultState();
+          const fresh = freshState();
           setState(fresh);
           if (!fresh.onboarded) setShowOnboarding(true);
         }

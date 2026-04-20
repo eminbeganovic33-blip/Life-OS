@@ -26,12 +26,22 @@ export default function AnalyticsView({ state }) {
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasAdvancedAnalytics = checkFeatureAccess(FEATURE_IDS.ADVANCED_ANALYTICS);
 
-  const weeklyXp = useMemo(() => getWeeklyXpData(state), [state.xp, state.currentDay]);
+  const weeklyXp = useMemo(() => getWeeklyXpData(state), [state.completedQuests, state.startDate, state.currentDay]);
   const categoryRates = useMemo(() => getCategoryCompletionRates(state), [state.completedQuests, state.currentDay]);
   const moodTrend = useMemo(() => getMoodTrend(state), [state.moods, state.currentDay]);
   const insights = useMemo(() => getCorrelationInsights(state), [state.completedQuests, state.moods, state.currentDay]);
   const records = useMemo(() => getPersonalRecords(state), [state.completedQuests, state.completedDays, state.xp]);
   const heatmap = useMemo(() => getHeatmapData(state), [state.completedQuests, state.currentDay]);
+
+  // Theme-aware overrides for styles that need sub() (module-scope constants can't access it)
+  const recordCardT = { ...recordCard, background: sub(0.03), border: `1px solid ${sub(0.06)}` };
+  const barTrackT = { ...barTrack, background: sub(0.04) };
+  const catBarOuterT = { ...catBarOuter, background: sub(0.05) };
+  const heatStatT = { ...heatStat, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const emptyStateT = { ...emptyState, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const streakRowT = { ...streakRow, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const headerTitleT = { ...headerTitle, color: colors.text };
+  const heatColorsT = [sub(0.04), "rgba(124,92,252,0.2)", "rgba(124,92,252,0.4)", "rgba(124,92,252,0.65)", "rgba(124,92,252,0.9)"];
 
   const maxXp = Math.max(...weeklyXp.map((d) => d.xp), 1);
 
@@ -41,7 +51,7 @@ export default function AnalyticsView({ state }) {
       <div style={S.vc}>
         <div style={headerRow}>
           <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
-          <span style={headerTitle}>Analytics</span>
+          <span style={headerTitleT}>Analytics</span>
         </div>
         <motion.div
           style={welcomeState}
@@ -75,7 +85,7 @@ export default function AnalyticsView({ state }) {
       {/* Header */}
       <div style={headerRow}>
         <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
-        <span style={headerTitle}>Analytics</span>
+        <span style={headerTitleT}>Analytics</span>
       </div>
 
       {/* Tab Switcher */}
@@ -163,7 +173,7 @@ export default function AnalyticsView({ state }) {
           ].map((r, i) => (
             <motion.div
               key={i}
-              style={recordCard}
+              style={recordCardT}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.06 }}
@@ -199,7 +209,7 @@ export default function AnalyticsView({ state }) {
                 <div style={{ ...barValue, opacity: d.xp > 0 ? 1 : 0 }}>
                   {d.xp > 0 ? d.xp : ""}
                 </div>
-                <div style={barTrack}>
+                <div style={barTrackT}>
                   <motion.div
                     style={{
                       ...barFill,
@@ -234,7 +244,7 @@ export default function AnalyticsView({ state }) {
                   {cat ? <CategoryIcon id={cat.id} size={14} color={cat.color} /> : <span>{c.icon}</span>}
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{c.label}</span>
                 </div>
-                <div style={catBarOuter}>
+                <div style={catBarOuterT}>
                   <motion.div
                     style={{ ...catBarInner, background: c.color }}
                     initial={{ width: 0 }}
@@ -382,15 +392,15 @@ export default function AnalyticsView({ state }) {
 
         {/* Stats footer */}
         <div style={{ display: "flex", gap: 8, padding: "20px 14px 8px" }}>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{state.currentDay}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Days Tracked</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{moodDone}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Moods Logged</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
               {moodDone > 0 ? Math.round((moodDone / Math.max(state.currentDay, 1)) * 100) : 0}%
             </div>
@@ -405,8 +415,7 @@ export default function AnalyticsView({ state }) {
   }
 
   function renderHeatmap() {
-    const emptyColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)";
-    const levelColors = [emptyColor, ...heatColors.slice(1)];
+    const levelColors = heatColorsT;
     return (
       <>
         <div style={sectionLabel}>90-Day Activity Heatmap</div>
@@ -438,15 +447,15 @@ export default function AnalyticsView({ state }) {
 
         {/* Summary stats below heatmap */}
         <div style={{ padding: "0 14px", display: "flex", gap: 8 }}>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity > 0).length}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Active Days</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity >= 3).length}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>High Activity</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
               {Math.round((heatmap.filter((d) => d.intensity > 0).length / Math.max(heatmap.length, 1)) * 100)}%
             </div>
@@ -527,7 +536,7 @@ export default function AnalyticsView({ state }) {
             </motion.div>
           ))
         ) : (
-          <div style={emptyState}>
+          <div style={emptyStateT}>
             <Lightbulb size={20} color="rgba(255,255,255,0.2)" strokeWidth={1.5} />
             <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>Not enough data yet</div>
             <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
@@ -543,7 +552,7 @@ export default function AnalyticsView({ state }) {
           return (
             <motion.div
               key={c.category}
-              style={streakRow}
+              style={streakRowT}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}

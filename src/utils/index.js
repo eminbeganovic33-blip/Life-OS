@@ -12,7 +12,7 @@ export {
   MAX_LEVEL_INDEX,
   reconcileStreaks,
 } from "./helpers";
-export { defaultState } from "./state";
+export { defaultState, devSeedState } from "./state";
 export {
   calculateQuestXP, getQuestTier,
   getStreakMultiplier, applyStreakMultiplier,
