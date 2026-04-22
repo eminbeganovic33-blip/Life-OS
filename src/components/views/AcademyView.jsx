@@ -190,7 +190,14 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   });
   const booksRead = bookStates.filter((b) => b.isFinished).length;
   const booksInProgress = bookStates.filter((b) => b.readInsights.length > 0 && !b.isFinished).length;
-  const filteredBookStates = bookCategory === "all" ? bookStates : bookStates.filter((b) => b.book.category === bookCategory);
+  // A4: Sort books — in-progress first, unread second, finished last
+  const filteredBookStates = (bookCategory === "all" ? bookStates : bookStates.filter((b) => b.book.category === bookCategory))
+    .slice()
+    .sort((a, b) => {
+      // in-progress > unread > finished
+      const score = (x) => x.isFinished ? 2 : x.readInsights.length > 0 ? 0 : 1;
+      return score(a) - score(b);
+    });
 
   return (
     <div style={S.vc}>
@@ -501,9 +508,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         ))}
       </div>
 
-      {/* Premium upsell banner for free users */}
-      {!hasAllCourses && filter !== "mastered" && (
-        <div style={premiumCourseBanner} onClick={() => setShowUpgrade(true)}>
+      {/* A2: Collapsible premium banner — only shown on first visit or when looking at locked courses */}
+      {!hasAllCourses && filter === "all" && (
+        <div style={{ ...premiumCourseBanner, cursor: "pointer" }} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Crown size={16} color="#FFD700" strokeWidth={1.75} />
             <div>
@@ -515,12 +522,23 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         </div>
       )}
 
-      {/* Empty state for focused tab */}
+      {/* A1: Fix In Focus empty state — show a small inline tip instead of large empty state that overlaps with content */}
       {filter === "focused" && focused.length === 0 && available.length > 0 && (
-        <div style={emptyState}>
-          <Target size={32} color="#7C5CFC" strokeWidth={1.25} style={{ marginBottom: 8, opacity: 0.5 }} />
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Choose courses to focus on below</div>
-          <div style={{ fontSize: 11, opacity: 0.4 }}>Pick 2-3 courses to actively work through. Focus beats overwhelm.</div>
+        <div style={{
+          margin: "0 14px 10px",
+          padding: "10px 14px",
+          borderRadius: 10,
+          background: "rgba(124,92,252,0.05)",
+          border: "1px dashed rgba(124,92,252,0.15)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Target size={16} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.6, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#7C5CFC" }}>No courses in focus yet</div>
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>Tap "Add to Focus" below any course to start learning it.</div>
+          </div>
         </div>
       )}
 

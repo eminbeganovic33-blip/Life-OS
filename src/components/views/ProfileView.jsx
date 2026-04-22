@@ -637,7 +637,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         </button>
       </div>
 
-      {/* ── Account / Danger Zone ── */}
+      {/* ── Account ── */}
       <SectionHeader title="Account" />
       <div style={dangerSection}>
         {user && (
@@ -645,6 +645,11 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
             Sign Out
           </button>
         )}
+      </div>
+
+      {/* ── P4: Danger Zone — moved to very bottom, behind a clear label ── */}
+      <SectionHeader title="Danger Zone" sub="Irreversible actions" />
+      <div style={{ ...dangerSection, border: "1px solid rgba(239,68,68,0.12)", borderRadius: 12, margin: "0 16px 16px", padding: "12px 14px", background: "rgba(239,68,68,0.02)" }}>
         {!confirmReset ? (
           <button style={resetBtn} onClick={() => setConfirmReset(true)}>
             Reset All Progress

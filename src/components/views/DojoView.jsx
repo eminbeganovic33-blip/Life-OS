@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { getTodayStr } from "../../utils";
-import { chatWithCoach } from "../../utils/ai";
+import { chatWithCoach, isAIConfigured } from "../../utils/ai";
 import { Bot, Pencil, Trash2, Flame, TrendingUp, History } from "lucide-react";
 import {
   EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES,
@@ -498,24 +498,38 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             </div>
             <div style={ds.actionButtons}>
               <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
-                {aiLoading ? "Generating..." : <><Bot size={14} style={{ marginRight: 4 }} /> AI Workout</>}
+                {aiLoading ? "Generating..." : <><Bot size={14} style={{ marginRight: 4 }} /> {isAIConfigured() ? "AI Workout" : "Smart Workout"}</>}
               </button>
               <button style={ds.customButton} onClick={() => setMode("custom")}>
                 <Pencil size={12} style={{ marginRight: 4 }} /> Custom
               </button>
             </div>
+            {/* D2: AI unconfigured hint */}
+            {!isAIConfigured() && (
+              <div style={{ fontSize: 10, opacity: 0.45, marginTop: 6, lineHeight: 1.5 }}>
+                Using local planner · add an AI key in Profile for personalized plans
+              </div>
+            )}
             {aiError && <div style={ds.errorText}>{aiError}</div>}
           </div>
         )}
 
-        {/* Quick Templates */}
+        {/* D1: Quick Templates — show only featured 3, with link to full Programs tab */}
         {!mode && (
           <div style={{ padding: "0 14px", marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8, opacity: 0.6 }}>
-              Quick Start Templates
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.6 }}>
+                Quick Start
+              </div>
+              <button
+                style={{ fontSize: 11, fontWeight: 600, color: "#7C5CFC", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                onClick={() => setTab("programs")}
+              >
+                Full programs →
+              </button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {WORKOUT_TEMPLATES.map((t) => (
+              {WORKOUT_TEMPLATES.slice(0, 3).map((t) => (
                 <button
                   key={t.id}
                   style={ds.templateChip}

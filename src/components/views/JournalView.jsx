@@ -121,7 +121,10 @@ export default function JournalView({ state, journalText, setJournalText, select
   const [viewMode, setViewMode] = useState("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedAt, setSavedAt] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [courseNudge, setCourseNudge] = useState(null);
+  // J2: history pagination
+  const [historyLimit, setHistoryLimit] = useState(20);
   const autoSaveTimer = useRef(null);
 
   const dailyPrompt = getDailyPrompt(day);
@@ -160,9 +163,11 @@ export default function JournalView({ state, journalText, setJournalText, select
     if (viewMode !== "write" || !journalText) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     setSavedAt(null);
+    setSaving(true);
     autoSaveTimer.current = setTimeout(() => {
       onSaveRaw?.(journalText);
       setSavedAt(Date.now());
+      setSaving(false);
     }, 1200);
     return () => clearTimeout(autoSaveTimer.current);
   }, [journalText, viewMode]);
@@ -376,11 +381,17 @@ export default function JournalView({ state, journalText, setJournalText, select
                 marginTop: 8,
                 marginBottom: 4,
               }}>
-                <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.4 }}>
-                  {savedAt
-                    ? <span style={{ color: "#22C55E", opacity: 0.8 }}>✓ Saved</span>
-                    : `${(journalText || "").length} chars`
-                  }
+                <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {saving ? (
+                    <span style={{ color: "#7C5CFC", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7C5CFC", animation: "pulse 1.2s ease-in-out infinite" }} />
+                      Saving…
+                    </span>
+                  ) : savedAt ? (
+                    <span style={{ color: "#22C55E", fontWeight: 600 }}>✓ Saved {Math.max(0, Math.floor((Date.now() - savedAt) / 1000))}s ago</span>
+                  ) : (
+                    <span>{(journalText || "").length} chars</span>
+                  )}
                 </div>
                 <motion.button
                   style={{
@@ -540,7 +551,7 @@ export default function JournalView({ state, journalText, setJournalText, select
                   )}
                 </div>
               ) : (
-                filteredEntries.slice(0, 20).map((entry, i) => (
+                filteredEntries.slice(0, historyLimit).map((entry, i) => (
                   <motion.div
                     key={entry.day}
                     style={{
@@ -597,9 +608,20 @@ export default function JournalView({ state, journalText, setJournalText, select
                 ))
               )}
 
-              {filteredEntries.length > 20 && (
-                <div style={{ textAlign: "center", padding: 12, fontSize: 11, color: colors.textSecondary, opacity: 0.4 }}>
-                  Showing 20 of {filteredEntries.length} entries
+              {filteredEntries.length > historyLimit && (
+                <div style={{ textAlign: "center", padding: "8px 14px 14px" }}>
+                  <button
+                    style={{
+                      padding: "10px 18px", borderRadius: 10,
+                      background: "rgba(124,92,252,0.08)",
+                      border: "1px solid rgba(124,92,252,0.2)",
+                      color: "#7C5CFC", fontSize: 12, fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setHistoryLimit((n) => n + 20)}
+                  >
+                    Show more ({filteredEntries.length - historyLimit} remaining)
+                  </button>
                 </div>
               )}
             </div>

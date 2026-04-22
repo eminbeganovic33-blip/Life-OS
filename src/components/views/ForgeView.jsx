@@ -24,6 +24,20 @@ const TRACKER_RELATED_QUESTS = {
   caffeine: { text: "Go for a 10 min walk instead of reaching for coffee", category: "exercise", color: "#F97316" },
 };
 
+// ── F1: Tracker icons — emoji per habit ──
+const TRACKER_ICONS = {
+  smoking:      "🚬",
+  alcohol:      "🍺",
+  vaping:       "💨",
+  porn:         "⚡",
+  doomscrolling:"📱",
+  weed:         "🌿",
+  gambling:     "🎰",
+  junkfood:     "🍔",
+  caffeine:     "☕",
+  social_media: "📱",
+};
+
 // ── Constants ──
 
 const DEFAULT_TRACKER_IDS = SOBRIETY_DEFAULTS.map((t) => t.id);
@@ -99,7 +113,13 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
 
   function handleCustomGoalSubmit(trackerId) {
     const val = parseInt(customGoalInput, 10);
-    if (!val || val < 21) return;
+    // F2: show inline validation instead of silent failure
+    if (!val || val < 1) return;
+    if (val < 21) {
+      // nudge user toward minimum meaningful goal
+      setCustomGoalInput("21");
+      return;
+    }
     const newGoals = { ...forgeGoals, [trackerId]: val };
     save({ ...state, forgeGoals: newGoals });
     onStart(trackerId);
@@ -123,6 +143,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
 
       {/* Tab Bar */}
       <div style={fs.tabBar}>
+        {/* F5: Renamed "Recovery Log" → "My Log" */}
         {["trackers", "journal"].map((tab) => (
           <button
             key={tab}
@@ -132,7 +153,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
               ...(activeTab === tab ? fs.tabActive : {}),
             }}
           >
-            {tab === "trackers" ? "Trackers" : "Recovery Log"}
+            {tab === "trackers" ? "Trackers" : "My Log"}
             {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
               <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
             )}
@@ -141,22 +162,26 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
       </div>
 
       {activeTab === "trackers" && (
-        <TrackersTab
-          state={state}
-          forgeGoals={forgeGoals}
-          expandedGoal={expandedGoal}
-          setExpandedGoal={setExpandedGoal}
-          customGoalInput={customGoalInput}
-          setCustomGoalInput={setCustomGoalInput}
-          onSelectGoal={handleSelectGoal}
-          onCustomGoalSubmit={handleCustomGoalSubmit}
-          onExtendGoal={handleExtendGoal}
-          onTriggerRelapse={onTriggerRelapse}
-          canAddCustom={canAddCustom}
-          hasUnlimitedForge={hasUnlimitedForge}
-          setShowUpgrade={setShowUpgrade}
-          fs={fs}
-        />
+        <>
+          <TrackersTab
+            state={state}
+            forgeGoals={forgeGoals}
+            expandedGoal={expandedGoal}
+            setExpandedGoal={setExpandedGoal}
+            customGoalInput={customGoalInput}
+            setCustomGoalInput={setCustomGoalInput}
+            onSelectGoal={handleSelectGoal}
+            onCustomGoalSubmit={handleCustomGoalSubmit}
+            onExtendGoal={handleExtendGoal}
+            onTriggerRelapse={onTriggerRelapse}
+            canAddCustom={canAddCustom}
+            hasUnlimitedForge={hasUnlimitedForge}
+            setShowUpgrade={setShowUpgrade}
+            fs={fs}
+          />
+          {/* F3: SmartInsights only on Trackers tab, not Journal */}
+          <SmartInsights triggerMap={getTriggerMap(state)} />
+        </>
       )}
 
       {activeTab === "journal" && (
@@ -167,21 +192,6 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
           state={state}
           save={save}
         />
-      )}
-
-      {/* Trigger Pattern Analysis */}
-      <SmartInsights triggerMap={getTriggerMap(state)} />
-
-      {/* Premium upsell for free users */}
-      {!hasUnlimitedForge && (
-        <div style={fs.upgradeBanner} onClick={() => setShowUpgrade(true)}>
-          <Crown size={16} color="#FFD700" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Custom Trackers</div>
-            <div style={{ fontSize: 10, opacity: 0.5 }}>Premium lets you add custom habits to track</div>
-          </div>
-          <span style={{ fontSize: 11, color: "#FFD700", fontWeight: 700 }}>Upgrade</span>
-        </div>
       )}
     </div>
   );
@@ -363,15 +373,15 @@ function TrackerCard({
       {/* Header Row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* F1: emoji icon instead of 2-letter code */}
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 40, height: 40, borderRadius: 12,
             background: `${tracker.color}18`,
-            border: `1.5px solid ${tracker.color}50`,
+            border: `1.5px solid ${tracker.color}40`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 800, color: tracker.color,
-            flexShrink: 0, letterSpacing: -0.5,
+            fontSize: 20, flexShrink: 0,
           }}>
-            {tracker.label.substring(0, 2).toUpperCase()}
+            {TRACKER_ICONS[tracker.id] || "🔥"}
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{tracker.label}</div>
@@ -457,21 +467,29 @@ function TrackerCard({
             ))}
           </div>
           {showCustom && (
-            <div style={styles.customGoalRow}>
-              <input
-                type="number"
-                min={21}
-                placeholder="Min 21 days"
-                value={customGoalInput}
-                onChange={(e) => setCustomGoalInput(e.target.value)}
-                style={(fs || styles).customGoalInput}
-              />
-              <button
-                style={styles.customGoalSubmit}
-                onClick={() => onCustomGoalSubmit(tracker.id)}
-              >
-                Go
-              </button>
+            <div>
+              <div style={styles.customGoalRow}>
+                <input
+                  type="number"
+                  min={21}
+                  placeholder="e.g. 30"
+                  value={customGoalInput}
+                  onChange={(e) => setCustomGoalInput(e.target.value)}
+                  style={(fs || styles).customGoalInput}
+                />
+                <button
+                  style={styles.customGoalSubmit}
+                  onClick={() => onCustomGoalSubmit(tracker.id)}
+                >
+                  Set
+                </button>
+              </div>
+              {/* F2: inline hint about minimum */}
+              {customGoalInput && parseInt(customGoalInput, 10) < 21 && (
+                <div style={{ fontSize: 10, color: "#F59E0B", marginTop: 4, paddingLeft: 2 }}>
+                  ⚠ Minimum 21 days for meaningful habit change
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -521,9 +539,9 @@ function TrackerCard({
               }}
             />
           </div>
-          {/* Milestone markers */}
+          {/* F6: Milestone markers — only show if they don't crowd (≤ 4 markers per bar) */}
           <div style={styles.milestoneRow}>
-            {MILESTONE_DAYS.filter((m) => m <= goal).map((m) => {
+            {MILESTONE_DAYS.filter((m) => m <= goal).slice(0, 4).map((m) => {
               const pos = (m / goal) * 100;
               const reached = daysClean >= m;
               return (

@@ -81,7 +81,8 @@ export default function HomeView({
   const ts = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
   const day = state.currentDay;
-  const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.currentDay]);
+  // H1 fix: include state.activeQuests so list refreshes when quests are added/retired
+  const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.activeQuests, state.currentDay]);
   const completed = state.completedQuests[day] || [];
   const allDone = completed.length === quests.length && quests.length > 0;
   const level = getLevel(state.xp);
@@ -105,7 +106,12 @@ export default function HomeView({
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   const [activeGuide, setActiveGuide] = useState(null);
-  const [collapsedBlocks, setCollapsedBlocks] = useState({ morning: true, afternoon: true, evening: true });
+  // H7: Default to current time-of-day block expanded, others collapsed
+  const [collapsedBlocks, setCollapsedBlocks] = useState(() => {
+    const h = new Date().getHours();
+    const current = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+    return { morning: current !== "morning", afternoon: current !== "afternoon", evening: current !== "evening" };
+  });
   const [swipeHint, setSwipeHint] = useState(null);
   const swipeHintTimer = useRef(null);
   const touchStartX = useRef(0);
@@ -274,7 +280,7 @@ export default function HomeView({
         </div>
 
         <div style={ts.heroRight}>
-          <span style={ts.profileChevron}>›</span>
+          <span style={ts.profileChevron}>Profile →</span>
           {/* Progress ring */}
           <div style={ts.ringWrap}>
             <ProgressRing
@@ -390,9 +396,9 @@ export default function HomeView({
         </button>
       </div>
 
-      {/* ── Focus Quest Highlight ── */}
+      {/* ── Focus Quest Highlight — only shown in accordion mode (>6 quests) to avoid duplication in flat list ── */}
       <AnimatePresence>
-        {focusQuest && !completed.includes(focusQuest.id) && (
+        {!useFlatList && focusQuest && !completed.includes(focusQuest.id) && (
           <motion.div
             key={focusQuest.id}
             style={ts.focusCard}
@@ -418,6 +424,28 @@ export default function HomeView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── H12: Empty state when no quests configured ── */}
+      {quests.length === 0 && (
+        <div style={{
+          margin: "8px 14px 4px",
+          padding: "28px 20px",
+          borderRadius: 14,
+          background: isDark ? "rgba(124,92,252,0.04)" : "rgba(124,92,252,0.04)",
+          border: `1px dashed ${isDark ? "rgba(124,92,252,0.18)" : "rgba(124,92,252,0.2)"}`,
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <Target size={24} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5 }} />
+          <div style={{ fontSize: 14, fontWeight: 700, color: colors.text }}>No quests yet</div>
+          <div style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.5, maxWidth: 240 }}>
+            Tap <strong style={{ color: "#7C5CFC" }}>+ Add</strong> above to pick your first quests. Start with 2–4 and build up.
+          </div>
+        </div>
+      )}
 
       {/* ── Quest list: flat (≤6 quests) or time-block accordion (>6) ── */}
       {useFlatList ? (
@@ -448,14 +476,14 @@ export default function HomeView({
       {/* ── Weekly Challenge Tracker ── */}
       <WeeklyChallengeBanner state={state} ts={ts} />
 
-      {/* ── Daily Quote ── (just below weekly summary) */}
-      <div style={ts.quoteCard}>
+      {/* ── Daily Quote — G9: only after quests are done or only 1 remaining ── */}
+      {(allDone || quests.length - completed.length <= 1) && <div style={ts.quoteCard}>
         <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
         <div style={{ flex: 1 }}>
           <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
           <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
         </div>
-      </div>
+      </div>}
 
       {/* ── Inline AI Quest Suggestions ── */}
       {day > 3 && !allDone && (
@@ -482,25 +510,42 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Complete Day Button ── */}
-      <button
-        style={{
+      {/* ── Complete Day Button / Status ── */}
+      {/* H5: "come back tomorrow" renders as a status label, not a tappable button */}
+      {allDone && !canCompleteDay ? (
+        <div style={{
           ...ts.completeBtn,
-          opacity: allDone && canCompleteDay ? 1 : 0.35,
-          cursor: allDone && canCompleteDay ? "pointer" : "default",
-          background: allDone && canCompleteDay
-            ? "linear-gradient(135deg, #22C55E, #16A34A)"
-            : "linear-gradient(135deg, #7C5CFC, #6D28D9)",
-        }}
-        onClick={onCompleteDay}
-        disabled={!allDone || !canCompleteDay}
-      >
-        {allDone
-          ? canCompleteDay
-            ? `Complete Day ${day}`
-            : "Come back tomorrow"
-          : `${completed.length} / ${quests.length} Quests`}
-      </button>
+          background: "transparent",
+          border: `1px solid ${isDark ? "rgba(34,197,94,0.2)" : "rgba(34,197,94,0.25)"}`,
+          color: "#22C55E",
+          opacity: 0.65,
+          cursor: "default",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 600,
+        }}>
+          <CircleCheck size={15} color="#22C55E" strokeWidth={2} />
+          All done — see you tomorrow for Day {day + 1}
+        </div>
+      ) : (
+        <button
+          style={{
+            ...ts.completeBtn,
+            opacity: allDone && canCompleteDay ? 1 : 0.4,
+            cursor: allDone && canCompleteDay ? "pointer" : "default",
+            background: allDone && canCompleteDay
+              ? "linear-gradient(135deg, #22C55E, #16A34A)"
+              : "linear-gradient(135deg, #7C5CFC, #6D28D9)",
+          }}
+          onClick={onCompleteDay}
+          disabled={!allDone || !canCompleteDay}
+        >
+          {allDone ? `Complete Day ${day}` : `${completed.length} / ${quests.length} Quests`}
+        </button>
+      )}
 
       {/* ── Rest Day: prominent when streak is at risk, subtle otherwise ── */}
       <RestDayControl
@@ -524,9 +569,16 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Discovery cards for new users ── */}
+      {/* ── H10: Discovery cards for new users — labeled section ── */}
       {day <= 5 && (
         <div style={ts.discoverySection}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, opacity: 0.4,
+            textTransform: "uppercase", letterSpacing: 0.8,
+            padding: "0 2px 4px", color: colors.textSecondary,
+          }}>
+            New here? Explore
+          </div>
           {day <= 2 && (
             <div style={ts.discoveryCard} onClick={() => onNavigate?.("academy")}>
               <BookOpen size={16} color={colors.textSecondary} strokeWidth={2} style={{ flexShrink: 0 }} />
@@ -696,11 +748,12 @@ function MoodPickerRow({ currentMood, onLogMood, ts, colors }) {
   if (!onLogMood) return null;
   const selected = typeof currentMood === "number" ? currentMood : null;
   return (
-    <div style={ts.moodRow}>
+    <div style={{ ...ts.moodRow, flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
       <span style={{ ...ts.moodLabel, color: colors.textSecondary }}>
-        {selected !== null ? "Today's mood" : "How are you today?"}
+        {selected !== null ? `Mood: ${MOODS[selected].label}` : "How are you today?"}
       </span>
-      <div style={ts.moodDots}>
+      {/* H6: show mood label below each dot so users know what each color means */}
+      <div style={{ display: "flex", gap: 6, width: "100%" }}>
         {MOODS.map((m, i) => {
           const isActive = selected === i;
           return (
@@ -712,12 +765,39 @@ function MoodPickerRow({ currentMood, onLogMood, ts, colors }) {
               onClick={() => onLogMood(i)}
               whileTap={{ scale: 0.88 }}
               style={{
-                ...ts.moodDot,
-                background: isActive ? m.color : `${m.color}22`,
-                border: isActive ? `2px solid ${m.color}` : `2px solid transparent`,
-                boxShadow: isActive ? `0 0 0 3px ${m.color}33` : "none",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 3,
+                padding: "5px 2px",
+                borderRadius: 8,
+                cursor: "pointer",
+                background: isActive ? `${m.color}18` : "transparent",
+                border: isActive ? `1px solid ${m.color}50` : "1px solid transparent",
+                transition: "all 0.15s",
               }}
-            />
+            >
+              <div style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: isActive ? m.color : `${m.color}30`,
+                border: isActive ? `2px solid ${m.color}` : `2px solid transparent`,
+                boxShadow: isActive ? `0 0 0 3px ${m.color}25` : "none",
+                transition: "all 0.15s",
+              }} />
+              <span style={{
+                fontSize: 9,
+                fontWeight: isActive ? 700 : 400,
+                color: isActive ? m.color : colors.textSecondary,
+                opacity: isActive ? 1 : 0.5,
+                letterSpacing: 0.1,
+                lineHeight: 1,
+              }}>
+                {m.label}
+              </span>
+            </motion.button>
           );
         })}
       </div>
@@ -935,9 +1015,14 @@ function getStyles(isDark, colors) {
       position: "absolute",
       top: 14,
       right: 14,
-      fontSize: 20,
+      fontSize: 11,
       color: colors.textSecondary,
-      fontWeight: 300,
+      fontWeight: 600,
+      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+      borderRadius: 6,
+      padding: "3px 7px",
+      letterSpacing: 0.3,
+      opacity: 0.6,
     },
     heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500, opacity: 0.4 },
     heroLevelXp: { marginTop: 8 },

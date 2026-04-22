@@ -4,8 +4,13 @@ import { MuscleTag } from "./shared";
 export default function ProgramsTab({ ds, onStartTemplate }) {
   return (
     <div style={{ padding: "0 14px", paddingBottom: 20 }}>
-      <div style={{ fontSize: 12, opacity: 0.4, marginBottom: 12 }}>
-        Structured workout programs to follow. Pick one and stick with it for best results.
+      <div style={{
+        fontSize: 11, padding: "10px 12px", marginBottom: 12,
+        borderRadius: 10, border: "1px dashed rgba(124,92,252,0.2)",
+        background: "rgba(124,92,252,0.04)", lineHeight: 1.5,
+      }}>
+        <span style={{ fontWeight: 700, color: "#7C5CFC" }}>Programs</span>
+        <span style={{ opacity: 0.6 }}> are full multi-exercise routines with sets, reps, and rest timers. Pick one and follow it end-to-end for the best gains.</span>
       </div>
 
       {WORKOUT_TEMPLATES.map((t) => {

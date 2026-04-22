@@ -166,10 +166,10 @@ export default function AnalyticsView({ state }) {
         <div style={sectionLabel}>Personal Records</div>
         <div style={recordsGrid}>
           {[
-            { Icon: Flame, val: records.longestStreak, label: "Best Streak", color: "#F97316" },
-            { Icon: Zap, val: records.highestDayXp, label: "Best Day XP", color: "#FBBF24" },
-            { Icon: CalendarCheck, val: records.totalDaysCompleted, label: "Days Done", color: "#22C55E" },
-            { Icon: CheckCircle, val: records.totalQuestsCompleted, label: "Quests Done", color: "#7C5CFC" },
+            { Icon: Flame, val: records.longestStreak, label: "Best Streak", sub: "consecutive days", color: "#F97316" },
+            { Icon: Zap, val: records.highestDayXp, label: "Best Day XP", sub: "peak single day", color: "#FBBF24" },
+            { Icon: CalendarCheck, val: records.totalDaysCompleted, label: "Days Done", sub: "total (any gap)", color: "#22C55E" },
+            { Icon: CheckCircle, val: records.totalQuestsCompleted, label: "Quests Done", sub: "lifetime quests", color: "#7C5CFC" },
           ].map((r, i) => (
             <motion.div
               key={i}
@@ -183,6 +183,7 @@ export default function AnalyticsView({ state }) {
               </div>
               <div style={recordVal}>{r.val}</div>
               <div style={recordLabel}>{r.label}</div>
+              <div style={{ fontSize: 9, opacity: 0.4, marginTop: 2, fontWeight: 500 }}>{r.sub}</div>
             </motion.div>
           ))}
         </div>
@@ -227,10 +228,10 @@ export default function AnalyticsView({ state }) {
           })}
         </div>
 
-        {/* Category Completion */}
+        {/* S3: Only show categories that have at least some activity (non-zero rate) */}
         <div style={sectionLabel}>Category Completion Rate</div>
         <div style={catContainer}>
-          {categoryRates.map((c, i) => {
+          {categoryRates.filter((c) => c.rate > 0).map((c, i) => {
             const cat = CATEGORIES.find((cat) => cat.id === c.category);
             return (
               <motion.div
@@ -267,6 +268,13 @@ export default function AnalyticsView({ state }) {
             <div style={moodChartContainer}>
               {moodTrend.map((m, i) => {
                 const mood = MOODS[m.mood];
+                // S5: Show weekday abbreviation instead of "D{n}"
+                const dayLabel = (() => {
+                  if (!state.startDate) return `D${m.day}`;
+                  const d = new Date(state.startDate);
+                  d.setDate(d.getDate() + m.day - 1);
+                  return d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2);
+                })();
                 return (
                   <motion.div
                     key={i}
@@ -274,6 +282,7 @@ export default function AnalyticsView({ state }) {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
+                    title={mood ? mood.label : "No mood logged"}
                   >
                     <div style={{
                       width: 14,
@@ -284,7 +293,7 @@ export default function AnalyticsView({ state }) {
                       opacity: mood ? 1 : 0.3,
                       boxShadow: mood ? `0 0 6px ${mood.color}60` : "none",
                     }} />
-                    <div style={moodDayLabel}>D{m.day}</div>
+                    <div style={moodDayLabel}>{dayLabel}</div>
                   </motion.div>
                 );
               })}
@@ -367,20 +376,29 @@ export default function AnalyticsView({ state }) {
                     ? "rgba(124,92,252,0.2)"
                     : sub(0.06);
                   return (
+                    // S2: highlight today's pixel with a ring
                     <div
                       key={d.day}
-                      title={d.isFuture ? `Day ${d.day}` : `Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
+                      title={d.isFuture
+                        ? `Day ${d.day} (future)`
+                        : d.day === state.currentDay
+                          ? `Today · Day ${d.day}`
+                          : `Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
                       style={{
                         width: 18,
                         height: 18,
                         borderRadius: 4,
                         background: cellBg,
-                        border: color
-                          ? `1px solid ${color}60`
-                          : `1px solid ${sub(d.isFuture ? 0.04 : 0.08)}`,
+                        border: d.day === state.currentDay
+                          ? "2px solid #7C5CFC"
+                          : color
+                            ? `1px solid ${color}60`
+                            : `1px solid ${sub(d.isFuture ? 0.04 : 0.08)}`,
                         cursor: "default",
-                        boxShadow: color ? `0 0 4px ${color}40` : "none",
-                        opacity: d.isFuture ? 0.4 : 1,
+                        boxShadow: d.day === state.currentDay
+                          ? "0 0 6px rgba(124,92,252,0.5)"
+                          : color ? `0 0 4px ${color}40` : "none",
+                        opacity: d.isFuture ? 0.25 : 1,
                       }}
                     />
                   );
@@ -407,8 +425,9 @@ export default function AnalyticsView({ state }) {
             <div style={{ fontSize: 10, opacity: 0.4 }}>Mood Rate</div>
           </div>
         </div>
+        {/* S2: Show start date + progress context */}
         <div style={{ padding: "0 14px 16px", fontSize: 11, color: colors.textSecondary, opacity: 0.45, textAlign: "center" }}>
-          {state.currentDay} of 365 days filled · keep going
+          Day {state.currentDay} of 365 · started {state.startDate ? new Date(state.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "recently"} · keep going
         </div>
       </>
     );
@@ -475,37 +494,52 @@ export default function AnalyticsView({ state }) {
     ];
 
     if (!hasAdvancedAnalytics) {
+      // S1: Show 1 real insight (or 1 sample) for free, then a subtle upgrade nudge
+      const freeInsight = insights[0] || SAMPLE_INSIGHTS[0];
       return (
-        <div style={{ position: "relative" }}>
-          {/* Blurred preview — gives a sense of what's locked */}
-          <div style={{ filter: "blur(3px)", pointerEvents: "none", opacity: 0.5 }}>
-            <div style={{ ...sectionLabel }}>Pattern Insights</div>
-            {SAMPLE_INSIGHTS.map((text, i) => (
-              <div key={i} style={insightCard}>
-                <div style={insightIconBg}>
-                  <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
-                </div>
-                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{text}</span>
-              </div>
-            ))}
+        <div>
+          <div style={sectionLabel}>Pattern Insights</div>
+          <div style={{ padding: "0 16px 8px", fontSize: 11, opacity: 0.35, lineHeight: 1.5 }}>
+            Based on your mood logs and quest completions.
           </div>
-
-          {/* Gate overlay centered over the preview */}
+          {/* One free insight */}
           <motion.div
-            style={premiumGateOverlay}
+            style={insightCard}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <div style={insightIconBg}>
+              <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+            </div>
+            <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{freeInsight}</span>
+          </motion.div>
+
+          {/* Compact upgrade nudge */}
+          <motion.div
+            style={{
+              ...insightCard,
+              background: "rgba(251,191,36,0.05)",
+              border: "1px solid rgba(251,191,36,0.15)",
+              cursor: "pointer",
+              flexDirection: "column",
+              gap: 6,
+              alignItems: "flex-start",
+            }}
             onClick={() => setShowUpgrade(true)}
             whileTap={{ scale: 0.98 }}
           >
-            <div style={premiumIconBg}>
-              <Crown size={24} color="#FFD700" strokeWidth={1.5} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Crown size={16} color="#FFD700" strokeWidth={1.5} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#FFD700" }}>
+                {insights.length > 1 ? `${insights.length - 1} more insight${insights.length > 2 ? "s" : ""} unlocked with Premium` : "Unlock more insights with Premium"}
+              </span>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#FFD700", marginTop: 8 }}>Premium Insights</div>
-            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4, lineHeight: 1.6, maxWidth: 240, textAlign: "center" }}>
-              Unlock correlation insights, trend analysis, and category streaks.
+            <div style={{ fontSize: 11, opacity: 0.55, lineHeight: 1.5 }}>
+              Correlation analysis, trend detection, and category streaks.
             </div>
-            <div style={premiumGateBtn}>
+            <div style={{ ...premiumGateBtn, marginTop: 4, padding: "6px 14px", fontSize: 11 }}>
               <span>Upgrade to Premium</span>
-              <ChevronRight size={14} />
+              <ChevronRight size={12} />
             </div>
           </motion.div>
         </div>
@@ -545,8 +579,9 @@ export default function AnalyticsView({ state }) {
           </div>
         )}
 
+        {/* S3: Only show categories with actual activity in streaks too */}
         <div style={sectionLabel}>Category Streaks</div>
-        {categoryRates.map((c, i) => {
+        {categoryRates.filter((c) => c.rate > 0 || getCatStreak(state, c.category) > 0).map((c, i) => {
           const cat = CATEGORIES.find((cat) => cat.id === c.category);
           const streakDays = getCatStreak(state, c.category);
           return (

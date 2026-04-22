@@ -169,6 +169,22 @@ export default function Onboarding({ onFinish }) {
               Which areas matter most to you right now?
               We'll prioritize quest suggestions to match.
             </p>
+            {/* O1: quick explainer of how quests work */}
+            <div style={{
+              margin: "6px 0 14px",
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "rgba(124,92,252,0.06)",
+              border: "1px solid rgba(124,92,252,0.15)",
+              fontSize: 11,
+              lineHeight: 1.5,
+              color: colors.textSecondary,
+              textAlign: "left",
+            }}>
+              <div style={{ fontWeight: 700, color: "#7C5CFC", marginBottom: 4 }}>How quests work</div>
+              Each day you'll get small, tappable habit quests. Complete them to earn XP,
+              build streaks, and level up. Add your own on Day 4+.
+            </div>
             <div style={ob.categoryGrid}>
               {CATEGORIES.map((c) => {
                 const selected = selectedCategories.includes(c.id);
