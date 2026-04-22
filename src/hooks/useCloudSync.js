@@ -3,6 +3,45 @@ import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "../firebase";
 import { defaultState, devSeedState } from "../utils/state";
 import { reconcileStreaks } from "../utils";
+import { getCategoryCompletionRates } from "../utils/intelligence";
+import { getQuestTimeOfDay, CATEGORIES } from "../data";
+
+/**
+ * One-shot migration: seed activeQuests for existing users who don't have the
+ * field yet (introduced in Phase 5E #11). Picks the top 4 categories by
+ * completion rate; falls back to focusCategories, then to a sensible default.
+ * Subsequent loads respect the _activeQuestsMigrated flag so we don't re-seed
+ * after a user retires everything.
+ */
+function migrateActiveQuests(state) {
+  if (!state) return state;
+  if (state._activeQuestsMigrated) return state;
+  if (!state.onboarded) return state; // wait until onboarding runs
+  if (Array.isArray(state.activeQuests) && state.activeQuests.length > 0) {
+    return { ...state, _activeQuestsMigrated: true };
+  }
+
+  const rates = getCategoryCompletionRates(state) || {};
+  const focus = Array.isArray(state.focusCategories) ? state.focusCategories : [];
+  // Rank: focus first (preserves user intent), then rest by completion rate desc
+  const ranked = [...CATEGORIES].sort((a, b) => {
+    const af = focus.includes(a.id) ? 1 : 0;
+    const bf = focus.includes(b.id) ? 1 : 0;
+    if (af !== bf) return bf - af;
+    return (rates[b.id] || 0) - (rates[a.id] || 0);
+  });
+  const picks = ranked.slice(0, 4);
+
+  const now = Date.now();
+  const seeded = picks.map((cat, i) => ({
+    id: `aq_seed_${now}_${i}`,
+    category: cat.id,
+    questIndex: 0,
+    timeOfDay: getQuestTimeOfDay(cat.id, 0),
+    addedAt: now,
+  }));
+  return { ...state, activeQuests: seeded, _activeQuestsMigrated: true };
+}
 
 // In dev, start with seeded data so all features are exercisable immediately.
 // In production, always start blank so real users see a clean first-run.
@@ -83,6 +122,7 @@ export default function useCloudSync(user) {
           if (local) {
             let merged = { ...defaultState(), ...local };
             merged = reconcileStreaks(merged);
+            merged = migrateActiveQuests(merged);
             setState(merged);
             if (!local.onboarded) setShowOnboarding(true);
           } else {
@@ -107,6 +147,7 @@ export default function useCloudSync(user) {
           lastVersionRef.current = data._version || 0;
           let remote = { ...defaultState(), ...data };
           remote = reconcileStreaks(remote);
+          remote = migrateActiveQuests(remote);
           setState(remote);
           writeLocalStorage(remote);
           if (!remote.onboarded) setShowOnboarding(true);
@@ -116,6 +157,7 @@ export default function useCloudSync(user) {
           if (local) {
             let merged = { ...defaultState(), ...local };
             merged = reconcileStreaks(merged);
+            merged = migrateActiveQuests(merged);
             setState(merged);
             // Migrate to Firestore
             try {

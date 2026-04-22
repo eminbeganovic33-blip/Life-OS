@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
+import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS, MOODS } from "../../data";
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
 
@@ -11,6 +11,7 @@ import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyC
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
+import QuestCard from "./home/QuestCard";
 import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Shield, Quote, Calendar, BookOpen } from "lucide-react";
 
 function formatDate() {
@@ -19,37 +20,37 @@ function formatDate() {
 
 const SWIPE_THRESHOLD = 60;
 
-// ── Quest time-of-day mapping ──
+// ── Time-of-day blocks (now driven by each quest's own timeOfDay tag) ──
 const TIME_BLOCKS = {
   morning: {
     label: "Morning Ritual",
     LucideIcon: Sunrise,
-    categories: ["sleep", "water", "shower", "nutrition"],
     gradient: "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.02))",
     accent: "#FBBF24",
   },
   afternoon: {
     label: "Daily Challenges",
     LucideIcon: Zap,
-    categories: ["exercise", "work", "reading", "finance"],
     gradient: "linear-gradient(135deg, rgba(124,92,252,0.06), rgba(59,130,246,0.02))",
     accent: "#7C5CFC",
   },
   evening: {
     label: "Evening Growth",
     LucideIcon: Moon,
-    categories: ["mind", "screen", "social", "creative"],
     gradient: "linear-gradient(135deg, rgba(139,92,246,0.06), rgba(236,72,153,0.02))",
     accent: "#A78BFA",
   },
 };
 
-function getTimeBlock(categoryId) {
-  for (const [key, block] of Object.entries(TIME_BLOCKS)) {
-    if (block.categories.includes(categoryId)) return key;
-  }
-  return "afternoon"; // default
+// "anytime" quests fall into afternoon by default.
+function getTimeBlockKey(q) {
+  const t = q?.timeOfDay;
+  if (t === "morning" || t === "afternoon" || t === "evening") return t;
+  return "afternoon";
 }
+
+// Flat-list threshold: small rosters render as a single list (no accordion).
+const FLAT_LIST_MAX = 6;
 
 // ── Circular Progress Ring ──
 function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trackColor = "rgba(0,0,0,0.08)" }) {
@@ -72,7 +73,8 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 export default function HomeView({
   state, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate, onMarkRestDay,
+  unlockedCustomCategories, onNavigate, onMarkRestDay, onLogMood,
+  onOpenActiveQuestPicker, onRetireActiveQuest,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -115,15 +117,16 @@ export default function HomeView({
     swipeHintTimer.current = setTimeout(() => setSwipeHint(null), 2000);
   }, []);
 
-  // ── Quest grouping by time block ──
+  // ── Quest grouping by quest.timeOfDay ──
   const groupedQuests = useMemo(() => {
     const groups = { morning: [], afternoon: [], evening: [] };
     quests.forEach((q) => {
-      const block = getTimeBlock(q.category);
-      groups[block].push(q);
+      groups[getTimeBlockKey(q)].push(q);
     });
     return groups;
   }, [quests]);
+
+  const useFlatList = quests.length <= FLAT_LIST_MAX;
 
   // ── Category streaks ──
   const categoryStreaks = useMemo(() => {
@@ -134,6 +137,17 @@ export default function HomeView({
     });
     return streaks;
   }, [state.completedQuests, day]);
+
+  // ── Category mastery (Novice/Initiate/Adept/Expert/Master/Grandmaster) ──
+  // Only surface badges beyond Novice to avoid cluttering day-1 cards.
+  const categoryMastery = useMemo(() => {
+    const out = {};
+    CATEGORIES.forEach((cat) => {
+      const m = getCategoryMastery(state, cat.id);
+      if (m.levelIndex > 0) out[cat.id] = m;
+    });
+    return out;
+  }, [state.completedQuests]);
 
   // ── Focus quest — most impactful uncompleted quest ──
   const focusQuest = useMemo(() => {
@@ -187,12 +201,13 @@ export default function HomeView({
   // Shared QuestCard props
   const questCardProps = {
     isDark, colors, ts,
-    categoryStreaks, focusQuest, swipeHint, activeGuide,
+    categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
     onCheck: onCheckQuest, onUncheck: onUncheckQuest,
     onSwipeHintShow: showSwipeHint,
     onSwipeHintClear: () => setSwipeHint(null),
     onToggleGuide: handleToggleGuide,
     onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
+    onRetireActiveQuest,
     onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd,
     currentDay: state.currentDay,
   };
@@ -349,6 +364,14 @@ export default function HomeView({
         </motion.div>
       )}
 
+      {/* ── Inline Mood Picker ── */}
+      <MoodPickerRow
+        currentMood={state.moods?.[day]}
+        onLogMood={onLogMood}
+        ts={ts}
+        colors={colors}
+      />
+
       {/* ── Top Nudge ── */}
       {topNudge && (
         <div style={{ padding: "0 14px", marginBottom: 4 }}>
@@ -359,7 +382,12 @@ export default function HomeView({
       {/* ── Section Header ── */}
       <div style={ts.sectionHeader}>
         <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
-        <button style={ts.addBtn} onClick={onOpenCustomQuest}>+ Add</button>
+        <button
+          style={ts.addBtn}
+          onClick={() => (onOpenActiveQuestPicker || onOpenCustomQuest)?.()}
+        >
+          + Add
+        </button>
       </div>
 
       {/* ── Focus Quest Highlight ── */}
@@ -391,21 +419,31 @@ export default function HomeView({
         )}
       </AnimatePresence>
 
-      {/* ── Time Block Sections ── */}
-      {["morning", "afternoon", "evening"].map((key) => (
-        <TimeBlockSection
-          key={key}
-          blockKey={key}
-          block={TIME_BLOCKS[key]}
-          quests={groupedQuests[key]}
+      {/* ── Quest list: flat (≤6 quests) or time-block accordion (>6) ── */}
+      {useFlatList ? (
+        <FlatQuestList
+          quests={quests}
           completed={completed}
-          isCollapsed={collapsedBlocks[key]}
-          onToggle={() => toggleBlock(key)}
           ts={ts}
           colors={colors}
           {...questCardProps}
         />
-      ))}
+      ) : (
+        ["morning", "afternoon", "evening"].map((key) => (
+          <TimeBlockSection
+            key={key}
+            blockKey={key}
+            block={TIME_BLOCKS[key]}
+            quests={groupedQuests[key]}
+            completed={completed}
+            isCollapsed={collapsedBlocks[key]}
+            onToggle={() => toggleBlock(key)}
+            ts={ts}
+            colors={colors}
+            {...questCardProps}
+          />
+        ))
+      )}
 
       {/* ── Weekly Challenge Tracker ── */}
       <WeeklyChallengeBanner state={state} ts={ts} />
@@ -423,6 +461,7 @@ export default function HomeView({
       {day > 3 && !allDone && (
         <InlineQuestSuggestions
           state={state}
+          quests={quests}
           isDark={isDark}
           colors={colors}
           onOpenCustomQuest={onOpenCustomQuest}
@@ -463,30 +502,16 @@ export default function HomeView({
           : `${completed.length} / ${quests.length} Quests`}
       </button>
 
-      {/* ── Rest Day option ── shown only when day not yet completed and not all done */}
-      {!allDone && canCompleteDay && !(state.restDays || []).includes(day) && (
-        <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 11,
-              color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
-              padding: "6px 12px",
-              letterSpacing: 0.3,
-            }}
-            onClick={() => onMarkRestDay?.(day)}
-          >
-            Mark as rest day — streak preserved
-          </button>
-        </div>
-      )}
-      {(state.restDays || []).includes(day) && (
-        <div style={{ textAlign: "center", marginTop: 4, fontSize: 11, color: "#3B82F6", opacity: 0.7 }}>
-          Rest day — your streak is safe
-        </div>
-      )}
+      {/* ── Rest Day: prominent when streak is at risk, subtle otherwise ── */}
+      <RestDayControl
+        state={state}
+        day={day}
+        allDone={allDone}
+        canCompleteDay={canCompleteDay}
+        isDark={isDark}
+        colors={colors}
+        onMarkRestDay={onMarkRestDay}
+      />
 
       {/* ── Lifting Streak ── */}
       {state.liftingStreak > 0 && (
@@ -546,7 +571,159 @@ export default function HomeView({
   );
 }
 
+// ── Flat quest list (small-roster render path) ──
+function FlatQuestList({ quests, completed, ts, colors, ...questCardProps }) {
+  // Preserve natural day order; the active-quests list is already
+  // user-curated so we don't need to force-group by timeOfDay here.
+  return (
+    <div style={{ ...ts.timeBlock, padding: "4px 6px" }}>
+      {quests.map((q) => (
+        <QuestCard
+          key={q.id}
+          quest={q}
+          done={completed.includes(q.id)}
+          colors={colors}
+          ts={ts}
+          {...questCardProps}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── Extracted JSX helpers (avoid IIFE-in-JSX which breaks rolldown/SWC) ──
+
+function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, onMarkRestDay }) {
+  const isRest = (state.restDays || []).includes(day);
+
+  // Already a rest day → brief confirmation
+  if (isRest) {
+    return (
+      <div style={{
+        textAlign: "center",
+        marginTop: 6,
+        padding: "8px 14px",
+        fontSize: 12,
+        fontWeight: 600,
+        color: "#3B82F6",
+        background: "rgba(59,130,246,0.08)",
+        border: "1px solid rgba(59,130,246,0.18)",
+        borderRadius: 10,
+        margin: "6px 14px 0",
+      }}>
+        <Shield size={12} color="#3B82F6" style={{ verticalAlign: "middle", marginRight: 6 }} />
+        Rest day — your streak is safe
+      </div>
+    );
+  }
+
+  // Not eligible to show anything
+  if (allDone || !canCompleteDay) return null;
+
+  // Detect "at risk": user has an active streak, it's late in the day, quests unfinished
+  const hour = new Date().getHours();
+  const atRisk = (state.streak || 0) > 0 && hour >= 20; // 8pm onward
+  const freezesAvailable = (state.streakFreezes || 0) > 0;
+
+  if (atRisk) {
+    return (
+      <div style={{
+        margin: "10px 14px 0",
+        padding: "12px 14px",
+        borderRadius: 12,
+        background: isDark
+          ? "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(124,92,252,0.05))"
+          : "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(124,92,252,0.06))",
+        border: "1px solid rgba(59,130,246,0.25)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}>
+        <Shield size={18} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, lineHeight: 1.3 }}>
+            Protect your {state.streak}-day streak
+          </div>
+          <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 1.4 }}>
+            {freezesAvailable
+              ? `You have ${state.streakFreezes} streak freeze${state.streakFreezes > 1 ? "s" : ""}. Mark today as a rest day and keep the streak.`
+              : "Can't finish today? Mark it as a rest day — your streak stays intact."}
+          </div>
+        </div>
+        <button
+          onClick={() => onMarkRestDay?.(day)}
+          style={{
+            flexShrink: 0,
+            padding: "8px 14px",
+            borderRadius: 10,
+            border: "none",
+            background: "#3B82F6",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: "pointer",
+            letterSpacing: 0.2,
+          }}
+        >
+          Rest day
+        </button>
+      </div>
+    );
+  }
+
+  // Default subtle option (any earlier time)
+  return (
+    <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
+      <button
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 11,
+          color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+          padding: "6px 12px",
+          letterSpacing: 0.3,
+        }}
+        onClick={() => onMarkRestDay?.(day)}
+      >
+        Mark as rest day — streak preserved
+      </button>
+    </div>
+  );
+}
+
+function MoodPickerRow({ currentMood, onLogMood, ts, colors }) {
+  if (!onLogMood) return null;
+  const selected = typeof currentMood === "number" ? currentMood : null;
+  return (
+    <div style={ts.moodRow}>
+      <span style={{ ...ts.moodLabel, color: colors.textSecondary }}>
+        {selected !== null ? "Today's mood" : "How are you today?"}
+      </span>
+      <div style={ts.moodDots}>
+        {MOODS.map((m, i) => {
+          const isActive = selected === i;
+          return (
+            <motion.button
+              key={m.label}
+              type="button"
+              aria-label={`Log mood: ${m.label}`}
+              aria-pressed={isActive}
+              onClick={() => onLogMood(i)}
+              whileTap={{ scale: 0.88 }}
+              style={{
+                ...ts.moodDot,
+                background: isActive ? m.color : `${m.color}22`,
+                border: isActive ? `2px solid ${m.color}` : `2px solid transparent`,
+                boxShadow: isActive ? `0 0 0 3px ${m.color}33` : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function WeeklyChallengeBanner({ state, ts }) {
   const wc = getWeeklyChallenge(state);
@@ -611,7 +788,7 @@ function BonusQuestCard({ state, completed, colors, onCheckQuest }) {
 }
 
 // ── Inline AI Quest Suggestions ──
-function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAddSuggestedQuest }) {
+function InlineQuestSuggestions({ state, quests, isDark, colors, onOpenCustomQuest, onAddSuggestedQuest }) {
   const [suggestions, setSuggestions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -631,8 +808,11 @@ function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAd
     }).catch(() => setLoading(false));
   }, []);
 
-  // Fall back to local suggestions if no AI
-  const localSuggestions = useMemo(() => getQuestSuggestions(state).slice(0, 3), [state]);
+  // Fall back to local suggestions if no AI — pass current quest texts to avoid duplicates
+  const localSuggestions = useMemo(() => {
+    const existingTexts = (quests || []).map((q) => q.text);
+    return getQuestSuggestions(state, existingTexts).slice(0, 3);
+  }, [state, quests]);
   const displaySuggestions = suggestions || (isAIConfigured() ? null : localSuggestions);
 
   if (dismissed || (!loading && !displaySuggestions)) return null;
@@ -803,6 +983,35 @@ function getStyles(isDark, colors) {
     },
     forgeLabel: { fontSize: 12, fontWeight: 600, color: colors.text },
     forgeDays: { fontSize: 12, fontWeight: 800 },
+
+    // Inline mood picker
+    moodRow: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      padding: "8px 14px",
+      margin: "4px 12px 2px",
+    },
+    moodLabel: {
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: 0.2,
+      flexShrink: 0,
+    },
+    moodDots: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+    },
+    moodDot: {
+      width: 22,
+      height: 22,
+      borderRadius: "50%",
+      cursor: "pointer",
+      padding: 0,
+      transition: "all 0.15s ease",
+    },
 
     // Quote
     quoteCard: {

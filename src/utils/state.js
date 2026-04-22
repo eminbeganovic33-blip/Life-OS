@@ -72,6 +72,15 @@ export const defaultState = () => ({
   // Personalization (set during onboarding)
   userName: null,
   focusCategories: null,
+  // ── Active quests (Phase 5E #11) ──
+  // Starts at 4 slots seeded from focusCategories, unlimited cap thereafter.
+  // Each entry: { id, category, questIndex, timeOfDay, addedAt }
+  activeQuests: [],
+  retiredQuestIds: [],
+  // { [category]: { pendingPromptFor: masteryLevel|null, history: [{ from, to, at }] } }
+  questGraduations: {},
+  // One-shot migration flag so we don't re-seed after a user retires everything.
+  _activeQuestsMigrated: false,
 });
 
 // ── Dev seed: 14 days of realistic progress for local development only ──

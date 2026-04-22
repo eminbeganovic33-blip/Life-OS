@@ -13,6 +13,10 @@ const firebaseConfig = {
 
 // Firebase is optional — app works in local-only mode without config
 export const firebaseConfigured = !!firebaseConfig.apiKey;
+// FCM background push requires a VAPID key — optional too
+export const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || null;
+// Expose raw config so the FCM service worker can be registered with it
+export { firebaseConfig };
 
 let app = null;
 let auth = null;

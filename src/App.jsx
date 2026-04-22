@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
-import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA } from "./data";
+import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA, getQuestTimeOfDay } from "./data";
 import { getPersonalizedQuote } from "./utils/intelligence";
 import { applyStreakMultiplier, getStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
 import {
@@ -28,6 +28,7 @@ import BossModal from "./components/modals/BossModal";
 import LevelUpModal from "./components/modals/LevelUpModal";
 import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
+import AddActiveQuestModal from "./components/modals/AddActiveQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
 import MilestoneUnlockModal from "./components/modals/MilestoneUnlockModal";
@@ -43,6 +44,7 @@ import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
 import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
+import { initFcm } from "./utils/fcm";
 import { playSound } from "./utils/audio";
 import InstallPrompt from "./components/InstallPrompt";
 import OnboardingTour from "./components/OnboardingTour";
@@ -217,6 +219,18 @@ function LifeOS() {
     };
   }, [state?.notificationSettings?.enabled, state?.currentDay]);
 
+  // FCM: once the user is signed in and has enabled notifications, capture
+  // their device token so background push can be delivered when the app is
+  // closed. No-op if Firebase/VAPID/permission are not all ready — the
+  // foreground polling effect above continues to cover those cases.
+  useEffect(() => {
+    if (!user || !state) return;
+    const settings = state.notificationSettings || getDefaultNotificationSettings();
+    if (!settings.enabled) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    initFcm(user).catch(() => {});
+  }, [user?.uid, state?.notificationSettings?.enabled]);
+
   // Weekly summary check — show on Sundays (or user-set day) if not dismissed this week
   useEffect(() => {
     if (!state) return;
@@ -267,6 +281,26 @@ function LifeOS() {
               updates.premium = { ...(state.premium || {}), trialStartedAt: Date.now() };
             }
           }
+          // Seed 4 active quests from focusCategories (or sensible default)
+          const seeds = (preferences?.focusCategories && preferences.focusCategories.length > 0)
+            ? preferences.focusCategories.slice(0, 4)
+            : ["sleep", "water", "exercise", "mind"];
+          // Pad to 4 with defaults if user picked fewer
+          const padDefaults = ["sleep", "water", "exercise", "mind", "shower", "reading"];
+          const seedCategories = [...seeds];
+          for (const cat of padDefaults) {
+            if (seedCategories.length >= 4) break;
+            if (!seedCategories.includes(cat)) seedCategories.push(cat);
+          }
+          const now = Date.now();
+          updates.activeQuests = seedCategories.slice(0, 4).map((category, i) => ({
+            id: `aq_${now}_${i}`,
+            category,
+            questIndex: 0,
+            timeOfDay: getQuestTimeOfDay(category, 0),
+            addedAt: now,
+          }));
+          updates._activeQuestsMigrated = true;
           save(updates);
           setShowOnboarding(false);
         }}
@@ -343,6 +377,15 @@ function LifeOS() {
   }
 
   // ── Quest Actions ──
+  // Helper: add delta XP to today's xpByDay bucket (keyed by ISO date).
+  // Ensures both checkQuest, completeDay, and progressLifecycle converge on
+  // the same per-day total regardless of which handler triggered the gain.
+  function addXpToday(xpByDay = {}, delta) {
+    const key = getTodayStr();
+    const prev = xpByDay[key] || 0;
+    return { ...xpByDay, [key]: Math.max(0, prev + delta) };
+  }
+
   // Check a quest (one-way click — unchecking uses uncheckQuest via swipe)
   function checkQuest(questId, xpVal) {
     const dc = [...completed];
@@ -360,10 +403,17 @@ function LifeOS() {
       lifetimeXp: (state.lifetimeXp || state.xp) + boostedXp,
       completedQuests: { ...state.completedQuests, [day]: dc },
       questCompletedAt: { ...(state.questCompletedAt || {}), [day]: newTimes },
+      xpByDay: addXpToday(state.xpByDay, boostedXp),
     };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
-    const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };
+    const finalState = {
+      ...ns,
+      xp: ns.xp + xpBonus,
+      unlockedTrophies: unlocked,
+      // Include any trophy bonus in the same per-day bucket
+      xpByDay: xpBonus > 0 ? addXpToday(ns.xpByDay, xpBonus) : ns.xpByDay,
+    };
     save(finalState);
     playSound("questCheck");
     navigator.vibrate?.(30);
@@ -385,7 +435,12 @@ function LifeOS() {
     if (!dc.includes(questId)) return;
     dc.splice(dc.indexOf(questId), 1);
     const newXp = Math.max(0, state.xp - xpVal);
-    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
+    const ns = {
+      ...state,
+      xp: newXp,
+      completedQuests: { ...state.completedQuests, [day]: dc },
+      xpByDay: addXpToday(state.xpByDay, -xpVal),
+    };
     save(ns);
   }
 
@@ -412,7 +467,12 @@ function LifeOS() {
     };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
-    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
+    save({
+      ...ns,
+      xp: ns.xp + xpBonus,
+      unlockedTrophies: unlocked,
+      xpByDay: xpBonus > 0 ? addXpToday(ns.xpByDay, xpBonus) : ns.xpByDay,
+    });
     setConfettiBurst((c) => c + 1);
     playSound("dayComplete");
     if (newlyUnlocked?.length > 0) {
@@ -448,12 +508,18 @@ function LifeOS() {
       bossClears,
       masteryMode,
       xp: state.xp + xpBonus,
+      xpByDay: xpBonus > 0 ? addXpToday(state.xpByDay, xpBonus) : state.xpByDay,
     };
     if (xpBonus > 0) showXp(xpBonus);
 
     const { unlocked, xpBonus: tXp } = checkTrophies(ns);
     if (tXp > 0) showXp(tXp);
-    save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
+    save({
+      ...ns,
+      xp: ns.xp + tXp,
+      unlockedTrophies: unlocked,
+      xpByDay: tXp > 0 ? addXpToday(ns.xpByDay, tXp) : ns.xpByDay,
+    });
     setModal(null);
     setBossDay(null);
   }
@@ -480,6 +546,19 @@ function LifeOS() {
       journal: { ...state.journal, [day]: rawContent },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
+  }
+
+  // Log mood directly from HomeView (1-tap, no journal flow).
+  // Tapping the currently-selected mood clears it.
+  function logMood(moodIndex) {
+    const current = state.moods?.[day];
+    const next = current === moodIndex ? null : moodIndex;
+    const nextMoods = { ...(state.moods || {}) };
+    if (next === null) delete nextMoods[day];
+    else nextMoods[day] = next;
+    save({ ...state, moods: nextMoods });
+    // Keep the Journal view's local state in sync so the mood row there reflects the change
+    setSelectedMood(next);
   }
 
   // ── Dojo ──
@@ -670,15 +749,56 @@ function LifeOS() {
   function addCustomQuest(quest) {
     // Validate max length for quest text
     if (!quest || !quest.text || quest.text.length > 200) return;
-    // Prevent duplicate quest text
+    const norm = quest.text.trim().toLowerCase();
+    // Prevent duplicate against existing custom quests
     const existing = state.customQuests || [];
-    if (existing.some((q) => q.text.trim().toLowerCase() === quest.text.trim().toLowerCase())) {
+    if (existing.some((q) => q.text.trim().toLowerCase() === norm)) {
       toast.show("Quest already added", "info", 2000);
+      return;
+    }
+    // Prevent duplicate against today's core quest texts
+    const coreTexts = getDayQuests(day, [], state).map((q) => q.text.trim().toLowerCase());
+    if (coreTexts.includes(norm)) {
+      toast.show("That quest is already in today's list", "info", 2000);
       return;
     }
     save({ ...state, customQuests: [...existing, quest] });
     setModal(null);
     toast.show("Custom quest added!", "success", 2000);
+  }
+
+  // ── Active quests (#11) ──
+  function addActiveQuest(aq) {
+    if (!aq || !aq.category) return;
+    // Dedup: don't add same category+index twice
+    const existing = state.activeQuests || [];
+    if (existing.some((q) => q.category === aq.category && q.questIndex === aq.questIndex)) {
+      toast.show("Already in your quests", "info", 2000);
+      return;
+    }
+    save({
+      ...state,
+      activeQuests: [...existing, aq],
+      // If user had retired this exact (cat, idx) previously, un-retire it
+      retiredQuestIds: (state.retiredQuestIds || []).filter(
+        (rid) => rid !== `${aq.category}-${aq.questIndex}`
+      ),
+    });
+    toast.show("Quest added!", "success", 1500);
+    setModal(null);
+  }
+
+  function retireActiveQuest(aqId) {
+    const existing = state.activeQuests || [];
+    const target = existing.find((q) => q.id === aqId);
+    if (!target) return;
+    const retiredKey = `${target.category}-${target.questIndex}`;
+    save({
+      ...state,
+      activeQuests: existing.filter((q) => q.id !== aqId),
+      retiredQuestIds: [...(state.retiredQuestIds || []), retiredKey],
+    });
+    toast.show("Quest retired", "info", 1500);
   }
 
   function removeCustomQuest(questId) {
@@ -737,6 +857,16 @@ function LifeOS() {
         <ForgeSuccessModal
           milestones={forgeMilestoneQueueRef.current}
           onDismiss={dismissForgeSuccess}
+        />
+      );
+    }
+    if (modal === "add_active_quest") {
+      return (
+        <AddActiveQuestModal
+          activeQuests={state.activeQuests || []}
+          retiredQuestIds={state.retiredQuestIds || []}
+          onAdd={addActiveQuest}
+          onClose={() => setModal(null)}
         />
       );
     }
@@ -923,11 +1053,14 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   canCompleteDay={canCompleteDay}
                   calendarDay={calendarDay}
                   onOpenCustomQuest={() => setModal("custom_quest")}
+                  onOpenActiveQuestPicker={() => setModal("add_active_quest")}
                   onAddSuggestedQuest={addCustomQuest}
                   onRemoveCustomQuest={removeCustomQuest}
+                  onRetireActiveQuest={retireActiveQuest}
                   unlockedCustomCategories={unlockedCustomCategories}
                   onNavigate={handleViewChange}
                   onMarkRestDay={markRestDay}
+                  onLogMood={logMood}
                 />
               </ErrorBoundary>
             )}

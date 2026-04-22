@@ -50,9 +50,11 @@ function estimateDayXP(completedQuests, day) {
 
 /**
  * Returns array of 7 objects {label, xp} for the last 7 calendar days.
+ * Prefers real XP from state.xpByDay (ISO date keys); falls back to estimate
+ * for historical days before xpByDay was introduced.
  */
 export function getWeeklyXpData(state) {
-  const { completedQuests = {}, startDate } = state || {};
+  const { completedQuests = {}, xpByDay = {}, startDate } = state || {};
   const today = new Date();
   const result = [];
 
@@ -60,7 +62,15 @@ export function getWeeklyXpData(state) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
     const label = DAY_LABELS[date.getDay()];
-    const day = startDate ? getDayForDate(startDate, formatDate(date)) : -1;
+    const isoDate = formatDate(date);
+    // Prefer real XP tracked per ISO date
+    const realXp = xpByDay[isoDate];
+    if (typeof realXp === "number") {
+      result.push({ label, xp: Math.max(0, realXp) });
+      continue;
+    }
+    // Fallback estimate for pre-tracking days
+    const day = startDate ? getDayForDate(startDate, isoDate) : -1;
     const xp = day > 0 ? estimateDayXP(completedQuests, day) : 0;
     result.push({ label, xp });
   }

@@ -1,5 +1,5 @@
 export { CATEGORIES } from "./categories";
-export { QUESTS_TEMPLATE } from "./quests";
+export { QUESTS_TEMPLATE, QUEST_TIME_OF_DAY, getQuestTimeOfDay } from "./quests";
 export { EXERCISES, EXERCISES_TIER2 } from "./exercises";
 export { COURSES } from "./courses";
 export { TROPHIES } from "./trophies";

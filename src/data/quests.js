@@ -113,3 +113,29 @@ export const QUESTS_TEMPLATE = {
     "Brainstorm 10 ideas about anything",
   ],
 };
+
+// Parallel map: index-aligned with QUESTS_TEMPLATE. Each quest has a natural
+// time-of-day bucket so the home view can group by when-you-do-it instead of
+// by category (which misgroups things like "No phone first hour after waking"
+// under Evening Growth when it's actually a screen-category quest).
+export const QUEST_TIME_OF_DAY = {
+  sleep: ["evening", "evening", "morning", "morning", "evening", "evening", "evening", "evening", "afternoon", "evening"],
+  water: ["anytime", "morning", "anytime", "anytime", "morning", "anytime", "anytime", "morning", "anytime", "anytime"],
+  exercise: ["afternoon", "anytime", "anytime", "anytime", "afternoon", "anytime", "anytime", "morning", "anytime", "afternoon"],
+  mind: ["morning", "evening", "anytime", "evening", "anytime", "anytime", "morning", "evening", "anytime", "evening"],
+  screen: ["anytime", "anytime", "anytime", "evening"],
+  shower: ["morning", "morning", "morning", "morning"],
+  nutrition: ["anytime", "anytime", "anytime", "anytime", "anytime", "anytime", "evening", "evening"],
+  reading: ["evening", "evening", "anytime", "anytime", "evening", "anytime"],
+  work: ["afternoon", "afternoon", "evening", "afternoon", "afternoon", "anytime", "afternoon", "morning"],
+  social: ["evening", "evening", "anytime", "anytime", "anytime", "evening"],
+  finance: ["anytime", "anytime", "anytime", "anytime", "anytime", "anytime", "anytime"],
+  creative: ["afternoon", "afternoon", "anytime", "anytime", "anytime", "anytime"],
+};
+
+export function getQuestTimeOfDay(category, questIndex) {
+  const arr = QUEST_TIME_OF_DAY[category];
+  if (!arr) return "anytime";
+  return arr[questIndex % arr.length] || "anytime";
+}
+

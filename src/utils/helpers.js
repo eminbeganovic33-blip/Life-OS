@@ -1,4 +1,4 @@
-import { CATEGORIES, QUESTS_TEMPLATE, LEVELS } from "../data";
+import { CATEGORIES, QUESTS_TEMPLATE, LEVELS, getQuestTimeOfDay } from "../data";
 import { calculateQuestXP } from "./xpEngine";
 import { getCategoryCompletionRates, getAdaptiveDifficulty, ADAPTIVE_QUESTS } from "./intelligence";
 
@@ -43,34 +43,60 @@ export function getTodayStr() {
  * Custom quests from state are merged in when provided.
  */
 export function getDayQuests(day, customQuests, state) {
-  // When state is provided, use adaptive difficulty to pick quest text
   const rates = state ? getCategoryCompletionRates(state) : null;
+  const activeQuests = state?.activeQuests;
+  let coreQuests;
 
-  const coreQuests = CATEGORIES.map((cat) => {
-    let text = QUESTS_TEMPLATE[cat.id][(day - 1) % QUESTS_TEMPLATE[cat.id].length];
+  if (Array.isArray(activeQuests) && activeQuests.length > 0) {
+    // ── New active-quests mode (#11) ──
+    // User has opted in to a curated set of N quests; only render those.
+    coreQuests = activeQuests.map((aq) => {
+      const template = QUESTS_TEMPLATE[aq.category] || [];
+      const idx = typeof aq.questIndex === "number" ? aq.questIndex % Math.max(template.length, 1) : 0;
+      let text = template[idx] || aq.category;
+      // Adaptive text swap (keeps user on harder quests as they mature)
+      if (rates && state.currentDay > 7 && ADAPTIVE_QUESTS[aq.category]) {
+        const difficulty = getAdaptiveDifficulty(rates[aq.category] || 0);
+        text = ADAPTIVE_QUESTS[aq.category][difficulty] || text;
+      }
+      return {
+        // id must be stable per-day for completedQuests keying
+        id: `${aq.category}-${idx}-day${day}`,
+        // aqId links back to the activeQuests entry (retire needs this)
+        aqId: aq.id,
+        category: aq.category,
+        text,
+        xp: 0,
+        isCore: true,
+        timeOfDay: aq.timeOfDay || getQuestTimeOfDay(aq.category, idx),
+        difficulty: rates && state.currentDay > 7 ? getAdaptiveDifficulty(rates[aq.category] || 0) : undefined,
+      };
+    });
+  } else {
+    // ── Legacy mode: 12-category grid (pre-migration) ──
+    coreQuests = CATEGORIES.map((cat) => {
+      const questIdx = (day - 1) % QUESTS_TEMPLATE[cat.id].length;
+      let text = QUESTS_TEMPLATE[cat.id][questIdx];
+      if (rates && state?.currentDay > 7 && ADAPTIVE_QUESTS[cat.id]) {
+        const difficulty = getAdaptiveDifficulty(rates[cat.id] || 0);
+        text = ADAPTIVE_QUESTS[cat.id][difficulty] || text;
+      }
+      return {
+        id: `${cat.id}-${day}`,
+        category: cat.id,
+        text,
+        xp: 0,
+        isCore: true,
+        timeOfDay: getQuestTimeOfDay(cat.id, questIdx),
+        difficulty: rates && state?.currentDay > 7 ? getAdaptiveDifficulty(rates[cat.id] || 0) : undefined,
+      };
+    });
+  }
 
-    // Adaptive quest text: if user has enough history, swap in difficulty-appropriate quest
-    if (rates && state.currentDay > 7 && ADAPTIVE_QUESTS[cat.id]) {
-      const difficulty = getAdaptiveDifficulty(rates[cat.id] || 0);
-      text = ADAPTIVE_QUESTS[cat.id][difficulty] || text;
-    }
-
-    return {
-      id: `${cat.id}-${day}`,
-      category: cat.id,
-      text,
-      xp: 0,
-      isCore: true,
-      difficulty: rates && state.currentDay > 7 ? getAdaptiveDifficulty(rates[cat.id] || 0) : undefined,
-    };
-  });
-
-  // Apply intelligent XP weighting
   coreQuests.forEach((q) => {
     q.xp = calculateQuestXP(q.text, day);
   });
 
-  // Merge custom quests if any
   if (customQuests && Array.isArray(customQuests)) {
     customQuests.forEach((cq) => {
       coreQuests.push({
@@ -80,6 +106,7 @@ export function getDayQuests(day, customQuests, state) {
         xp: calculateQuestXP(cq.text, day),
         isCore: false,
         isCustom: true,
+        timeOfDay: cq.timeOfDay || "anytime",
       });
     });
   }

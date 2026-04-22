@@ -5,9 +5,10 @@ import QuestCard from "./QuestCard";
 export default function TimeBlockSection({
   blockKey, block, quests, completed, isCollapsed, onToggle, ts, colors,
   // QuestCard pass-through props
-  isDark, categoryStreaks, focusQuest, swipeHint, activeGuide,
+  isDark, categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
   onCheck, onUncheck, onSwipeHintShow, onSwipeHintClear,
   onToggleGuide, onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
+  onRetireActiveQuest,
   onTouchStart, onTouchEnd, currentDay,
 }) {
   if (quests.length === 0) return null;
@@ -85,6 +86,7 @@ export default function TimeBlockSection({
               colors={colors}
               ts={ts}
               categoryStreaks={categoryStreaks}
+              categoryMastery={categoryMastery}
               focusQuest={focusQuest}
               swipeHint={swipeHint}
               activeGuide={activeGuide}
@@ -96,6 +98,7 @@ export default function TimeBlockSection({
               onNavigate={onNavigate}
               onOpenCustomQuest={onOpenCustomQuest}
               onRemoveCustomQuest={onRemoveCustomQuest}
+              onRetireActiveQuest={onRetireActiveQuest}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
               currentDay={currentDay}

@@ -140,7 +140,7 @@ export function getAdaptiveDifficulty(rate) {
 
 // --- 1. Quest Suggestions ---
 
-export function getQuestSuggestions(state) {
+export function getQuestSuggestions(state, existingQuestTexts = []) {
   const suggestions = [];
   const rates = getCategoryCompletionRates(state);
   const {
@@ -149,28 +149,42 @@ export function getQuestSuggestions(state) {
     liftingStreak = 0,
     sobrietyDates = {},
     customQuests = [],
+    focusCategories = null,
   } = state;
+  // Normalised set of texts already on today's quest list (core + custom)
+  const existingNorm = new Set(existingQuestTexts.map((t) => t?.trim().toLowerCase()).filter(Boolean));
+  // Set of user-declared focus categories (null/empty = treat everything as focus)
+  const focusSet = Array.isArray(focusCategories) && focusCategories.length > 0
+    ? new Set(focusCategories)
+    : null;
 
   const yesterday = currentDay - 1;
   const todayQuests = completedQuests[currentDay] || [];
   const yesterdayQuests = completedQuests[yesterday] || [];
 
-  // Find weakest category — use adaptive difficulty
+  // Find weakest category — use adaptive difficulty.
+  // If user has focus categories, prefer the weakest within focus first.
   const sortedCats = CATEGORIES_LIST
     .map((cat) => ({ cat, rate: rates[cat] }))
     .sort((a, b) => a.rate - b.rate);
 
-  const weakest = sortedCats[0];
+  const focusSorted = focusSet
+    ? sortedCats.filter((c) => focusSet.has(c.cat))
+    : [];
+  const weakest = focusSorted[0] || sortedCats[0];
   if (weakest && weakest.rate < 0.7) {
     const difficulty = getAdaptiveDifficulty(weakest.rate);
     const questText = ADAPTIVE_QUESTS[weakest.cat]?.[difficulty] || ADAPTIVE_QUESTS[weakest.cat]?.standard;
-    const diffLabel = difficulty === "easy" ? "easier version" : difficulty === "hard" ? "upgraded challenge" : "quest";
-    suggestions.push({
-      text: questText,
-      category: weakest.cat,
-      reason: `Your ${weakest.cat} rate is ${Math.round(weakest.rate * 100)}% — here's ${/^[aeiou]/i.test(diffLabel) ? "an" : "a"} ${diffLabel} to build momentum`,
-      difficulty,
-    });
+    // Only push if the category has a known adaptive quest text
+    if (questText) {
+      const diffLabel = difficulty === "easy" ? "easier version" : difficulty === "hard" ? "upgraded challenge" : "quest";
+      suggestions.push({
+        text: questText,
+        category: weakest.cat,
+        reason: `Your ${weakest.cat} rate is ${Math.round(weakest.rate * 100)}% — here's ${/^[aeiou]/i.test(diffLabel) ? "an" : "a"} ${diffLabel} to build momentum`,
+        difficulty,
+      });
+    }
   }
 
   // Category streak about to break
@@ -186,11 +200,14 @@ export function getQuestSuggestions(state) {
         screen: "Your screen discipline streak is at risk — put the phone away for 30 min",
         shower: "Don't lose your shower streak — take one now",
       };
-      suggestions.push({
-        text: urgentTemplates[cat],
-        category: cat,
-        reason: `You completed ${cat} yesterday but not today — streak at risk!`,
-      });
+      const urgentText = urgentTemplates[cat];
+      if (urgentText) {
+        suggestions.push({
+          text: urgentText,
+          category: cat,
+          reason: `You completed ${cat} yesterday but not today — streak at risk!`,
+        });
+      }
     }
   }
 
@@ -250,12 +267,17 @@ export function getQuestSuggestions(state) {
     }
   }
 
-  // Return 3–5, deduplicating by text
+  // Return 3–5, deduplicating by text and excluding anything already on today's list
   const seen = new Set();
   const unique = [];
   for (const s of suggestions) {
-    if (!seen.has(s.text)) {
-      seen.add(s.text);
+    // Skip undefined/empty text
+    if (!s.text) continue;
+    const norm = s.text.trim().toLowerCase();
+    // Skip if this text is already a core/custom quest today
+    if (existingNorm.has(norm)) continue;
+    if (!seen.has(norm)) {
+      seen.add(norm);
       unique.push(s);
     }
     if (unique.length >= 5) break;
@@ -269,10 +291,19 @@ export function getQuestSuggestions(state) {
   ];
   for (const fb of fallbacks) {
     if (unique.length >= 3) break;
-    if (!seen.has(fb.text)) {
-      seen.add(fb.text);
+    const norm = fb.text.trim().toLowerCase();
+    if (!existingNorm.has(norm) && !seen.has(norm)) {
+      seen.add(norm);
       unique.push(fb);
     }
+  }
+
+  // If the user has declared focus categories, surface those suggestions first
+  // (stable partition: preserves within-group order).
+  if (focusSet) {
+    const focusFirst = unique.filter((s) => focusSet.has(s.category));
+    const rest = unique.filter((s) => !focusSet.has(s.category));
+    return [...focusFirst, ...rest].slice(0, 5);
   }
 
   return unique.slice(0, 5);
@@ -447,10 +478,14 @@ export function getProactiveNudges(state) {
   const {
     currentDay = 1, streak = 0, moods = {}, journal = {},
     completedQuests = {}, sobrietyDates = {}, liftingStreak = 0,
+    focusCategories = null,
   } = state;
 
   const rates = getCategoryCompletionRates(state);
   const latestMood = getLatestMood(state);
+  const focusSet = Array.isArray(focusCategories) && focusCategories.length > 0
+    ? new Set(focusCategories)
+    : null;
 
   // 1. Mood decline detection — if last 3 moods trend downward
   const moodDays = Object.keys(moods).map(Number).sort((a, b) => b - a).slice(0, 3);
@@ -504,19 +539,24 @@ export function getProactiveNudges(state) {
     }
   }
 
-  // 4. Weak category nudge — if a category drops below 30% over 7+ days
+  // 4. Weak category nudge — if a category drops below 30% over 7+ days.
+  // Prioritize user's declared focus categories when multiple are weak.
   if (currentDay > 7) {
-    for (const cat of CATEGORIES_LIST) {
+    const orderedCats = focusSet
+      ? [...CATEGORIES_LIST.filter((c) => focusSet.has(c)), ...CATEGORIES_LIST.filter((c) => !focusSet.has(c))]
+      : CATEGORIES_LIST;
+    for (const cat of orderedCats) {
       if (rates[cat] < 0.3) {
-        const difficulty = "easy";
         const easyQuest = ADAPTIVE_QUESTS[cat]?.easy;
+        if (!easyQuest) continue; // skip categories without adaptive text
+        const isFocus = focusSet && focusSet.has(cat);
         nudges.push({
           type: "weak_category",
           icon: "🎯",
           title: `${cat.charAt(0).toUpperCase() + cat.slice(1)} needs attention`,
-          message: `Your ${cat} completion is only ${Math.round(rates[cat] * 100)}%. Try an easier version: "${easyQuest}"`,
+          message: `${isFocus ? "This is one of your focus areas. " : ""}Your ${cat} completion is only ${Math.round(rates[cat] * 100)}%. Try an easier version: "${easyQuest}"`,
           action: "home",
-          priority: 1,
+          priority: isFocus ? 2 : 1,
         });
         break; // only nudge about 1 weak category at a time
       }

@@ -24,9 +24,10 @@ function SparkleRing({ color }) {
 
 const QuestCard = React.memo(function QuestCard({
   quest, done, isDark, colors, ts,
-  categoryStreaks, focusQuest, swipeHint, activeGuide,
+  categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
   onCheck, onUncheck, onSwipeHintShow, onSwipeHintClear,
   onToggleGuide, onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
+  onRetireActiveQuest,
   onTouchStart, onTouchEnd, currentDay,
 }) {
   const q = quest;
@@ -34,6 +35,7 @@ const QuestCard = React.memo(function QuestCard({
   const tier = getQuestTier(q.text);
   const isShowingHint = swipeHint === q.id;
   const streak = categoryStreaks[q.category] || 0;
+  const mastery = categoryMastery?.[q.category] || null;
   const isFocus = focusQuest?.id === q.id && !done;
   const [sparkle, setSparkle] = useState(false);
 
@@ -126,6 +128,24 @@ const QuestCard = React.memo(function QuestCard({
               {isFocus && !done && (
                 <span style={ts.focusBadge}>FOCUS</span>
               )}
+              {mastery && !done && (
+                <span
+                  title={`${mastery.completions} ${q.category} completions · next: ${mastery.nextLevel || "Max"}`}
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: mastery.color,
+                    background: `${mastery.color}15`,
+                    border: `1px solid ${mastery.color}35`,
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  {mastery.level}
+                </span>
+              )}
               <span style={{ ...ts.tierBadge, color: tier.color, borderColor: `${tier.color}30` }}>
                 {tier.label}
               </span>
@@ -156,6 +176,20 @@ const QuestCard = React.memo(function QuestCard({
             {q.category === "exercise" && !done && (
               <span style={ts.actionLink} onClick={(e) => { e.stopPropagation(); onNavigate?.("dojo"); }}>
                 Dojo
+              </span>
+            )}
+            {q.aqId && !done && onRetireActiveQuest && (
+              <span
+                title="Retire this quest"
+                style={{ ...ts.actionLink, color: "#EF4444", opacity: 0.5 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm("Retire this quest? It won't come back unless you add it again.")) {
+                    onRetireActiveQuest(q.aqId);
+                  }
+                }}
+              >
+                Retire
               </span>
             )}
             {q.isCustom && (
