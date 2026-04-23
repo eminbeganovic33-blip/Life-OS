@@ -4,6 +4,7 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS, MOODS } from "../../data";
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
+import { getArc, getArcProgress } from "../../utils/arcs";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
 
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
@@ -84,12 +85,18 @@ export default function HomeView({
   // H1 fix: include state.activeQuests so list refreshes when quests are added/retired
   const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.activeQuests, state.currentDay]);
   const completed = state.completedQuests[day] || [];
-  const allDone = completed.length === quests.length && quests.length > 0;
+  // A: Exclude bonus quest IDs from the regular count so counter never shows "7/6"
+  const completedRegular = useMemo(() => completed.filter(id => !id.startsWith("bonus-")), [completed]);
+  const completedBonus = useMemo(() => completed.filter(id => id.startsWith("bonus-")), [completed]);
+  const allDone = completedRegular.length === quests.length && quests.length > 0;
   const level = getLevel(state.xp);
   const nextLevel = getNextLevel(state.xp);
   const levelIdx = getLevelIndex(state.xp);
   const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
-  const dayProgress = quests.length > 0 ? completed.length / quests.length : 0;
+  const dayProgress = quests.length > 0 ? completedRegular.length / quests.length : 0;
+  // Arc system
+  const arc = getArc(day);
+  const arcProgress = getArcProgress(day);
 
   // Dashboard-layer data
   const userName = user?.displayName?.split(" ")[0] || state.userName || null;
@@ -205,6 +212,11 @@ export default function HomeView({
   }
 
   // Shared QuestCard props
+  // C: navigate to Academy and open the linked course
+  const handleLearnWhy = useCallback((courseId) => {
+    onNavigate?.("academy", { openCourse: courseId });
+  }, [onNavigate]);
+
   const questCardProps = {
     isDark, colors, ts,
     categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
@@ -216,6 +228,7 @@ export default function HomeView({
     onRetireActiveQuest,
     onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd,
     currentDay: state.currentDay,
+    onLearnWhy: handleLearnWhy,
   };
 
   const greeting = (() => {
@@ -266,16 +279,36 @@ export default function HomeView({
           <div style={ts.greetingText}>
             {greeting}{userName ? `, ${userName}` : ""}
           </div>
-          <div style={ts.heroPhase}>
-            {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery Mode"}
+          {/* D2: Arc name + progress */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 13 }}>{arc.icon}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: arc.color, letterSpacing: 0.3 }}>{arc.name}</span>
+            <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>· {arc.subtitle}</span>
           </div>
+          {/* D1: XP bar to next level */}
           <div style={ts.heroLevelXp}>
-            <span style={ts.levelXpText}>
-              {level.name}
-              {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
-              {" · "}
-              {nextLevel ? `${nextLevel.xpReq - state.xp} XP to ${nextLevel.name}` : `${state.xp} XP`}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+              <span style={{ ...ts.levelXpText, fontSize: 11 }}>
+                {level.name}
+                {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
+              </span>
+              {nextLevel && (
+                <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>
+                  → {nextLevel.name}
+                </span>
+              )}
+            </div>
+            <div style={{ width: "100%", height: 4, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+              <motion.div
+                style={{ height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${arc.color}, ${arc.color}CC)` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${xpProgress * 100}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            </div>
+            <div style={{ fontSize: 9, color: colors.textSecondary, opacity: 0.4, marginTop: 2 }}>
+              {nextLevel ? `${nextLevel.xpReq - state.xp} XP to next level` : `${state.xp} XP · Max level`}
+            </div>
           </div>
         </div>
 
@@ -291,8 +324,11 @@ export default function HomeView({
               trackColor={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}
             />
             <div style={ts.ringCenter}>
-              <div style={{ ...ts.ringNumber, color: colors.text }}>{completed.length}</div>
+              <div style={{ ...ts.ringNumber, color: colors.text }}>{completedRegular.length}</div>
               <div style={ts.ringLabel}>/{quests.length}</div>
+              {completedBonus.length > 0 && (
+                <div style={{ fontSize: 8, color: "#FBBF24", fontWeight: 700, marginTop: 1 }}>+{completedBonus.length}✦</div>
+              )}
             </div>
           </div>
           {/* Streak + Multiplier */}
@@ -511,25 +547,49 @@ export default function HomeView({
       )}
 
       {/* ── Complete Day Button / Status ── */}
-      {/* H5: "come back tomorrow" renders as a status label, not a tappable button */}
       {allDone && !canCompleteDay ? (
-        <div style={{
-          ...ts.completeBtn,
-          background: "transparent",
-          border: `1px solid ${isDark ? "rgba(34,197,94,0.2)" : "rgba(34,197,94,0.25)"}`,
-          color: "#22C55E",
-          opacity: 0.65,
-          cursor: "default",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          fontSize: 13,
-          fontWeight: 600,
-        }}>
-          <CircleCheck size={15} color="#22C55E" strokeWidth={2} />
-          All done — see you tomorrow for Day {day + 1}
-        </div>
+        // D3: Day sealed — celebration card
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          style={{
+            margin: "10px 14px 0",
+            padding: "16px 18px",
+            borderRadius: 16,
+            background: `linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.04))`,
+            border: "1px solid rgba(34,197,94,0.25)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
+            >
+              <CircleCheck size={22} color="#22C55E" strokeWidth={2.5} />
+            </motion.div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#22C55E", lineHeight: 1.2 }}>
+                Day {day} sealed ✓
+              </div>
+              <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, marginTop: 2 }}>
+                {arc.icon} {arc.name} · Day {day - arc.days[0] + 1} of {arc.days[1] - arc.days[0] + 1}
+              </div>
+            </div>
+            <div style={{ marginLeft: "auto", textAlign: "right" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#22C55E", opacity: 0.8 }}>
+                🔥 {state.streak}d streak
+              </div>
+              {completedBonus.length > 0 && (
+                <div style={{ fontSize: 10, color: "#FBBF24", fontWeight: 600, marginTop: 2 }}>+bonus ✦</div>
+              )}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: colors.textSecondary, opacity: 0.55 }}>
+            Day {day + 1} unlocks tomorrow. Keep the streak going.
+          </div>
+        </motion.div>
       ) : (
         <button
           style={{
@@ -543,7 +603,7 @@ export default function HomeView({
           onClick={onCompleteDay}
           disabled={!allDone || !canCompleteDay}
         >
-          {allDone ? `Complete Day ${day}` : `${completed.length} / ${quests.length} Quests`}
+          {allDone ? `Complete Day ${day}` : `${completedRegular.length} / ${quests.length} Quests`}
         </button>
       )}
 
@@ -647,49 +707,44 @@ function FlatQuestList({ quests, completed, ts, colors, ...questCardProps }) {
 
 function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, onMarkRestDay }) {
   const isRest = (state.restDays || []).includes(day);
+  const [showInfo, setShowInfo] = useState(false);
 
-  // Already a rest day → brief confirmation
+  // Already marked — show confirmation strip
   if (isRest) {
     return (
       <div style={{
-        textAlign: "center",
-        marginTop: 6,
-        padding: "8px 14px",
-        fontSize: 12,
-        fontWeight: 600,
-        color: "#3B82F6",
-        background: "rgba(59,130,246,0.08)",
+        display: "flex", alignItems: "center", gap: 8,
+        margin: "6px 14px 0", padding: "10px 14px",
+        borderRadius: 10, background: "rgba(59,130,246,0.08)",
         border: "1px solid rgba(59,130,246,0.18)",
-        borderRadius: 10,
-        margin: "6px 14px 0",
       }}>
-        <Shield size={12} color="#3B82F6" style={{ verticalAlign: "middle", marginRight: 6 }} />
-        Rest day — your streak is safe
+        <Shield size={14} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", flex: 1 }}>
+          Rest day — your streak is safe
+        </span>
+        <span style={{ fontSize: 10, color: "#3B82F6", opacity: 0.6 }}>🛡️ {state.streak}d streak held</span>
       </div>
     );
   }
 
-  // Not eligible to show anything
-  if (allDone || !canCompleteDay) return null;
+  // Day already fully done — no need to show rest option
+  if (allDone) return null;
 
-  // Detect "at risk": user has an active streak, it's late in the day, quests unfinished
+  // At-risk: streak active and it's late (8pm+)
   const hour = new Date().getHours();
-  const atRisk = (state.streak || 0) > 0 && hour >= 20; // 8pm onward
+  const hasStreak = (state.streak || 0) > 0;
+  const atRisk = hasStreak && hour >= 20;
   const freezesAvailable = (state.streakFreezes || 0) > 0;
 
   if (atRisk) {
     return (
       <div style={{
-        margin: "10px 14px 0",
-        padding: "12px 14px",
-        borderRadius: 12,
+        margin: "10px 14px 0", padding: "12px 14px", borderRadius: 12,
         background: isDark
           ? "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(124,92,252,0.05))"
           : "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(124,92,252,0.06))",
         border: "1px solid rgba(59,130,246,0.25)",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
+        display: "flex", alignItems: "center", gap: 10,
       }}>
         <Shield size={18} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -698,24 +753,13 @@ function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, o
           </div>
           <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 1.4 }}>
             {freezesAvailable
-              ? `You have ${state.streakFreezes} streak freeze${state.streakFreezes > 1 ? "s" : ""}. Mark today as a rest day and keep the streak.`
-              : "Can't finish today? Mark it as a rest day — your streak stays intact."}
+              ? `You have ${state.streakFreezes} streak freeze${state.streakFreezes > 1 ? "s" : ""}. Mark as rest day and keep the streak.`
+              : "Can't finish today? Mark as rest day — your streak stays intact."}
           </div>
         </div>
         <button
           onClick={() => onMarkRestDay?.(day)}
-          style={{
-            flexShrink: 0,
-            padding: "8px 14px",
-            borderRadius: 10,
-            border: "none",
-            background: "#3B82F6",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: "pointer",
-            letterSpacing: 0.2,
-          }}
+          style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
         >
           Rest day
         </button>
@@ -723,23 +767,33 @@ function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, o
     );
   }
 
-  // Default subtle option (any earlier time)
+  // B: Always visible — clear, informative entry point
   return (
-    <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
-      <button
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 11,
-          color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
-          padding: "6px 12px",
-          letterSpacing: 0.3,
-        }}
-        onClick={() => onMarkRestDay?.(day)}
-      >
-        Mark as rest day — streak preserved
-      </button>
+    <div style={{ margin: "8px 14px 0" }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 14px", borderRadius: 10,
+        background: isDark ? "rgba(59,130,246,0.05)" : "rgba(59,130,246,0.04)",
+        border: `1px solid ${isDark ? "rgba(59,130,246,0.12)" : "rgba(59,130,246,0.12)"}`,
+      }}>
+        <Shield size={14} color="#3B82F6" strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6" }}>Taking a rest day?</div>
+          <div style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.6, marginTop: 1 }}>
+            Your streak is preserved. Best used 1–2× per week intentionally.
+          </div>
+        </div>
+        <button
+          onClick={() => onMarkRestDay?.(day)}
+          style={{
+            flexShrink: 0, padding: "6px 12px", borderRadius: 8,
+            background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)",
+            color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          Mark rest
+        </button>
+      </div>
     </div>
   );
 }

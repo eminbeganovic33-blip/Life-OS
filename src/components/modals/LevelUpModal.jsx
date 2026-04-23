@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { LEVELS } from "../../data";
+import { getArc } from "../../utils/arcs";
 
-export default function LevelUpModal({ levelIndex, onDismiss }) {
+export default function LevelUpModal({ levelIndex, onDismiss, currentDay }) {
   const level = LEVELS[levelIndex];
   if (!level) return null;
+  const arc = currentDay ? getArc(currentDay) : null;
 
   // Perks that unlock at each level
   const LEVEL_PERKS = {
@@ -54,6 +56,13 @@ export default function LevelUpModal({ levelIndex, onDismiss }) {
               Unlocked
             </div>
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>{perk}</div>
+          </div>
+        )}
+        {arc && (
+          <div style={{ ...perkBox, background: `${arc.color}10`, border: `1px solid ${arc.color}25`, marginTop: 0 }}>
+            <span style={{ fontSize: 16 }}>{arc.icon}</span>
+            <div style={{ fontSize: 11, fontWeight: 700, color: arc.color, marginTop: 4 }}>{arc.name} Arc</div>
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2, lineHeight: 1.4 }}>{arc.subtitle}</div>
           </div>
         )}
         <button style={{ ...S.motBtn, position: "relative", zIndex: 10 }} onClick={(e) => { e.stopPropagation(); onDismiss(); }}>Continue →</button>

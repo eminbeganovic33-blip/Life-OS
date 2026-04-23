@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CATEGORIES, findGuideForQuest } from "../../../data";
+import { CATEGORIES, findGuideForQuest, getCourseForQuest } from "../../../data";
 import { getQuestTier } from "../../../utils";
 import { CategoryIcon } from "../../Icon";
-import { Flame, AlertTriangle } from "lucide-react";
+import { Flame, AlertTriangle, BookOpen } from "lucide-react";
 import QuestGuidePanel from "../../QuestGuidePanel";
 
 // Burst ring shown briefly when a quest is completed
@@ -29,6 +29,7 @@ const QuestCard = React.memo(function QuestCard({
   onToggleGuide, onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
   onRetireActiveQuest,
   onTouchStart, onTouchEnd, currentDay,
+  onLearnWhy,
 }) {
   const q = quest;
   const cat = CATEGORIES.find((c) => c.id === q.category);
@@ -38,8 +39,9 @@ const QuestCard = React.memo(function QuestCard({
   const mastery = categoryMastery?.[q.category] || null;
   const isFocus = focusQuest?.id === q.id && !done;
   const [sparkle, setSparkle] = useState(false);
-  // H9/G7: inline retire confirmation instead of window.confirm()
   const [confirmingRetire, setConfirmingRetire] = useState(false);
+  // C: linked Academy course
+  const linkedCourse = getCourseForQuest(q);
 
   function handleClick() {
     if (done) {
@@ -159,6 +161,17 @@ const QuestCard = React.memo(function QuestCard({
           {/* Action links */}
           {/* H11: Larger touch targets for action links */}
           <div style={{ ...ts.questActions, gap: 4 }}>
+            {/* C: Learn why → Academy deep link */}
+            {linkedCourse && !done && onLearnWhy && (
+              <span
+                title="Open Academy course for this habit"
+                style={{ ...ts.actionLink, padding: "4px 6px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3, color: "#7C5CFC" }}
+                onClick={(e) => { e.stopPropagation(); onLearnWhy(linkedCourse); }}
+              >
+                <BookOpen size={9} color="#7C5CFC" />
+                Why
+              </span>
+            )}
             {findGuideForQuest(q.text) && !done && (
               <span
                 style={{ ...ts.actionLink, padding: "4px 6px", borderRadius: 6 }}

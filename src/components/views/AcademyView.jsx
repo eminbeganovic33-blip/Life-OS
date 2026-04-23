@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { LEVELS, BOOKS, BOOK_CATEGORIES } from "../../data";
+import { LEVELS, BOOKS, BOOK_CATEGORIES, COURSE_QUEST_SUGGESTIONS, CATEGORIES } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
@@ -14,7 +14,7 @@ const SWIPE_THRESHOLD = 60;
 const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
 const MAX_FOCUS_SLOTS = 3;
 
-export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight }) {
+export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight, openCourse }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
@@ -27,9 +27,17 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   const academyFocus = state.academyFocus || [];
   const stepCompletedAt = state.stepCompletedAt || {};
 
-  const [expandedCourse, setExpandedCourse] = useState(null);
+  const [expandedCourse, setExpandedCourse] = useState(openCourse || null);
   const [expandedStep, setExpandedStep] = useState(null);
-  const [filter, setFilter] = useState("focused");
+  const [filter, setFilter] = useState(openCourse ? "all" : "focused");
+
+  // C: auto-expand course when navigated from a quest "Learn why" link
+  useEffect(() => {
+    if (openCourse) {
+      setExpandedCourse(openCourse);
+      setFilter("all");
+    }
+  }, [openCourse]);
   const [now, setNow] = useState(Date.now());
   const [expandedBook, setExpandedBook] = useState(null);
   const [mode, setMode] = useState("courses"); // "courses" | "books"
@@ -810,15 +818,50 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
 
                 {/* Completion celebration */}
                 {isCompleted && (
-                  <div style={completionBox}>
-                    <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
-                      <div style={{ fontSize: 11, opacity: 0.4 }}>
-                        You've completed all steps. This knowledge is now part of your foundation.
+                  <>
+                    <div style={completionBox}>
+                      <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
+                        <div style={{ fontSize: 11, opacity: 0.4 }}>
+                          You've completed all steps. This knowledge is now part of your foundation.
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    {/* C: Quest nudge after course completion */}
+                    {COURSE_QUEST_SUGGESTIONS[course.id] && (() => {
+                      const suggestion = COURSE_QUEST_SUGGESTIONS[course.id];
+                      const cats = suggestion.categories.map(id => CATEGORIES.find(c => c.id === id)).filter(Boolean);
+                      return (
+                        <div style={{
+                          margin: "8px 0 4px",
+                          padding: "12px 14px",
+                          borderRadius: 10,
+                          background: "rgba(124,92,252,0.06)",
+                          border: "1px solid rgba(124,92,252,0.15)",
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                            <Target size={11} color="#7C5CFC" />
+                            Now put it into practice
+                          </div>
+                          <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7, marginBottom: 8, lineHeight: 1.5 }}>
+                            {suggestion.tip}
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {cats.map(cat => (
+                              <span key={cat.id} style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                color: cat.color, background: `${cat.color}12`, border: `1px solid ${cat.color}25`,
+                              }}>
+                                {cat.icon} {cat.label} quest
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             )}

@@ -850,7 +850,7 @@ function LifeOS() {
       return <BossModal bossDay={bossDay} onProgress={progressLifecycle} />;
     }
     if (modal === "levelup") {
-      return <LevelUpModal levelIndex={levelUpIndex} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
+      return <LevelUpModal levelIndex={levelUpIndex} currentDay={state.currentDay} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
     }
     if (modal === "forge_success" && forgeMilestoneQueueRef.current.length > 0) {
       return (
@@ -965,11 +965,13 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   const { themed } = useTheme();
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   const showTrialBanner = isTrialActive && !isPremiumActive && trialDaysRemaining <= 2 && trialDaysRemaining > 0 && !trialBannerDismissed;
+  // C: track which Academy course to auto-open when navigating from a quest
+  const [pendingOpenCourse, setPendingOpenCourse] = useState(null);
 
   const day = state.currentDay;
 
-  // Centralized view change handler — initializes state for views that need it
-  function handleViewChange(v) {
+  // Centralized view change handler — accepts optional options { openCourse }
+  function handleViewChange(v, opts = {}) {
     if (v === "auth") {
       setSkipAuth(false);
       return;
@@ -977,6 +979,11 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     if (v === "journal") {
       setJournalText(state.journal?.[day] || "");
       setSelectedMood(state.moods?.[day] ?? null);
+    }
+    if (v === "academy" && opts.openCourse) {
+      setPendingOpenCourse(opts.openCourse);
+    } else if (v !== "academy") {
+      setPendingOpenCourse(null);
     }
     setView(v);
   }
@@ -1095,6 +1102,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   allCourses={ALL_COURSES}
                   onCheckInsight={checkBookInsight}
                   onUncheckInsight={uncheckBookInsight}
+                  openCourse={pendingOpenCourse}
                 />
               </ErrorBoundary>
             )}
