@@ -4,38 +4,28 @@ import { TOKENS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
 import { getTrophyTierColor } from "../../data/trophies";
 import { getTotalVolume, getLevel, getNextLevel, getLevelIndex, isPrestigeReady } from "../../utils";
-import { useAuth } from "../../hooks/useAuth";
+import { getArc } from "../../utils/arcs";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
-import { usePomodoroContext } from "../../hooks";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
-import { Flame, Calendar, CheckCircle, Pencil, Swords, Sun, Moon, Users, Bell, AlertTriangle, Timer, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles, Volume2, VolumeX, Download } from "lucide-react";
-import { getSoundsEnabled, setSoundsEnabled, playSound } from "../../utils/audio";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Users, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles } from "lucide-react";
 
 const T = TOKENS;
 
-export default function ProfileView({ state, save, user, onReset, onOpenNotifications, onNavigate }) {
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [showTimer, setShowTimer] = useState(false);
+export default function ProfileView({ state, save, user, onReset, onOpenNotifications, onOpenStake, onNavigate }) {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [soundsOn, setSoundsOn] = useState(getSoundsEnabled());
-  const [expandedTrophySections, setExpandedTrophySections] = useState({ milestone: true });
+  // H5: Collapse all trophy sections on Day 1–7 (user has earned very few trophies)
+  const [expandedTrophySections, setExpandedTrophySections] = useState(
+    () => state.currentDay >= 7 ? { milestone: true } : {}
+  );
   const toggleTrophySection = useCallback((id) => {
     setExpandedTrophySections((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
-  const { logout } = useAuth();
   const { isPremium, isPremiumActive, isTrialActive, trialDaysRemaining, premiumUntil, plan, setShowUpgrade } = usePremium();
-  const { theme, toggleTheme, colors } = useTheme();
-  const pomodoro = usePomodoroContext();
-  const { pomodoroActive, pomodoroTime, toggle, reset: resetTimer, phase, phaseLabel, sessionsCompleted, skipPhase } = pomodoro;
+  const { theme, colors } = useTheme();
 
   const isDark = theme === "dark";
-  const pomodoroMins = Math.floor(pomodoroTime / 60);
-  const pomodoroSecs = pomodoroTime % 60;
-  const phaseDuration =
-    phase === "work" ? (state.pomodoroMinutes || 25) * 60 : phase === "longBreak" ? 15 * 60 : 5 * 60;
-  const pomProg = 1 - pomodoroTime / phaseDuration;
   const totalVolume = getTotalVolume(state.workoutLogs);
   const workoutCount = Object.values(state.workoutLogs || {}).reduce((a, b) => a + b.length, 0);
   const day = state.currentDay;
@@ -386,156 +376,54 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
         );
       })}
 
-      {/* ── Journey Map ── */}
-      <SectionHeader title="Journey Map" sub={day > 66 ? "Mastery Mode" : `Day ${day} of 66`} />
-      <div style={dayGrid}>
-        {Array.from({ length: Math.max(66, day) }, (_, i) => {
-          const d = i + 1;
-          const done = state.completedDays[d];
-          const cur = d === day;
-          const isBoss = d === 21 || d === 66;
-          return (
-            <div key={d} style={{
-              ...dayDot,
-              background: done ? "linear-gradient(135deg,#7C5CFC,#EC4899)" : cur ? "rgba(124,92,252,0.25)" : isBoss ? "rgba(249,115,22,0.12)" : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-              border: cur ? "2px solid #7C5CFC" : isBoss && !done ? "2px solid rgba(249,115,22,0.3)" : "2px solid transparent",
-              color: done ? "#fff" : cur ? "#7C5CFC" : isBoss ? "#F97316" : isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-              fontWeight: cur || isBoss ? 700 : 400,
-              fontSize: isBoss && !done ? 11 : 10,
-            }}>
-              {isBoss && !done ? <Swords size={11} /> : d}
-            </div>
-          );
-        })}
-      </div>
+      {/* ── The Stake ── */}
+      <StakeCard state={state} onEdit={onOpenStake} isDark={isDark} colors={colors} />
 
-      {/* ── Streak Calendar ── */}
-      <SectionHeader title="Streak Calendar" sub={`${Object.keys(state.completedDays).length} days completed`} />
-      <StreakCalendar state={state} isDark={isDark} />
+      {/* ── Journey Calendar (merged journey map + streak calendar) ── */}
+      <SectionHeader
+        title="Journey Calendar"
+        sub={day > 66 ? `Mastery Mode · ${Object.keys(state.completedDays).length} days` : `Day ${day} of 66 · ${Object.keys(state.completedDays).length} completed`}
+      />
+      <JourneyCalendar state={state} isDark={isDark} />
 
       {/* ── Milestones ── */}
       <SectionHeader title="Milestones" sub={day > 66 ? "Journey complete" : "Your path"} />
       <MilestonesTimeline state={state} day={day} isDark={isDark} colors={colors} />
 
-      {/* ── Settings ── */}
-      <SectionHeader title="Settings" />
-      <div style={settingsSection}>
-        {/* Theme toggle */}
-        <div style={settingsRow}>
-          <div style={settingsRowLeft}>
-            <span style={{ display: "flex", alignItems: "center" }}>{isDark ? <Moon size={20} /> : <Sun size={20} color="#F59E0B" />}</span>
-            <div>
-              <div style={settingsRowTitle}>Appearance</div>
-              <div style={settingsRowSub}>{isDark ? "Dark Mode" : "Light Mode"}</div>
-            </div>
-          </div>
-          <button style={toggleTrack(isDark)} onClick={toggleTheme} role="switch" aria-checked={isDark} aria-label="Toggle theme">
-            <span style={toggleIcon(true, isDark)}><Sun size={12} /></span>
-            <span style={toggleIcon(false, isDark)}><Moon size={12} /></span>
-            <div style={toggleThumb(isDark)} />
-          </button>
-        </div>
-
-        {/* Social */}
-        <div style={{ ...settingsRow, cursor: "pointer" }} onClick={() => onNavigate?.("social")}>
-          <div style={settingsRowLeft}>
-            <span style={{ display: "flex", alignItems: "center" }}><Users size={20} /></span>
-            <div>
-              <div style={settingsRowTitle}>Community</div>
-              <div style={settingsRowSub}>Leaderboard, friends &amp; challenges</div>
-            </div>
-          </div>
-          <span style={settingsChevron}>›</span>
-        </div>
-
-        {/* Sound effects */}
-        <div style={settingsRow}>
-          <div style={settingsRowLeft}>
-            <span style={{ display: "flex", alignItems: "center" }}>{soundsOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</span>
-            <div>
-              <div style={settingsRowTitle}>Sound Effects</div>
-              <div style={settingsRowSub}>Audio feedback on actions</div>
-            </div>
-          </div>
-          <button
-            style={toggleTrack(soundsOn)}
-            role="switch"
-            aria-checked={soundsOn}
-            aria-label="Toggle sound effects"
-            onClick={() => {
-              const next = !soundsOn;
-              setSoundsEnabled(next);
-              setSoundsOn(next);
-              if (next) playSound("questCheck");
-            }}
-          >
-            <span style={toggleThumb(soundsOn)} />
-          </button>
-        </div>
-
-        {/* Notifications */}
-        <div style={{ ...settingsRow, cursor: "pointer" }} onClick={onOpenNotifications}>
-          <div style={settingsRowLeft}>
-            <span style={{ display: "flex", alignItems: "center" }}><Bell size={20} /></span>
-            <div>
-              <div style={settingsRowTitle}>Notifications</div>
-              <div style={settingsRowSub}>Reminders and alerts</div>
-            </div>
-          </div>
-          <span style={settingsChevron}>›</span>
-        </div>
-
-        {/* Focus Timer — collapsible, last row so no bottom border */}
-        <div style={{ ...settingsRow, borderBottom: "none", cursor: "pointer" }} onClick={() => setShowTimer(v => !v)}>
-          <div style={settingsRowLeft}>
-            <span style={{ display: "flex", alignItems: "center" }}><Timer size={20} /></span>
-            <div>
-              <div style={settingsRowTitle}>Focus Timer</div>
-              <div style={settingsRowSub}>{pomodoroActive ? "Running..." : `${String(pomodoroMins).padStart(2,"0")}:${String(pomodoroSecs).padStart(2,"0")}`}</div>
-            </div>
-          </div>
-          <span style={settingsChevron}>{showTimer ? "▲" : "▼"}</span>
-        </div>
-
-        <AnimatePresence>
-          {showTimer && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ overflow: "hidden" }}
-            >
-              <div style={timerExpanded}>
-                <div style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, color: phase === "work" ? "#7C5CFC" : "#22C55E", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                  {phaseLabel}
-                </div>
-                <div style={{ position: "relative" }}>
-                  <svg viewBox="0 0 120 120" style={{ width: 120, height: 120 }}>
-                    <circle cx="60" cy="60" r="52" fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"} strokeWidth="5" />
-                    <circle cx="60" cy="60" r="52" fill="none" stroke={phase === "work" ? "#7C5CFC" : "#22C55E"} strokeWidth="5"
-                      strokeDasharray={`${pomProg * 327} 327`} strokeLinecap="round"
-                      transform="rotate(-90 60 60)" style={{ transition: "stroke-dasharray 0.5s, stroke 0.3s" }} />
-                  </svg>
-                  <div style={timerText}>
-                    {String(pomodoroMins).padStart(2, "0")}:{String(pomodoroSecs).padStart(2, "0")}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                  <button style={timerBtn} onClick={toggle}>
-                    {pomodoroActive ? "Pause" : pomodoroTime === 0 ? "Continue" : "Start"}
-                  </button>
-                  <button style={timerBtnSec} onClick={skipPhase}>Skip</button>
-                  <button style={timerBtnSec} onClick={resetTimer}>Reset</button>
-                </div>
-                <div style={{ marginTop: 10, fontSize: T.font.xs, opacity: 0.55, fontWeight: T.weight.medium }}>
-                  {sessionsCompleted} session{sessionsCompleted === 1 ? "" : "s"} today · {state.totalPomodoros || 0} total
-                </div>
-                {pomodoroTime === 0 && <div style={{ marginTop: 8, fontSize: T.font.sm, color: "#10B981", fontWeight: T.weight.bold }}>Phase complete!</div>}
+      {/* ── Settings shortcut ── */}
+      <div style={{ margin: `${T.space.xl}px ${T.space.lg}px 0` }}>
+        {/* Community */}
+        <div
+          style={{ ...settingsSection, overflow: "visible", marginBottom: 8 }}
+        >
+          <div style={{ ...settingsRow, cursor: "pointer", borderBottom: "none" }} onClick={() => onNavigate?.("social")}>
+            <div style={settingsRowLeft}>
+              <span style={{ display: "flex", alignItems: "center" }}><Users size={20} /></span>
+              <div>
+                <div style={settingsRowTitle}>Community</div>
+                <div style={settingsRowSub}>Leaderboard, friends &amp; challenges</div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+            <span style={settingsChevron}>›</span>
+          </div>
+        </div>
+
+        {/* Settings */}
+        <div style={settingsSection}>
+          <div
+            style={{ ...settingsRow, cursor: "pointer", borderBottom: "none" }}
+            onClick={() => onNavigate?.("settings")}
+          >
+            <div style={settingsRowLeft}>
+              <span style={{ display: "flex", alignItems: "center", fontSize: 20 }}>⚙️</span>
+              <div>
+                <div style={settingsRowTitle}>Settings</div>
+                <div style={settingsRowSub}>Appearance, notifications, AI coach &amp; more</div>
+              </div>
+            </div>
+            <span style={settingsChevron}>›</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Premium / Subscription ── */}
@@ -601,193 +489,321 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
       <SectionHeader title="Share Your Progress" />
       <ShareCard state={state} displayName={displayName} level={level} levelIdx={levelIdx} />
 
-      {/* ── Data Export ── */}
-      <SectionHeader title="Your Data" />
-      <div style={dangerSection}>
-        <button
-          style={exportBtn}
-          onClick={() => {
-            const exportData = {
-              exportedAt: new Date().toISOString(),
-              version: "life-os-v1",
-              profile: { userName: state.userName, currentDay: state.currentDay, xp: state.xp, streak: state.streak, bestStreak: state.bestStreak },
-              completedDays: state.completedDays,
-              completedQuests: state.completedQuests,
-              journal: state.journal,
-              moods: state.moods,
-              workoutLogs: state.workoutLogs,
-              sobrietyDates: state.sobrietyDates,
-              forgeGoals: state.forgeGoals,
-              recoveryJournals: state.recoveryJournals,
-              courseProgress: state.courseProgress,
-              customQuests: state.customQuests,
-              unlockedTrophies: state.unlockedTrophies,
-            };
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `life-os-backup-${new Date().toISOString().slice(0, 10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-        >
-          <Download size={14} style={{ marginRight: 6 }} />
-          Export All Data (JSON)
-        </button>
-      </div>
-
-      {/* ── Account ── */}
-      <SectionHeader title="Account" />
-      <div style={dangerSection}>
-        {user && (
-          <button style={logoutBtn} onClick={logout}>
-            Sign Out
-          </button>
-        )}
-      </div>
-
-      {/* ── P4: Danger Zone — moved to very bottom, behind a clear label ── */}
-      <SectionHeader title="Danger Zone" sub="Irreversible actions" />
-      <div style={{ ...dangerSection, border: "1px solid rgba(239,68,68,0.12)", borderRadius: 12, margin: "0 16px 16px", padding: "12px 14px", background: "rgba(239,68,68,0.02)" }}>
-        {!confirmReset ? (
-          <button style={resetBtn} onClick={() => setConfirmReset(true)}>
-            Reset All Progress
-          </button>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={resetConfirm}
-          >
-            <div style={{ fontSize: T.font.sm, fontWeight: T.weight.bold, color: "#EF4444", marginBottom: T.space.md }}>
-              <AlertTriangle size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> This will permanently erase all your progress. Are you sure?
-            </div>
-            <div style={{ display: "flex", gap: T.space.sm }}>
-              <button style={{ ...resetBtn, flex: 1 }} onClick={() => { onReset(); setConfirmReset(false); }}>
-                Yes, erase everything
-              </button>
-              <button style={{ ...timerBtnSec, flex: 1 }} onClick={() => setConfirmReset(false)}>
-                Cancel
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
     </div>
   );
 }
 
-// ── Share Card ────────────────────────────────────────────────────────────────
+// ── Share Card (Statement design) ─────────────────────────────────────────────
+
+/**
+ * Returns a two-line "statement" that captures the user's current moment.
+ * Line 1 = assertion (bold sans).
+ * Line 2 = reflection (serif italic) — adds a note of interiority.
+ */
+function getStatement(state) {
+  const day = state.currentDay || 1;
+  const streak = state.streak || 0;
+
+  // Legend moment
+  if (day >= 66) return { line1: "Habit forged.", line2: "it's who I am now." };
+
+  // Boss Day I defeated
+  if (state.completedDays?.[21]) return { line1: "Boss Day I.", line2: "beaten." };
+
+  // Long streaks (streak is the most shareable metric)
+  if (streak >= 100) return { line1: "One hundred days.", line2: "not missed once." };
+  if (streak >= 60)  return { line1: `${streak} days in a row.`, line2: "still here." };
+  if (streak >= 30)  return { line1: `${streak} days.`, line2: "zero excuses." };
+  if (streak >= 14)  return { line1: `${streak} days straight.`, line2: "not stopping." };
+  if (streak >= 7)   return { line1: "One full week.", line2: "didn't skip once." };
+
+  // Early journey
+  if (day === 1)     return { line1: "Started today.", line2: "quietly." };
+  if (day <= 3)      return { line1: "Showing up.", line2: "that's the whole game." };
+  if (day <= 14)     return { line1: "Building the habit.", line2: "day by day." };
+  if (day <= 30)     return { line1: "Deep in it.", line2: "it's working." };
+  if (day <= 50)     return { line1: "More than halfway.", line2: "no stopping now." };
+  return { line1: "The final stretch.", line2: "almost there." };
+}
+
+/** #RRGGBB → "r,g,b" for rgba() strings. */
+function hexToRgb(hex) {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  return `${r},${g},${b}`;
+}
+
+// ── The Stake Card — surfaces the user's articulated why/cost/proof ──
+function StakeCard({ state, onEdit, isDark, colors }) {
+  const stake = state.stake;
+  const deferred = state.stakeDeferred;
+
+  // Empty state — prompt to set it
+  if (!stake) {
+    return (
+      <div
+        onClick={onEdit}
+        style={{
+          margin: `${T.space.xl}px ${T.space.lg}px`,
+          padding: "18px 18px",
+          borderRadius: T.radii.lg,
+          border: `1px dashed ${deferred ? "rgba(124,92,252,0.35)" : "rgba(124,92,252,0.55)"}`,
+          background: "rgba(124,92,252,0.04)",
+          cursor: "pointer",
+          transition: "background 0.2s",
+        }}
+      >
+        <div style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+          textTransform: "uppercase", color: "#7C5CFC",
+          marginBottom: 6,
+        }}>
+          The Stake · Not Set
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: colors.text, marginBottom: 6 }}>
+          Why are you doing this?
+        </div>
+        <div style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.5, opacity: 0.75 }}>
+          Three sentences. The real reason, the cost of not doing it, and how you'll know it worked.
+          {deferred ? " You deferred this — tap to set it now." : " Tap to set your stake."}
+        </div>
+      </div>
+    );
+  }
+
+  const setDate = stake.setAt ? new Date(stake.setAt) : null;
+  const setLabel = setDate
+    ? setDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "";
+
+  return (
+    <div style={{
+      margin: `${T.space.xl}px ${T.space.lg}px`,
+      padding: "18px 18px 16px",
+      borderRadius: T.radii.lg,
+      background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(124,92,252,0.02))",
+      border: "1px solid rgba(124,92,252,0.2)",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+          textTransform: "uppercase", color: "#7C5CFC",
+        }}>
+          The Stake · Sealed {setLabel}
+        </div>
+        <button
+          onClick={onEdit}
+          style={{
+            background: "transparent", border: "none",
+            color: "#7C5CFC", fontSize: 10, fontWeight: 700,
+            cursor: "pointer", padding: "2px 6px",
+            letterSpacing: 0.5,
+          }}
+        >
+          EDIT
+        </button>
+      </div>
+
+      <StakeLine label="Why" value={stake.why} colors={colors} />
+      <StakeLine label="Cost" value={stake.cost} colors={colors} />
+      <StakeLine label="Proof" value={stake.proof} colors={colors} last />
+
+      {stake.revisions?.length > 0 && (
+        <div style={{
+          marginTop: 10, paddingTop: 10,
+          borderTop: `1px dashed ${colors.cardBorder || "rgba(255,255,255,0.06)"}`,
+          fontSize: 10, color: colors.textSecondary, opacity: 0.5,
+        }}>
+          Revised {stake.revisions.length} time{stake.revisions.length === 1 ? "" : "s"}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StakeLine({ label, value, colors, last }) {
+  return (
+    <div style={{ marginBottom: last ? 0 : 10 }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: "#7C5CFC",
+        marginBottom: 3, letterSpacing: 0.8, opacity: 0.7,
+        textTransform: "uppercase",
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 13, lineHeight: 1.5, color: colors.text,
+        fontStyle: "italic", fontWeight: 500,
+      }}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 function ShareCard({ state, displayName, level, levelIdx }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const [generating, setGenerating] = useState(false);
   const [shared, setShared] = useState(false);
+
+  const day = state.currentDay || 1;
+  const arc = getArc(day);
+  const arcRgb = hexToRgb(arc.color);
+  const statement = getStatement(state);
 
   async function generateAndShare() {
     setGenerating(true);
     try {
       const canvas = document.createElement("canvas");
-      const W = 800, H = 420;
-      canvas.width = W;
-      canvas.height = H;
+      const W = 1080, H = 1080;
+      canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
-      // Background gradient
-      ctx.fillStyle = "#0D0D1A";
+      // ── Background ────────────────────────────────────────────────────────
+      ctx.fillStyle = "#0A0B16";
       ctx.fillRect(0, 0, W, H);
 
-      const grad = ctx.createLinearGradient(0, 0, W, H);
-      grad.addColorStop(0, "rgba(124,92,252,0.18)");
-      grad.addColorStop(1, "rgba(236,72,153,0.10)");
-      ctx.fillStyle = grad;
+      // Arc-colored ambient glow (top-left)
+      const glow = ctx.createRadialGradient(80, 80, 0, 80, 80, 720);
+      glow.addColorStop(0, `rgba(${arcRgb},0.32)`);
+      glow.addColorStop(1, `rgba(${arcRgb},0)`);
+      ctx.fillStyle = glow;
       ctx.fillRect(0, 0, W, H);
 
-      // Border
-      ctx.strokeStyle = "rgba(124,92,252,0.35)";
-      ctx.lineWidth = 2;
-      const r = 24;
-      ctx.beginPath();
-      ctx.roundRect(2, 2, W - 4, H - 4, r);
-      ctx.stroke();
+      // Cool counter-glow (bottom-right) for depth
+      const glow2 = ctx.createRadialGradient(W - 120, H - 120, 0, W - 120, H - 120, 520);
+      glow2.addColorStop(0, "rgba(236,72,153,0.12)");
+      glow2.addColorStop(1, "rgba(236,72,153,0)");
+      ctx.fillStyle = glow2;
+      ctx.fillRect(0, 0, W, H);
 
-      // App name
-      ctx.fillStyle = "rgba(255,255,255,0.25)";
-      ctx.font = "bold 16px system-ui, sans-serif";
-      ctx.fillText("LIFE OS", 48, 52);
-
-      // Name
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = "bold 40px system-ui, sans-serif";
-      ctx.fillText(displayName, 48, 110);
-
-      // Level
-      ctx.fillStyle = "rgba(124,92,252,0.9)";
-      ctx.font = "bold 18px system-ui, sans-serif";
-      ctx.fillText(`Lv.${levelIdx + 1} ${level.name}`, 48, 145);
-
-      // Stats row
-      const stats = [
-        { label: "Day", value: state.currentDay },
-        { label: "Streak", value: `${state.streak}🔥` },
-        { label: "XP", value: state.xp?.toLocaleString() },
-        { label: "Trophies", value: Object.keys(state.unlockedTrophies || {}).length },
-      ];
-
-      stats.forEach((s, i) => {
-        const x = 48 + i * 186;
-        const y = 220;
-        // Card bg
-        ctx.fillStyle = "rgba(255,255,255,0.05)";
-        const rr = 14;
-        ctx.beginPath();
-        ctx.roundRect(x, y, 168, 80, rr);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.08)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(x, y, 168, 80, rr);
-        ctx.stroke();
-
-        // Value
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 28px system-ui, sans-serif";
-        ctx.fillText(String(s.value), x + 16, y + 43);
-
-        // Label
-        ctx.fillStyle = "rgba(255,255,255,0.4)";
-        ctx.font = "600 13px system-ui, sans-serif";
-        ctx.fillText(s.label.toUpperCase(), x + 16, y + 66);
-      });
-
-      // Prestige badge
-      if (state.prestige > 0) {
-        ctx.fillStyle = "rgba(250,204,21,0.12)";
-        ctx.beginPath();
-        ctx.roundRect(48, 320, 120, 32, 10);
-        ctx.fill();
-        ctx.fillStyle = "#FACC15";
-        ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText(`⚜ Prestige ×${state.prestige}`, 62, 341);
+      // Subtle dot texture (paper feel)
+      ctx.fillStyle = "rgba(255,255,255,0.022)";
+      for (let gx = 40; gx < W; gx += 56) {
+        for (let gy = 40; gy < H; gy += 56) {
+          ctx.beginPath();
+          ctx.arc(gx, gy, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
-      // Footer
-      ctx.fillStyle = "rgba(255,255,255,0.18)";
-      ctx.font = "500 13px system-ui, sans-serif";
-      ctx.fillText("life-os.app", W - 110, H - 24);
+      // Inner rounded border
+      ctx.strokeStyle = `rgba(${arcRgb},0.22)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(24, 24, W - 48, H - 48, 36);
+      ctx.stroke();
 
-      // Download or share
+      // ── Top strip: wordmark + arc badge ───────────────────────────────────
+      const PAD = 88;
+
+      // LIFE OS wordmark
+      ctx.fillStyle = "rgba(255,255,255,0.32)";
+      ctx.font = "800 20px -apple-system, system-ui, sans-serif";
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+      ctx.fillText("LIFE · OS", PAD, 108);
+
+      // Arc badge (top-right)
+      const arcLabel = `${arc.icon}  ${arc.name.toUpperCase()}`;
+      ctx.font = "700 18px -apple-system, system-ui, sans-serif";
+      const arcTextW = ctx.measureText(arcLabel).width;
+      const badgePadX = 18, badgeH = 38;
+      const badgeW = arcTextW + badgePadX * 2;
+      const badgeX = W - PAD - badgeW;
+      const badgeY = 108 - 28;
+      ctx.fillStyle = `rgba(${arcRgb},0.12)`;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 10);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${arcRgb},0.35)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = arc.color;
+      ctx.fillText(arcLabel, badgeX + badgePadX, badgeY + 26);
+
+      // ── Statement (hero) ──────────────────────────────────────────────────
+      // Line 1: bold sans, massive — the fact
+      let size1 = 132;
+      ctx.font = `900 ${size1}px -apple-system, system-ui, sans-serif`;
+      while (ctx.measureText(statement.line1).width > W - PAD * 2 && size1 > 72) {
+        size1 -= 4;
+        ctx.font = `900 ${size1}px -apple-system, system-ui, sans-serif`;
+      }
+      // Line 2: serif italic, smaller — the reflection
+      let size2 = 80;
+      ctx.font = `italic 500 ${size2}px "Iowan Old Style", Georgia, "Times New Roman", serif`;
+      while (ctx.measureText(statement.line2).width > W - PAD * 2 && size2 > 48) {
+        size2 -= 3;
+        ctx.font = `italic 500 ${size2}px "Iowan Old Style", Georgia, "Times New Roman", serif`;
+      }
+
+      // Vertical layout: anchor the block so the baseline between the two lines sits near canvas center
+      const gap = 28;
+      const blockH = size1 + gap + size2;
+      const blockTop = (H - blockH) / 2 - 40; // nudge up slightly to leave room for attribution
+
+      // Draw line 1
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = `900 ${size1}px -apple-system, system-ui, sans-serif`;
+      ctx.fillText(statement.line1, PAD, blockTop + size1);
+
+      // Draw line 2
+      ctx.fillStyle = "rgba(255,255,255,0.62)";
+      ctx.font = `italic 500 ${size2}px "Iowan Old Style", Georgia, "Times New Roman", serif`;
+      ctx.fillText(statement.line2, PAD, blockTop + size1 + gap + size2);
+
+      // ── Attribution block ─────────────────────────────────────────────────
+      const attrY = blockTop + blockH + 100;
+
+      // Em-dash + name
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "500 28px -apple-system, system-ui, sans-serif";
+      ctx.fillText(`— ${displayName}, Day ${day} of 66`, PAD, attrY);
+
+      // Secondary line: arc + level
+      ctx.fillStyle = `rgba(${arcRgb},0.75)`;
+      ctx.font = "600 20px -apple-system, system-ui, sans-serif";
+      ctx.fillText(`${arc.icon}  ${arc.name} Arc  ·  Lv.${levelIdx + 1} ${level.name}`, PAD, attrY + 38);
+
+      // ── Footer strip ──────────────────────────────────────────────────────
+      // Divider
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PAD, H - 120);
+      ctx.lineTo(W - PAD, H - 120);
+      ctx.stroke();
+
+      // Stats (left)
+      const trophyCount = Object.keys(state.unlockedTrophies || {}).length;
+      const sealed = Object.keys(state.completedDays || {}).length;
+      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.font = "600 20px -apple-system, system-ui, sans-serif";
+      const statLine = `🔥 ${state.streak || 0}   ✓ ${sealed}   🏆 ${trophyCount}   ${(state.xp || 0).toLocaleString()} XP`;
+      ctx.fillText(statLine, PAD, H - 70);
+
+      // life-os.app (right)
+      ctx.textAlign = "right";
+      ctx.fillStyle = "rgba(255,255,255,0.32)";
+      ctx.font = "700 20px -apple-system, system-ui, sans-serif";
+      ctx.fillText("life-os.app", W - PAD, H - 70);
+      ctx.textAlign = "left";
+
+      // ── Share ─────────────────────────────────────────────────────────────
       const dataUrl = canvas.toDataURL("image/png");
 
       if (navigator.share && navigator.canShare) {
         const res = await fetch(dataUrl);
         const blob = await res.blob();
-        const file = new File([blob], "life-os-progress.png", { type: "image/png" });
+        const file = new File([blob], "life-os-statement.png", { type: "image/png" });
         if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: `${displayName}'s Life OS Progress` });
+          await navigator.share({
+            files: [file],
+            title: `${displayName} · Life OS`,
+            text: `"${statement.line1} ${statement.line2}" — Day ${day} of 66.`,
+          });
           setShared(true);
           setTimeout(() => setShared(false), 3000);
           return;
@@ -797,7 +813,7 @@ function ShareCard({ state, displayName, level, levelIdx }) {
       // Fallback: download
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = "life-os-progress.png";
+      a.download = "life-os-statement.png";
       a.click();
       setShared(true);
       setTimeout(() => setShared(false), 3000);
@@ -806,73 +822,157 @@ function ShareCard({ state, displayName, level, levelIdx }) {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // In-app preview — mirrors the canvas layout tightly so "what you see" = "what you share"
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "0 16px 8px" }}>
+    <div style={{ padding: "0 16px 12px" }}>
       {/* Preview card */}
       <div style={{
-        borderRadius: 16,
-        background: "linear-gradient(135deg, rgba(124,92,252,0.12), rgba(236,72,153,0.06))",
-        border: "1px solid rgba(124,92,252,0.2)",
-        padding: "20px 20px 16px",
-        marginBottom: 10,
+        position: "relative",
+        borderRadius: 20,
+        background: "#0A0B16",
+        border: `1px solid rgba(${arcRgb},0.22)`,
+        overflow: "hidden",
+        marginBottom: 12,
+        aspectRatio: "1 / 1",
       }}>
-        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
-          LIFE OS · Preview
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>{displayName}</div>
-        <div style={{ fontSize: 13, color: "#7C5CFC", fontWeight: 600, marginBottom: 14 }}>
-          Lv.{levelIdx + 1} {level.name}
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {[
-            { label: "Day", val: state.currentDay },
-            { label: "Streak", val: `${state.streak}🔥` },
-            { label: "XP", val: state.xp?.toLocaleString() },
-            { label: "Trophies", val: Object.keys(state.unlockedTrophies || {}).length },
-          ].map((s, i) => (
-            <div key={i} style={{
-              flex: 1,
-              padding: "8px 10px",
-              borderRadius: 10,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              textAlign: "center",
+        {/* Ambient glow layers — same colors as canvas */}
+        <div style={{
+          position: "absolute", top: "-20%", left: "-15%",
+          width: "70%", height: "70%",
+          background: `radial-gradient(circle, rgba(${arcRgb},0.30) 0%, rgba(${arcRgb},0) 60%)`,
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "-20%", right: "-20%",
+          width: "60%", height: "60%",
+          background: "radial-gradient(circle, rgba(236,72,153,0.12) 0%, rgba(236,72,153,0) 60%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Content */}
+        <div style={{
+          position: "absolute", inset: 0,
+          padding: "22px 22px 20px",
+          display: "flex", flexDirection: "column",
+        }}>
+          {/* Top strip */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{
+              fontSize: 11, fontWeight: 800,
+              color: "rgba(255,255,255,0.32)",
+              letterSpacing: 2,
+            }}>LIFE · OS</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: arc.color,
+              background: `rgba(${arcRgb},0.12)`,
+              border: `1px solid rgba(${arcRgb},0.3)`,
+              padding: "4px 10px", borderRadius: 8,
+              letterSpacing: 0.5,
+            }}>{arc.icon} {arc.name.toUpperCase()}</span>
+          </div>
+
+          {/* Statement (vertically centered with flex) */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
+            <div style={{
+              fontSize: "clamp(22px, 7.5vw, 38px)",
+              fontWeight: 900,
+              color: "#fff",
+              lineHeight: 1.02,
+              letterSpacing: -0.6,
             }}>
-              <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: 9, opacity: 0.35, marginTop: 3, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.label}</div>
+              {statement.line1}
             </div>
-          ))}
+            <div style={{
+              fontSize: "clamp(15px, 5vw, 24px)",
+              fontStyle: "italic",
+              fontFamily: "'Iowan Old Style', Georgia, 'Times New Roman', serif",
+              color: "rgba(255,255,255,0.62)",
+              lineHeight: 1.1,
+            }}>
+              {statement.line2}
+            </div>
+          </div>
+
+          {/* Attribution */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              fontSize: 12, fontWeight: 500,
+              color: "rgba(255,255,255,0.55)",
+            }}>
+              — {displayName}, Day {day} of 66
+            </div>
+            <div style={{
+              fontSize: 10, fontWeight: 700,
+              color: `rgba(${arcRgb},0.85)`,
+              marginTop: 3,
+            }}>
+              {arc.icon} {arc.name} Arc · Lv.{levelIdx + 1} {level.name}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: 10,
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+          }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.42)", fontWeight: 600, letterSpacing: 0.3 }}>
+              🔥 {state.streak || 0} · ✓ {Object.keys(state.completedDays || {}).length} · 🏆 {Object.keys(state.unlockedTrophies || {}).length}
+            </span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", fontWeight: 700, letterSpacing: 0.3 }}>
+              life-os.app
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Share CTA — arc-colored to match the card */}
       <motion.button
         style={{
           width: "100%",
-          padding: "13px",
+          padding: "14px",
           borderRadius: 12,
-          background: shared ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, rgba(124,92,252,0.2), rgba(236,72,153,0.15))",
-          border: shared ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(124,92,252,0.25)",
-          color: shared ? "#22C55E" : "#7C5CFC",
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: "pointer",
+          background: shared
+            ? "rgba(34,197,94,0.15)"
+            : `linear-gradient(135deg, rgba(${arcRgb},0.25), rgba(236,72,153,0.18))`,
+          border: shared
+            ? "1px solid rgba(34,197,94,0.3)"
+            : `1px solid rgba(${arcRgb},0.35)`,
+          color: shared ? "#22C55E" : arc.color,
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: generating ? "wait" : "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
+          letterSpacing: 0.3,
         }}
         whileTap={{ scale: 0.97 }}
         onClick={generating ? undefined : generateAndShare}
         disabled={generating}
       >
         {generating ? (
-          <>Generating…</>
+          <>Composing your card…</>
         ) : shared ? (
-          <><CheckCircle size={15} /> Saved!</>
+          <><CheckCircle size={16} /> Saved</>
         ) : (
-          <><Sparkles size={15} /> Share Progress Card</>
+          <><Sparkles size={16} /> Share this moment</>
         )}
       </motion.button>
+
+      {/* Subtle helper text */}
+      <div style={{
+        fontSize: 11, textAlign: "center",
+        color: "rgba(255,255,255,0.28)",
+        marginTop: 8, fontWeight: 500,
+      }}>
+        The statement updates as your streak grows.
+      </div>
     </div>
   );
 }
@@ -889,7 +989,7 @@ function SectionHeader({ title, sub }) {
   );
 }
 
-function StreakCalendar({ state, isDark }) {
+function JourneyCalendar({ state, isDark }) {
   const { colors } = useTheme();
   const [monthOffset, setMonthOffset] = useState(0);
   const now = new Date();
@@ -899,9 +999,24 @@ function StreakCalendar({ state, isDark }) {
   const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const today = now.toISOString().split("T")[0];
+  const canGoForward = monthOffset < 0;
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
 
-  // Build a set of completed calendar dates from state
   const startDate = state.startDate ? new Date(state.startDate) : null;
+
+  // Map dateStr → journey day number for the visible range
+  const dateToDayNum = {};
+  if (startDate) {
+    const totalDays = Math.max(66, (state.currentDay || 1) + 7);
+    for (let d = 1; d <= totalDays; d++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + d - 1);
+      dateToDayNum[date.toISOString().split("T")[0]] = d;
+    }
+  }
+
+  // Build completed dates set
   const completedDates = new Set();
   if (startDate) {
     Object.keys(state.completedDays).forEach((dayNum) => {
@@ -911,39 +1026,49 @@ function StreakCalendar({ state, isDark }) {
     });
   }
 
-  const today = now.toISOString().split("T")[0];
-  const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const canGoForward = monthOffset < 0;
+  // Today's journey day
+  const todayJourneyDay = dateToDayNum[today];
 
-  // Count completions this month
+  // Completions this month
   let monthCompletions = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     if (completedDates.has(dateStr)) monthCompletions++;
   }
 
+  const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
   return (
     <div style={calendarWrap}>
-      {/* Month nav */}
+      {/* Month nav + journey-day context */}
       <div style={calendarNav}>
         <button style={calNavBtn} onClick={() => setMonthOffset((o) => o - 1)} aria-label="Previous month">
           <ChevronLeft size={16} />
         </button>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{monthName}</div>
-          <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>{monthCompletions} / {daysInMonth} days</div>
+          <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, color: colors.text }}>{monthName}</div>
+          <div style={{ fontSize: T.font.xs, color: colors.textSecondary }}>
+            {monthCompletions > 0 ? `${monthCompletions} day${monthCompletions !== 1 ? "s" : ""} sealed` : "No completions yet"}
+            {todayJourneyDay && monthOffset === 0 ? ` · D${todayJourneyDay}` : ""}
+          </div>
         </div>
-        <button style={{ ...calNavBtn, opacity: canGoForward ? 1 : 0.3 }} onClick={() => canGoForward && setMonthOffset((o) => o + 1)} disabled={!canGoForward} aria-label="Next month">
+        <button
+          style={{ ...calNavBtn, opacity: canGoForward ? 1 : 0.3 }}
+          onClick={() => canGoForward && setMonthOffset((o) => o + 1)}
+          disabled={!canGoForward}
+          aria-label="Next month"
+        >
           <ChevronRight size={16} />
         </button>
       </div>
 
-      {/* Day labels */}
+      {/* Grid */}
       <div style={calendarGrid}>
+        {/* Weekday headers */}
         {dayLabels.map((l) => (
           <div key={l} style={calDayLabel}>{l}</div>
         ))}
-        {/* Empty cells for offset */}
+        {/* Offset empty cells */}
         {Array.from({ length: firstDayOfWeek }, (_, i) => (
           <div key={`e${i}`} />
         ))}
@@ -954,18 +1079,79 @@ function StreakCalendar({ state, isDark }) {
           const done = completedDates.has(dateStr);
           const isToday = dateStr === today;
           const isFuture = dateStr > today;
+          const journeyDay = dateToDayNum[dateStr];
+          const isBoss = journeyDay === 21 || journeyDay === 66;
+          const isOnJourney = !!journeyDay;
+
           return (
-            <div key={d} style={{
-              ...calDayCell,
-              background: done ? "linear-gradient(135deg, #7C5CFC, #EC4899)" : isToday ? "rgba(124,92,252,0.15)" : "transparent",
-              color: done ? "#fff" : isFuture ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)") : isToday ? "#7C5CFC" : (isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)"),
-              border: isToday && !done ? "2px solid #7C5CFC" : "2px solid transparent",
-              fontWeight: isToday || done ? 700 : 400,
-            }}>
-              {d}
+            <div
+              key={d}
+              style={{
+                ...calDayCell,
+                aspectRatio: "auto",
+                flexDirection: "column",
+                gap: 1,
+                padding: "5px 2px",
+                background: done
+                  ? "linear-gradient(135deg, #7C5CFC, #EC4899)"
+                  : isBoss && !isFuture
+                  ? (isDark ? "rgba(249,115,22,0.12)" : "rgba(249,115,22,0.08)")
+                  : isToday
+                  ? "rgba(124,92,252,0.15)"
+                  : "transparent",
+                color: done
+                  ? "#fff"
+                  : isFuture
+                  ? sub(0.15)
+                  : isBoss
+                  ? "#F97316"
+                  : isToday
+                  ? "#7C5CFC"
+                  : sub(0.5),
+                border: isToday && !done
+                  ? "2px solid #7C5CFC"
+                  : isBoss && !done && !isFuture
+                  ? "2px solid rgba(249,115,22,0.3)"
+                  : "2px solid transparent",
+                fontWeight: isToday || done || isBoss ? 700 : 400,
+              }}
+            >
+              {/* Calendar date */}
+              <span style={{ fontSize: 11, lineHeight: 1 }}>{d}</span>
+              {/* Journey day badge — shown only for days on the journey */}
+              {isOnJourney && (
+                <span style={{
+                  fontSize: 8, lineHeight: 1,
+                  opacity: done ? 0.9 : isFuture ? 0.4 : 0.65,
+                  fontWeight: isBoss ? 800 : 600,
+                }}>
+                  {isBoss && !done ? "⚔" : `D${journeyDay}`}
+                </span>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* Legend */}
+      <div style={{
+        display: "flex", gap: 12, marginTop: 10,
+        paddingTop: 10, borderTop: `1px solid ${sub(0.05)}`,
+        flexWrap: "wrap",
+      }}>
+        {[
+          { color: "linear-gradient(135deg,#7C5CFC,#EC4899)", label: "Sealed" },
+          { color: "rgba(124,92,252,0.25)", label: "Today", border: "1.5px solid #7C5CFC" },
+          { color: isDark ? "rgba(249,115,22,0.12)" : "rgba(249,115,22,0.08)", label: "Boss day", border: "1.5px solid rgba(249,115,22,0.35)" },
+        ].map(({ color, label, border }) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{
+              width: 12, height: 12, borderRadius: 3,
+              background: color, border: border || "none", flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 10, color: sub(0.4), fontWeight: 600 }}>{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1394,24 +1580,6 @@ const trophyProgLabel = {
   opacity: 0.5,
 };
 
-const dayGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(11,1fr)",
-  gap: 3,
-  padding: `0 ${T.space.lg}px`,
-  marginBottom: T.space.md,
-};
-
-const dayDot = {
-  aspectRatio: "1",
-  borderRadius: T.radii.sm,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 10,
-  fontWeight: 400,
-  transition: `all 0.15s ease`,
-};
 
 const settingsSection = {
   margin: `0 ${T.space.lg}px`,
@@ -1449,48 +1617,6 @@ const settingsRowSub = {
 const settingsChevron = {
   fontSize: T.font.xl,
   color: "rgba(255,255,255,0.45)",
-};
-
-const timerExpanded = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  padding: `${T.space.lg}px ${T.space.lg}px ${T.space.xl}px`,
-  borderBottom: "1px solid rgba(255,255,255,0.06)",
-};
-
-const timerText = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%,-50%)",
-  fontSize: 26,
-  fontWeight: T.weight.black,
-  fontVariantNumeric: "tabular-nums",
-  letterSpacing: 2,
-};
-
-const timerBtn = {
-  padding: `${T.space.md}px ${T.space.xxl}px`,
-  borderRadius: T.radii.md,
-  border: "none",
-  background: "linear-gradient(135deg,#7C5CFC,#6D28D9)",
-  color: "#fff",
-  fontSize: T.font.sm,
-  fontWeight: T.weight.bold,
-  cursor: "pointer",
-  boxShadow: "0 3px 12px rgba(124,92,252,0.2)",
-};
-
-const timerBtnSec = {
-  padding: `${T.space.md}px ${T.space.xxl}px`,
-  borderRadius: T.radii.md,
-  border: "1px solid rgba(255,255,255,0.1)",
-  background: "transparent",
-  color: "rgba(255,255,255,0.45)",
-  fontSize: T.font.sm,
-  fontWeight: T.weight.medium,
-  cursor: "pointer",
 };
 
 const premiumBanner = {
@@ -1569,84 +1695,6 @@ const subManageBtn = {
   fontWeight: T.weight.bold,
   cursor: "pointer",
 };
-
-const dangerSection = {
-  margin: `0 ${T.space.lg}px`,
-  display: "flex",
-  flexDirection: "column",
-  gap: T.space.sm,
-};
-
-const exportBtn = {
-  width: "100%",
-  padding: `${T.space.md}px`,
-  borderRadius: T.radii.md,
-  border: "1px solid rgba(124,92,252,0.2)",
-  background: "rgba(124,92,252,0.06)",
-  color: "#7C5CFC",
-  fontSize: T.font.sm,
-  fontWeight: T.weight.bold,
-  cursor: "pointer",
-  textAlign: "center",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const logoutBtn = {
-  width: "100%",
-  padding: `${T.space.md}px`,
-  borderRadius: T.radii.md,
-  border: "1px solid rgba(255,255,255,0.06)",
-  background: "transparent",
-  color: "rgba(255,255,255,0.45)",
-  fontSize: T.font.sm,
-  fontWeight: T.weight.bold,
-  cursor: "pointer",
-  textAlign: "center",
-};
-
-const resetBtn = {
-  width: "100%",
-  padding: `${T.space.md}px`,
-  borderRadius: T.radii.md,
-  border: "1px solid rgba(239,68,68,0.2)",
-  background: "transparent",
-  color: "#EF4444",
-  fontSize: T.font.sm,
-  fontWeight: T.weight.bold,
-  cursor: "pointer",
-  textAlign: "center",
-};
-
-const resetConfirm = {
-  padding: T.space.lg,
-  borderRadius: T.radii.md,
-  background: "rgba(239,68,68,0.05)",
-  border: "1px solid rgba(239,68,68,0.15)",
-};
-
-// Toggle styles
-const toggleTrack = (isDark) => ({
-  position: "relative", width: 56, height: 30, borderRadius: 15, border: "none",
-  background: isDark ? "linear-gradient(135deg, #1A1A3E, #2D2B55)" : "linear-gradient(135deg, #87CEEB, #FDB813)",
-  cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
-  boxShadow: isDark ? "inset 0 1px 3px rgba(0,0,0,0.4)" : "inset 0 1px 3px rgba(0,0,0,0.15)",
-  transition: "background 0.3s ease", flexShrink: 0,
-});
-
-const toggleIcon = (isSun, isDark) => ({
-  fontSize: 12, lineHeight: 1, position: "absolute", top: "50%", transform: "translateY(-50%)",
-  ...(isSun ? { left: 7, opacity: isDark ? 0.3 : 0.9 } : { right: 7, opacity: isDark ? 0.9 : 0.3 }),
-  transition: "opacity 0.3s ease", pointerEvents: "none", zIndex: 1,
-});
-
-const toggleThumb = (isDark) => ({
-  position: "absolute", top: 3, left: isDark ? 29 : 3, width: 24, height: 24, borderRadius: "50%",
-  background: isDark ? "linear-gradient(135deg, #C4B5FD, #7C5CFC)" : "linear-gradient(135deg, #FFF8DC, #FFD700)",
-  boxShadow: isDark ? "0 2px 6px rgba(124,92,252,0.4)" : "0 2px 6px rgba(255,215,0,0.4)",
-  transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)", zIndex: 2,
-});
 
 // ── Streak Calendar styles ───────────────────────────────────────────────────
 

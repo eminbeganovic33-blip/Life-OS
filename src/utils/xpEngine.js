@@ -186,7 +186,7 @@ export function getDailyBonusQuest(state) {
   });
 
   // Rotate through weakest categories by day
-  const pick = sorted[(state.currentDay - 1) % Math.min(sorted.length, 3)];
+  const pick = sorted[(state.currentDay - 1) % sorted.length];
   const text = BONUS_QUEST_TEMPLATES[pick];
   const baseXp = calculateQuestXP(text, state.currentDay);
 
@@ -250,11 +250,11 @@ function getWeeklyChallengeProgress(state, challenge) {
       break;
     }
     case "dojo": {
-      const today = new Date();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().split("T")[0];
+      const startDate = state.startDate ? new Date(state.startDate) : new Date();
+      for (let d = weekStart; d <= weekEnd; d++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + d - 1);
+        const key = date.toISOString().split("T")[0];
         if (state.workoutLogs?.[key]?.length > 0) current++;
       }
       break;
@@ -295,11 +295,11 @@ function getWeeklyChallengeProgress(state, challenge) {
       break;
     }
     case "dojo_volume": {
-      const today = new Date();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().split("T")[0];
+      const startDate = state.startDate ? new Date(state.startDate) : new Date();
+      for (let d = weekStart; d <= weekEnd; d++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + d - 1);
+        const key = date.toISOString().split("T")[0];
         (state.workoutLogs?.[key] || []).forEach((entry) => {
           entry.sets.forEach((s) => { current += s.weight * s.reps; });
         });

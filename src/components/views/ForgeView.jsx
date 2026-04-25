@@ -133,67 +133,137 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
     save({ ...state, forgeGoals: { ...forgeGoals, [trackerId]: newGoal } });
   }
 
+  // Has any tracker ever been started?
+  const hasActiveTrackers = Object.values(state.sobrietyDates || {}).some(Boolean);
+
   // ── Render ──
   return (
     <div style={S.vc}>
       <div style={S.secTitle}>The Forge</div>
-      <div style={fs.subtitle}>
-        Track what you're breaking free from. Every day without is a victory.
-      </div>
 
-      {/* Tab Bar */}
-      <div style={fs.tabBar}>
-        {/* F5: Renamed "Recovery Log" → "My Log" */}
-        {["trackers", "journal"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              ...fs.tab,
-              ...(activeTab === tab ? fs.tabActive : {}),
-            }}
-          >
-            {tab === "trackers" ? "Trackers" : "My Log"}
-            {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
-              <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "trackers" && (
+      {!hasActiveTrackers ? (
+        /* ── Entry / onboarding state ── */
+        <ForgeEntryState
+          state={state}
+          forgeGoals={forgeGoals}
+          expandedGoal={expandedGoal}
+          setExpandedGoal={setExpandedGoal}
+          customGoalInput={customGoalInput}
+          setCustomGoalInput={setCustomGoalInput}
+          onSelectGoal={handleSelectGoal}
+          onCustomGoalSubmit={handleCustomGoalSubmit}
+          fs={fs}
+        />
+      ) : (
+        /* ── Active state: full tab UI ── */
         <>
-          <TrackersTab
-            state={state}
-            forgeGoals={forgeGoals}
-            expandedGoal={expandedGoal}
-            setExpandedGoal={setExpandedGoal}
-            customGoalInput={customGoalInput}
-            setCustomGoalInput={setCustomGoalInput}
-            onSelectGoal={handleSelectGoal}
-            onCustomGoalSubmit={handleCustomGoalSubmit}
-            onExtendGoal={handleExtendGoal}
-            onTriggerRelapse={onTriggerRelapse}
-            canAddCustom={canAddCustom}
-            hasUnlimitedForge={hasUnlimitedForge}
-            setShowUpgrade={setShowUpgrade}
-            fs={fs}
-          />
-          {/* F3: SmartInsights only on Trackers tab, not Journal */}
-          <SmartInsights triggerMap={getTriggerMap(state)} />
+          <div style={fs.subtitle}>
+            Track what you're breaking free from. Every day without is a victory.
+          </div>
+
+          {/* Tab Bar */}
+          <div style={fs.tabBar}>
+            {["trackers", "journal"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  ...fs.tab,
+                  ...(activeTab === tab ? fs.tabActive : {}),
+                }}
+              >
+                {tab === "trackers" ? "Trackers" : "My Log"}
+                {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
+                  <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "trackers" && (
+            <>
+              <TrackersTab
+                state={state}
+                forgeGoals={forgeGoals}
+                expandedGoal={expandedGoal}
+                setExpandedGoal={setExpandedGoal}
+                customGoalInput={customGoalInput}
+                setCustomGoalInput={setCustomGoalInput}
+                onSelectGoal={handleSelectGoal}
+                onCustomGoalSubmit={handleCustomGoalSubmit}
+                onExtendGoal={handleExtendGoal}
+                onTriggerRelapse={onTriggerRelapse}
+                canAddCustom={canAddCustom}
+                hasUnlimitedForge={hasUnlimitedForge}
+                setShowUpgrade={setShowUpgrade}
+                fs={fs}
+              />
+              {/* F3: SmartInsights only on Trackers tab, not Journal */}
+              <SmartInsights triggerMap={getTriggerMap(state)} />
+            </>
+          )}
+
+          {activeTab === "journal" && (
+            <JournalTab
+              journals={state.recoveryJournals || []}
+              filter={journalFilter}
+              setFilter={setJournalFilter}
+              state={state}
+              save={save}
+            />
+          )}
         </>
       )}
-
-      {activeTab === "journal" && (
-        <JournalTab
-          journals={state.recoveryJournals || []}
-          filter={journalFilter}
-          setFilter={setJournalFilter}
-          state={state}
-          save={save}
-        />
-      )}
     </div>
+  );
+}
+
+// ── Forge Entry / Onboarding State ──
+
+function ForgeEntryState({
+  state, forgeGoals, expandedGoal, setExpandedGoal,
+  customGoalInput, setCustomGoalInput,
+  onSelectGoal, onCustomGoalSubmit, fs,
+}) {
+  return (
+    <>
+      {/* Hero explanation */}
+      <div style={styles.entryHero}>
+        <div style={styles.entryHeroIcon}>⚒️</div>
+        <div style={styles.entryHeroTitle}>Break free from what holds you back</div>
+        <div style={styles.entryHeroBody}>
+          The Forge tracks habits you want to quit — smoking, doomscrolling, whatever drains you.
+          Start a tracker, set a goal, and watch your streak grow day by day.
+        </div>
+      </div>
+
+      {/* Social proof nudge */}
+      <div style={styles.entryNudge}>
+        🔥 Most users see the hardest urges fade by Day 7. Can you make it there?
+      </div>
+
+      {/* "Pick your battle" prompt */}
+      <div style={styles.entryPickLabel}>What are you working to quit?</div>
+
+      {/* Tracker picker cards */}
+      {SOBRIETY_DEFAULTS.map((tracker) => (
+        <TrackerCard
+          key={tracker.id}
+          tracker={tracker}
+          state={state}
+          forgeGoals={forgeGoals}
+          isExpanded={expandedGoal === tracker.id}
+          onExpandGoal={() => setExpandedGoal(expandedGoal === tracker.id ? null : tracker.id)}
+          customGoalInput={customGoalInput}
+          setCustomGoalInput={setCustomGoalInput}
+          onSelectGoal={onSelectGoal}
+          onCustomGoalSubmit={onCustomGoalSubmit}
+          onExtendGoal={() => {}}
+          onTriggerRelapse={() => {}}
+          fs={fs}
+        />
+      ))}
+    </>
   );
 }
 
@@ -720,7 +790,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <div style={{ marginBottom: 8, opacity: 0.3 }}><BookOpen size={28} color="currentColor" /></div>
           <div style={{ fontSize: 12, opacity: 0.3 }}>No journal entries yet</div>
           <div style={{ fontSize: 11, opacity: 0.2, marginTop: 4 }}>
-            Entries are added when you reset a tracker
+            Write above to log a trigger, craving, or win
           </div>
         </div>
       )}
@@ -768,6 +838,50 @@ const styles = {
     marginBottom: 12,
     fontSize: 12,
     opacity: 0.4,
+  },
+  // ── Entry / onboarding state ──
+  entryHero: {
+    margin: "4px 14px 16px",
+    padding: "20px 18px",
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(109,40,217,0.04))",
+    border: "1px solid rgba(124,92,252,0.18)",
+    textAlign: "center",
+  },
+  entryHeroIcon: {
+    fontSize: 36,
+    marginBottom: 10,
+    lineHeight: 1,
+  },
+  entryHeroTitle: {
+    fontSize: 17,
+    fontWeight: 800,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  entryHeroBody: {
+    fontSize: 13,
+    lineHeight: 1.6,
+    opacity: 0.55,
+  },
+  entryNudge: {
+    margin: "0 14px 16px",
+    padding: "10px 14px",
+    borderRadius: 10,
+    background: "rgba(249,115,22,0.07)",
+    border: "1px solid rgba(249,115,22,0.18)",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#F97316",
+    lineHeight: 1.4,
+  },
+  entryPickLabel: {
+    margin: "0 14px 8px",
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    opacity: 0.35,
   },
   tabBar: {
     display: "flex",

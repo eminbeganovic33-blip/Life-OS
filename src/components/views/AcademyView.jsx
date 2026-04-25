@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
-const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
 const MAX_FOCUS_SLOTS = 3;
 
 export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight, openCourse }) {
@@ -71,26 +70,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   }
 
   // Rate-limiting helper: check if a step is locked
-  function getStepLockInfo(courseId, stepIdx) {
-    // First step is always available
-    if (stepIdx === 0) return { locked: false, remaining: 0 };
-
-    const courseTimestamps = stepCompletedAt[courseId] || {};
-    // Find the previous step's completion time
-    const prevStepIdx = stepIdx - 1;
-    const prevCompletedTime = courseTimestamps[prevStepIdx];
-
-    if (!prevCompletedTime) {
-      // Previous step wasn't completed — this step is available if previous step is checked
-      return { locked: false, remaining: 0 };
-    }
-
-    const elapsed = now - prevCompletedTime;
-    if (elapsed >= RATE_LIMIT_MS) {
-      return { locked: false, remaining: 0 };
-    }
-
-    return { locked: true, remaining: RATE_LIMIT_MS - elapsed };
+  // Self-paced learning — steps unlock immediately (no cooldown)
+  function getStepLockInfo() {
+    return { locked: false, remaining: 0 };
   }
 
   function formatCountdown(ms) {
@@ -128,7 +110,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     let lockReason = "";
     if (premiumLocked) lockReason = "Premium -- Upgrade to unlock";
     else if (tierLocked) lockReason = "Complete Day 21 to unlock";
-    else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1} ${LEVELS[course.levelReq]?.name}`;
+    else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1}${LEVELS[course.levelReq]?.name ? ` ${LEVELS[course.levelReq].name}` : ""}`;
     else if (dayLocked) lockReason = `Unlocks Day ${course.dayUnlock}`;
 
     return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, dayLocked, dayUnlock: course.dayUnlock || 1, isFocused };

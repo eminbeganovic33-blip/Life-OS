@@ -31,6 +31,7 @@ import CustomQuestModal from "./components/modals/CustomQuestModal";
 import AddActiveQuestModal from "./components/modals/AddActiveQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
+import StakeSetupModal from "./components/modals/StakeSetupModal";
 import MilestoneUnlockModal from "./components/modals/MilestoneUnlockModal";
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
@@ -40,10 +41,12 @@ const DojoView = lazy(() => import("./components/views/DojoView"));
 const ProfileView = lazy(() => import("./components/views/ProfileView"));
 const AnalyticsView = lazy(() => import("./components/views/AnalyticsView"));
 const SocialView = lazy(() => import("./components/views/SocialView"));
+const SettingsView = lazy(() => import("./components/views/SettingsView"));
 import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
 import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
+import { scheduleVoiceNotifications } from "./utils/voice";
 import { initFcm } from "./utils/fcm";
 import { playSound } from "./utils/audio";
 import InstallPrompt from "./components/InstallPrompt";
@@ -111,6 +114,54 @@ function LifeOS() {
 
   // Milestone unlock modal (days 2, 3, 7)
   const [milestoneDay, setMilestoneDay] = useState(null);
+
+  // Stake setup modal — shown on first app open if no stake and not deferred
+  const [showStake, setShowStake] = useState(false);
+  const [stakeEditMode, setStakeEditMode] = useState(false); // true when editing from Profile
+  useEffect(() => {
+    if (!state || comebackInfo || milestoneDay) return;
+    if (stakeEditMode) return; // already open for editing
+    if (state.stake || state.stakeDeferred) return;
+    if (!state.onboarded) return; // wait until onboarding finishes
+    // Delay slightly so it doesn't collide with Comeback/Milestone modals
+    const t = setTimeout(() => setShowStake(true), 600);
+    return () => clearTimeout(t);
+  }, [state?.stake, state?.stakeDeferred, state?.onboarded, comebackInfo, milestoneDay, stakeEditMode]);
+
+  const handleStakeSave = (stakeValues) => {
+    const now = new Date().toISOString();
+    const prev = state.stake;
+    const revisions = prev
+      ? [...(prev.revisions || []), { why: prev.why, cost: prev.cost, proof: prev.proof, at: prev.updatedAt || prev.setAt }]
+      : [];
+    save({
+      ...state,
+      stake: {
+        ...stakeValues,
+        setAt: prev?.setAt || now,
+        updatedAt: now,
+        revisions,
+      },
+      stakeDeferred: false,
+    });
+    setShowStake(false);
+    setStakeEditMode(false);
+  };
+
+  const handleStakeDefer = () => {
+    save({ ...state, stakeDeferred: true });
+    setShowStake(false);
+  };
+
+  const handleStakeClose = () => {
+    setShowStake(false);
+    setStakeEditMode(false);
+  };
+
+  const openStakeEditor = () => {
+    setStakeEditMode(true);
+    setShowStake(true);
+  };
 
   // Notification scheduler
   const notifIntervalRef = useRef(null);
@@ -218,6 +269,19 @@ function LifeOS() {
       if (notifIntervalRef.current) clearInterval(notifIntervalRef.current);
     };
   }, [state?.notificationSettings?.enabled, state?.currentDay]);
+
+  // Voice notification scheduler — reads latest state via ref on every tick
+  const stateRefForVoice = useRef(state);
+  useEffect(() => { stateRefForVoice.current = state; }, [state]);
+  useEffect(() => {
+    if (!state) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const id = scheduleVoiceNotifications(
+      () => stateRefForVoice.current,
+      (title, body) => sendNotification(title, body)
+    );
+    return () => clearInterval(id);
+  }, [state?.voiceEnabled, Notification?.permission]);
 
   // FCM: once the user is signed in and has enabled notifications, capture
   // their device token so background push can be delivered when the app is
@@ -364,16 +428,27 @@ function LifeOS() {
   }
 
   function dismissForgeSuccess() {
-    // Mark all milestones as seen at once
-    const allMilestones = forgeMilestoneQueueRef.current;
-    if (allMilestones.length > 0) {
-      const newSeen = { ...(state.forgeStoriesSeen || {}) };
-      allMilestones.forEach((m) => { newSeen[m.key] = true; });
+    // Mark only the current milestone as seen, then advance to the next queued one.
+    const queue = forgeMilestoneQueueRef.current;
+    const current = queue[0];
+    if (current) {
+      const newSeen = { ...(state.forgeStoriesSeen || {}), [current.key]: true };
       save({ ...state, forgeStoriesSeen: newSeen });
     }
-    forgeMilestoneQueueRef.current = [];
-    setForgeStory(null);
-    setModal(null);
+    const remaining = queue.slice(1);
+    forgeMilestoneQueueRef.current = remaining;
+    if (remaining.length > 0) {
+      // Show the next milestone after a short beat so the modal animation can re-trigger
+      setForgeStory(null);
+      setModal(null);
+      setTimeout(() => {
+        setForgeStory(remaining[0]);
+        setModal("forge_success");
+      }, 180);
+    } else {
+      setForgeStory(null);
+      setModal(null);
+    }
   }
 
   // ── Quest Actions ──
@@ -888,6 +963,7 @@ function LifeOS() {
           state={state}
           completedDay={dayCompleteDay}
           onDismiss={() => { setModal(null); setDayCompleteDay(null); }}
+          onNavigate={(v) => { setModal(null); setDayCompleteDay(null); setView(v); }}
         />
       );
     }
@@ -939,6 +1015,14 @@ function LifeOS() {
             save({ ...state, seenMilestones: { ...(state.seenMilestones || {}), [milestoneDay]: true } });
             setMilestoneDay(null);
           }}
+          stake={{
+            showStake,
+            stakeEditMode,
+            onStakeSave: handleStakeSave,
+            onStakeDefer: handleStakeDefer,
+            onStakeClose: handleStakeClose,
+            openStakeEditor,
+          }}
         />
       </LifeOSProvider>
       </PomodoroProvider>
@@ -946,7 +1030,8 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone }) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone, stake }) {
+  const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor } = stake || {};
   const {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
@@ -998,6 +1083,13 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         daysAway={comebackInfo?.daysAway || 0}
         streak={comebackInfo?.streak || 0}
         onClose={onDismissComeback}
+      />
+      <StakeSetupModal
+        show={showStake}
+        existing={stakeEditMode ? state?.stake : null}
+        onSave={onStakeSave}
+        onDefer={onStakeDefer}
+        onClose={onStakeClose}
       />
       {milestoneDay && (
         <MilestoneUnlockModal
@@ -1054,6 +1146,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
               <ErrorBoundary name="Quests" key="eb-home">
                 <HomeView
                   state={state}
+                  save={save}
                   user={user}
                   xpPopup={xpPopup}
                   onCheckQuest={checkQuest}
@@ -1082,6 +1175,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   setJournalText={setJournalText}
                   selectedMood={selectedMood}
                   setSelectedMood={setSelectedMood}
+                  onLogMood={logMood}
                   onSave={saveJournal}
                   onSaveRaw={saveJournalRaw}
                   onNavigate={handleViewChange}
@@ -1114,7 +1208,19 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   user={user}
                   onReset={resetApp}
                   onOpenNotifications={() => setModal("notifications")}
+                  onOpenStake={openStakeEditor}
                   onNavigate={handleViewChange}
+                />
+              </ErrorBoundary>
+            )}
+            {view === "settings" && (
+              <ErrorBoundary name="Settings" key="eb-settings">
+                <SettingsView
+                  state={state}
+                  save={save}
+                  user={user}
+                  onReset={resetApp}
+                  onBack={() => handleViewChange("profile")}
                 />
               </ErrorBoundary>
             )}

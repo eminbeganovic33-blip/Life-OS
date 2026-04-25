@@ -29,6 +29,43 @@ const FALLBACK_FOLLOW_UPS = [
   "What's the part of this you haven't fully said yet?",
 ];
 
+const MOODS_LABELS = ["Rough", "Low", "Neutral", "Good", "Great", "Peak"];
+
+function getContextualStarter(state) {
+  const day = state.currentDay;
+  const yesterday = day - 1;
+  const yMood = state.moods?.[yesterday];
+  const yEntry = (() => {
+    const raw = state.journal?.[yesterday];
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed[0]?.role) {
+        const texts = parsed.filter((m) => m.role === "user").map((m) => m.text);
+        return texts.join(" ").slice(0, 120);
+      }
+    } catch {}
+    return typeof raw === "string" ? raw.slice(0, 120) : null;
+  })();
+
+  // Build an opener that references yesterday
+  if (day === 1) {
+    return "Welcome. This is your space — no rules, no judgement. What's on your mind today?";
+  }
+  if (yMood != null && yEntry) {
+    const moodLabel = MOODS_LABELS[yMood] || "okay";
+    return `Yesterday you felt ${moodLabel.toLowerCase()} and wrote: "${yEntry.trim()}…"\n\nHow are you carrying that into today?`;
+  }
+  if (yMood != null) {
+    const moodLabel = MOODS_LABELS[yMood] || "okay";
+    return `Yesterday you marked your mood as ${moodLabel.toLowerCase()}. How are you doing today compared to that?`;
+  }
+  if (yEntry) {
+    return `Yesterday you wrote: "${yEntry.trim()}…"\n\nWhat's shifted since then?`;
+  }
+  return FALLBACK_STARTERS[(day - 1) % FALLBACK_STARTERS.length];
+}
+
 function getFallbackStarter(day) {
   return FALLBACK_STARTERS[(day - 1) % FALLBACK_STARTERS.length];
 }
@@ -72,18 +109,19 @@ export default function ChatJournal({ state, journalText, setJournalText, onSave
       }
     }
 
-    // Fresh day — get AI starter
+    // Fresh day — C5: use contextual starter that references yesterday's mood/entry
+    const contextualStarter = getContextualStarter(state);
     let cancelled = false;
     if (isAIConfigured()) {
       getJournalStarter(state).then((starter) => {
         if (cancelled) return;
         const isErr = starter === AI_ERR_QUOTA || starter === AI_ERR_NETWORK;
-        const text = (starter && !isErr) ? starter : getFallbackStarter(day);
+        const text = (starter && !isErr) ? starter : contextualStarter;
         setMessages([{ role: "assistant", text }]);
         setStarterLoading(false);
       });
     } else {
-      setMessages([{ role: "assistant", text: getFallbackStarter(day) }]);
+      setMessages([{ role: "assistant", text: contextualStarter }]);
       setStarterLoading(false);
     }
     return () => { cancelled = true; };

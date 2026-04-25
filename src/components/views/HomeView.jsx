@@ -6,6 +6,7 @@ import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS, MOODS } from "../../da
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
 import { getArc, getArcProgress } from "../../utils/arcs";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
+import { getVoice } from "../../utils/voice";
 
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
@@ -72,7 +73,7 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 }
 
 export default function HomeView({
-  state, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
+  state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
   unlockedCustomCategories, onNavigate, onMarkRestDay, onLogMood,
   onOpenActiveQuestPicker, onRetireActiveQuest,
@@ -164,7 +165,7 @@ export default function HomeView({
 
   // ── Focus quest — most impactful uncompleted quest ──
   const focusQuest = useMemo(() => {
-    const uncompleted = quests.filter((q) => !completed.includes(q.id));
+    const uncompleted = quests.filter((q) => !completedRegular.includes(q.id));
     if (uncompleted.length === 0) return null;
     return uncompleted.sort((a, b) => {
       const aStreak = categoryStreaks[a.category] || 0;
@@ -175,12 +176,32 @@ export default function HomeView({
     })[0];
   }, [quests, completed, categoryStreaks]);
 
+  // ── Post-quest voice flash (transient micro-line) ──
+  const [postQuestVoice, setPostQuestVoice] = useState(null);
+  const postQuestTimerRef = useRef(null);
+
   // ── Handlers ──
   function handleQuestClick(q) {
     if (completed.includes(q.id)) {
       showSwipeHint(q.id);
     } else {
       onCheckQuest(q.id, q.xp);
+      // Fire post-quest voice using projected next state (1 more completion)
+      const projected = {
+        ...state,
+        completedQuests: {
+          ...(state.completedQuests || {}),
+          [day]: [...(state.completedQuests?.[day] || []), q.id],
+        },
+      };
+      const catId = String(q.id).split("-")[0];
+      const catStreak = getCategoryStreak(projected.completedQuests, catId, day);
+      const v = getVoice("post_quest", projected, { questId: q.id, categoryStreak: catStreak });
+      if (v) {
+        setPostQuestVoice(v);
+        if (postQuestTimerRef.current) clearTimeout(postQuestTimerRef.current);
+        postQuestTimerRef.current = setTimeout(() => setPostQuestVoice(null), 3600);
+      }
     }
   }
 
@@ -279,41 +300,49 @@ export default function HomeView({
           <div style={ts.greetingText}>
             {greeting}{userName ? `, ${userName}` : ""}
           </div>
-          {/* D2: Arc name + progress */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 13 }}>{arc.icon}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: arc.color, letterSpacing: 0.3 }}>{arc.name}</span>
-            <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>· {arc.subtitle}</span>
-          </div>
-          {/* D1: XP bar to next level */}
-          <div style={ts.heroLevelXp}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-              <span style={{ ...ts.levelXpText, fontSize: 11 }}>
-                {level.name}
-                {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
+          {/* C1: Progressive disclosure — Day 1–6 shows only level name, Day 7+ shows arc + XP bar */}
+          {day >= 7 ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 13 }}>{arc.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: arc.color, letterSpacing: 0.3 }}>{arc.name}</span>
+                <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>· {arc.subtitle}</span>
+              </div>
+              <div style={ts.heroLevelXp}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                  <span style={{ ...ts.levelXpText, fontSize: 11 }}>
+                    {level.name}
+                    {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
+                  </span>
+                  {nextLevel && (
+                    <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>
+                      → {nextLevel.name}
+                    </span>
+                  )}
+                </div>
+                <div style={{ width: "100%", height: 4, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+                  <motion.div
+                    style={{ height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${arc.color}, ${arc.color}CC)` }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${xpProgress * 100}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
+                <div style={{ fontSize: 9, color: colors.textSecondary, opacity: 0.4, marginTop: 2 }}>
+                  {nextLevel ? `${nextLevel.xpReq - state.xp} XP to next level` : `${state.xp} XP · Max level`}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ ...ts.heroLevelXp, paddingBottom: 2 }}>
+              <span style={{ ...ts.levelXpText, fontSize: 11, opacity: 0.6 }}>
+                {level.name} · Day {day} of your journey
               </span>
-              {nextLevel && (
-                <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>
-                  → {nextLevel.name}
-                </span>
-              )}
             </div>
-            <div style={{ width: "100%", height: 4, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", overflow: "hidden" }}>
-              <motion.div
-                style={{ height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${arc.color}, ${arc.color}CC)` }}
-                initial={{ width: 0 }}
-                animate={{ width: `${xpProgress * 100}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-            <div style={{ fontSize: 9, color: colors.textSecondary, opacity: 0.4, marginTop: 2 }}>
-              {nextLevel ? `${nextLevel.xpReq - state.xp} XP to next level` : `${state.xp} XP · Max level`}
-            </div>
-          </div>
+          )}
         </div>
 
         <div style={ts.heroRight}>
-          <span style={ts.profileChevron}>Profile →</span>
           {/* Progress ring */}
           <div style={ts.ringWrap}>
             <ProgressRing
@@ -335,7 +364,7 @@ export default function HomeView({
           <div style={{ ...ts.streakChip, background: streakChipBg, border: streakChipBorder }}>
             <Flame size={13} color={streakChipColor} />
             <span style={{ ...ts.streakNumber, color: streakChipColor }}>{state.streak}</span>
-            {state.streak >= 7 && getStreakMultiplier(state.streak).tier !== "none" && (
+            {day >= 7 && state.streak >= 7 && getStreakMultiplier(state.streak).tier !== "none" && (
               <span style={{
                 fontSize: 9,
                 fontWeight: 800,
@@ -377,6 +406,31 @@ export default function HomeView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── R4: Day 7 milestone banner ── */}
+      {day === 7 && !state.completedDays?.[7] && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          style={{
+            margin: "6px 14px 0",
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(251,191,36,0.1), rgba(249,115,22,0.06))",
+            border: "1px solid rgba(251,191,36,0.25)",
+            display: "flex", alignItems: "center", gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 20, flexShrink: 0 }}>🔥</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#FBBF24" }}>One week in.</div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7, lineHeight: 1.4, marginTop: 1 }}>
+              Most people quit by Day 3. You're still here. Finish Day 7 and the streak multiplier kicks in.
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Forge Tracker Row ── */}
       {activeTrackers.length > 0 && (
@@ -421,9 +475,46 @@ export default function HomeView({
         </div>
       )}
 
+      {/* ── Voice Banner (ambient, adaptive) ── */}
+      <AnimatePresence mode="wait">
+        {postQuestVoice ? (
+          <motion.div
+            key="post-quest-voice"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.35 }}
+            style={{
+              margin: "0 14px 10px",
+              padding: "10px 14px",
+              borderLeft: "2px solid #22C55E",
+              borderRadius: 4,
+              fontSize: 13,
+              lineHeight: 1.45,
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: colors.text,
+              opacity: 0.85,
+              letterSpacing: 0.1,
+            }}
+          >
+            {postQuestVoice.line}
+          </motion.div>
+        ) : (
+          <VoiceBanner key="voice-banner" state={state} colors={colors} arcColor={arc.color} />
+        )}
+      </AnimatePresence>
+
       {/* ── Section Header ── */}
       <div style={ts.sectionHeader}>
-        <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
+        <div>
+          <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
+          {day <= 4 && (
+            <div style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.45, marginTop: 2 }}>
+              Complete each habit to earn XP and build your streak
+            </div>
+          )}
+        </div>
         <button
           style={ts.addBtn}
           onClick={() => (onOpenActiveQuestPicker || onOpenCustomQuest)?.()}
@@ -509,17 +600,11 @@ export default function HomeView({
         ))
       )}
 
+      {/* ── H3: Bonus Quest — elevated directly after quest list ── */}
+      <BonusQuestCard state={state} completed={completed} colors={colors} onCheckQuest={onCheckQuest} />
+
       {/* ── Weekly Challenge Tracker ── */}
       <WeeklyChallengeBanner state={state} ts={ts} />
-
-      {/* ── Daily Quote — G9: only after quests are done or only 1 remaining ── */}
-      {(allDone || quests.length - completed.length <= 1) && <div style={ts.quoteCard}>
-        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
-        <div style={{ flex: 1 }}>
-          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
-          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
-        </div>
-      </div>}
 
       {/* ── Inline AI Quest Suggestions ── */}
       {day > 3 && !allDone && (
@@ -533,22 +618,98 @@ export default function HomeView({
         />
       )}
 
-      {/* ── Daily Bonus Quest ── */}
-      <BonusQuestCard state={state} completed={completed} colors={colors} onCheckQuest={onCheckQuest} />
-
-      {/* ── Temporal Lock ── */}
-      {isTimeLocked && (
-        <div style={ts.lockBox}>
-          <CircleCheck size={14} color="#7C5CFC" strokeWidth={2} />
-          <span style={{ fontSize: 12, opacity: 0.6, color: colors.text }}>
-            All quests complete! Come back tomorrow for Day {day + 1}.
-          </span>
+      {/* ── Daily Quote — only after quests are done or only 1 remaining ── */}
+      {(allDone || quests.length - completedRegular.length <= 1) && <div style={ts.quoteCard}>
+        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
+          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
         </div>
-      )}
+      </div>}
+
+
+      {/* ── C2: Quests Cleared moment — fires the instant allDone becomes true ── */}
+      <AnimatePresence>
+        {allDone && (
+          <motion.div
+            key="quests-cleared"
+            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 300, damping: 22 }}
+            style={{
+              margin: "8px 14px 0",
+              padding: "16px 16px 14px",
+              borderRadius: 16,
+              background: isDark
+                ? "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(124,92,252,0.06))"
+                : "linear-gradient(135deg, rgba(34,197,94,0.07), rgba(124,92,252,0.04))",
+              border: "1px solid rgba(34,197,94,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <motion.span
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 14, delay: 0.15 }}
+                style={{ fontSize: 22, lineHeight: 1 }}
+              >
+                🎯
+              </motion.span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#22C55E" }}>
+                  All quests cleared!
+                </div>
+                <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, marginTop: 1 }}>
+                  Want to do more, or call it a great day?
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                style={{
+                  flex: 1, minWidth: 90,
+                  padding: "9px 12px", borderRadius: 10,
+                  background: "rgba(124,92,252,0.1)", border: "1px solid rgba(124,92,252,0.2)",
+                  color: "#7C5CFC", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+                onClick={(e) => { e.stopPropagation(); onOpenActiveQuestPicker?.() || onOpenCustomQuest?.(); }}
+              >
+                + Add a quest
+              </button>
+              <button
+                style={{
+                  flex: 1, minWidth: 90,
+                  padding: "9px 12px", borderRadius: 10,
+                  background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.18)",
+                  color: "#F97316", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+                onClick={(e) => { e.stopPropagation(); onNavigate?.("dojo"); }}
+              >
+                🥊 Dojo
+              </button>
+              <button
+                style={{
+                  flex: 1, minWidth: 90,
+                  padding: "9px 12px", borderRadius: 10,
+                  background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)",
+                  color: "#22C55E", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+                onClick={(e) => { e.stopPropagation(); onNavigate?.("academy"); }}
+              >
+                📚 Academy
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Complete Day Button / Status ── */}
-      {allDone && !canCompleteDay ? (
-        // D3: Day sealed — celebration card
+      {isTimeLocked ? (
+        // All quests done but calendar hasn't advanced yet — explain the lock
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -557,8 +718,8 @@ export default function HomeView({
             margin: "10px 14px 0",
             padding: "16px 18px",
             borderRadius: 16,
-            background: `linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.04))`,
-            border: "1px solid rgba(34,197,94,0.25)",
+            background: `linear-gradient(135deg, rgba(124,92,252,0.1), rgba(124,92,252,0.04))`,
+            border: "1px solid rgba(124,92,252,0.25)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -567,28 +728,26 @@ export default function HomeView({
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
             >
-              <CircleCheck size={22} color="#22C55E" strokeWidth={2.5} />
+              <CircleCheck size={22} color="#7C5CFC" strokeWidth={2.5} />
             </motion.div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#22C55E", lineHeight: 1.2 }}>
-                Day {day} sealed ✓
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#7C5CFC", lineHeight: 1.2 }}>
+                All quests complete ✓
               </div>
               <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, marginTop: 2 }}>
                 {arc.icon} {arc.name} · Day {day - arc.days[0] + 1} of {arc.days[1] - arc.days[0] + 1}
               </div>
             </div>
-            <div style={{ marginLeft: "auto", textAlign: "right" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#22C55E", opacity: 0.8 }}>
-                🔥 {state.streak}d streak
-              </div>
-              {completedBonus.length > 0 && (
-                <div style={{ fontSize: 10, color: "#FBBF24", fontWeight: 600, marginTop: 2 }}>+bonus ✦</div>
-              )}
-            </div>
+            {completedBonus.length > 0 && (
+              <div style={{ marginLeft: "auto", fontSize: 10, color: "#FBBF24", fontWeight: 600 }}>+bonus ✦</div>
+            )}
           </div>
-          <div style={{ fontSize: 12, color: colors.textSecondary, opacity: 0.55 }}>
-            Day {day + 1} unlocks tomorrow. Keep the streak going.
+          <div style={{ fontSize: 12, color: colors.textSecondary, opacity: 0.7, lineHeight: 1.5 }}>
+            🔒 Seal Day {day} at midnight — come back then to lock in your streak and advance to Day {day + 1}.
           </div>
+
+          {/* Pre-seal reflection prompt */}
+          <PreSealReflection state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
         </motion.div>
       ) : (
         <button
@@ -603,7 +762,7 @@ export default function HomeView({
           onClick={onCompleteDay}
           disabled={!allDone || !canCompleteDay}
         >
-          {allDone ? `Complete Day ${day}` : `${completedRegular.length} / ${quests.length} Quests`}
+          {allDone ? `Seal Day ${day}` : `${completedRegular.length} / ${quests.length} Quests`}
         </button>
       )}
 
@@ -679,6 +838,142 @@ export default function HomeView({
       )}
 
       <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+// ── Voice Banner — ambient, adaptive narrator line above the quest list ──
+function VoiceBanner({ state, colors, arcColor }) {
+  const voice = getVoice("home_banner", state);
+  if (!voice) return null;
+
+  // Tone-based accent (fallback to arc color)
+  const toneColor = {
+    recovery: "#F97316",
+    boss: "#FBBF24",
+    milestone: "#FBBF24",
+    seal: "#22C55E",
+    morning: arcColor || "#7C5CFC",
+    nudge: "#F97316",
+    close: "#7C5CFC",
+  }[voice.tone] || arcColor || "#7C5CFC";
+
+  return (
+    <motion.div
+      key={voice.line}
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      style={{
+        margin: "0 14px 10px",
+        padding: "10px 14px",
+        borderLeft: `2px solid ${toneColor}`,
+        borderRadius: 4,
+        background: "transparent",
+        fontSize: 13,
+        lineHeight: 1.45,
+        fontWeight: 500,
+        fontStyle: "italic",
+        color: colors.text,
+        opacity: 0.78,
+        letterSpacing: 0.1,
+      }}
+    >
+      {voice.line}
+    </motion.div>
+  );
+}
+
+// ── Pre-seal reflection — one optional question before sealing the day ──
+function PreSealReflection({ state, save, day, colors, arcColor }) {
+  const existing = state.sealReflections?.[day];
+  const [answer, setAnswer] = useState("");
+  const [dismissed, setDismissed] = useState(false);
+  const prompt = useMemo(() => getVoice("pre_seal", state), [state.currentDay]);
+
+  if (!prompt || !save || dismissed) return null;
+
+  // Already answered — show it quietly
+  if (existing) {
+    return (
+      <div style={{
+        marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${colors.cardBorder || "rgba(255,255,255,0.08)"}`,
+        fontSize: 11, opacity: 0.55,
+      }}>
+        <div style={{ fontStyle: "italic", marginBottom: 4, color: arcColor }}>{existing.prompt}</div>
+        <div style={{ color: colors.text, opacity: 0.75 }}>{existing.answer}</div>
+      </div>
+    );
+  }
+
+  const handleSave = () => {
+    if (!answer.trim()) return;
+    save({
+      ...state,
+      sealReflections: {
+        ...(state.sealReflections || {}),
+        [day]: {
+          prompt: prompt.line,
+          answer: answer.trim(),
+          date: new Date().toISOString(),
+        },
+      },
+    });
+    setAnswer("");
+  };
+
+  return (
+    <div style={{
+      marginTop: 14, paddingTop: 12,
+      borderTop: `1px dashed ${colors.cardBorder || "rgba(255,255,255,0.1)"}`,
+    }}>
+      <div style={{
+        fontSize: 12, fontStyle: "italic", color: arcColor, marginBottom: 8,
+        opacity: 0.9, fontWeight: 500,
+      }}>
+        {prompt.line}
+      </div>
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder="A sentence is enough. Or skip."
+        rows={2}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: "rgba(255,255,255,0.03)",
+          border: `1px solid ${colors.cardBorder || "rgba(255,255,255,0.08)"}`,
+          borderRadius: 8, padding: "8px 10px",
+          fontSize: 12, color: colors.text, resize: "none",
+          fontFamily: "inherit", outline: "none",
+        }}
+      />
+      <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{
+            background: "transparent", border: "none",
+            color: colors.textSecondary, opacity: 0.5,
+            fontSize: 11, cursor: "pointer", padding: "4px 8px",
+          }}
+        >
+          Skip
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!answer.trim()}
+          style={{
+            background: answer.trim() ? arcColor : "transparent",
+            border: `1px solid ${arcColor}`,
+            color: answer.trim() ? "#fff" : arcColor,
+            fontSize: 11, fontWeight: 700,
+            padding: "4px 12px", borderRadius: 6,
+            cursor: answer.trim() ? "pointer" : "default",
+            opacity: answer.trim() ? 1 : 0.5,
+          }}
+        >
+          Save
+        </button>
+      </div>
     </div>
   );
 }
@@ -1064,19 +1359,6 @@ function getStyles(isDark, colors) {
       color: colors.text,
       letterSpacing: -0.3,
       lineHeight: 1.2,
-    },
-    profileChevron: {
-      position: "absolute",
-      top: 14,
-      right: 14,
-      fontSize: 11,
-      color: colors.textSecondary,
-      fontWeight: 600,
-      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-      borderRadius: 6,
-      padding: "3px 7px",
-      letterSpacing: 0.3,
-      opacity: 0.6,
     },
     heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500, opacity: 0.4 },
     heroLevelXp: { marginTop: 8 },

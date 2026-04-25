@@ -112,19 +112,23 @@ function suggestCourseFromJournal(text) {
   return null;
 }
 
-export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw, onNavigate }) {
+export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onLogMood, onSave, onSaveRaw, onNavigate }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const day = state.currentDay;
 
-  const [viewMode, setViewMode] = useState("chat");
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem("journal_view_mode") || "chat"; } catch { return "chat"; }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [savedAt, setSavedAt] = useState(null);
   const [saving, setSaving] = useState(false);
   const [courseNudge, setCourseNudge] = useState(null);
   // J2: history pagination
   const [historyLimit, setHistoryLimit] = useState(20);
+  // History expand: tracks which day entry is expanded
+  const [expandedDay, setExpandedDay] = useState(null);
   const autoSaveTimer = useRef(null);
 
   const dailyPrompt = getDailyPrompt(day);
@@ -232,7 +236,10 @@ export default function JournalView({ state, journalText, setJournalText, select
                 color: active ? "#7C5CFC" : colors.textSecondary,
                 border: active ? "1px solid rgba(124,92,252,0.2)" : `1px solid transparent`,
               }}
-              onClick={() => setViewMode(t.id)}
+              onClick={() => {
+                setViewMode(t.id);
+                try { localStorage.setItem("journal_view_mode", t.id); } catch {}
+              }}
             >
               <t.Icon size={13} strokeWidth={active ? 2 : 1.5} />
               <span>{t.label}</span>
@@ -265,11 +272,15 @@ export default function JournalView({ state, journalText, setJournalText, select
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
                 {MOODS.map((m, i) => {
-                  const active = selectedMood === i;
+                  // Show saved mood as active even if selectedMood prop hasn't been set this session
+                  const active = (selectedMood ?? state.moods?.[day]) === i;
                   return (
                     <motion.div
                       key={i}
-                      onClick={() => setSelectedMood(i)}
+                      onClick={() => {
+                        setSelectedMood(i);
+                        onLogMood?.(i); // persist immediately — don't wait for journal save
+                      }}
                       style={{
                         display: "flex",
                         flexDirection: "column",
@@ -551,61 +562,81 @@ export default function JournalView({ state, journalText, setJournalText, select
                   )}
                 </div>
               ) : (
-                filteredEntries.slice(0, historyLimit).map((entry, i) => (
-                  <motion.div
-                    key={entry.day}
-                    style={{
-                      margin: "0 14px 8px",
-                      padding: "14px 16px",
-                      borderRadius: 14,
-                      background: sub(0.02),
-                      border: `1px solid ${sub(0.05)}`,
-                    }}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>
-                        <Calendar size={10} color="#7C5CFC" />
-                        <span>Day {entry.day}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {/* Mode badge — Chat or Write */}
-                        <span style={{
-                          display: "inline-flex", alignItems: "center", gap: 3,
-                          fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 6,
-                          background: entry.isChat ? "rgba(124,92,252,0.08)" : sub(0.04),
-                          color: entry.isChat ? "rgba(124,92,252,0.8)" : colors.textSecondary,
-                          border: entry.isChat ? "1px solid rgba(124,92,252,0.15)" : `1px solid ${sub(0.06)}`,
-                        }}>
-                          {entry.isChat ? <MessageCircle size={9} /> : <PenLine size={9} />}
-                          {entry.isChat ? "Chat" : "Write"}
-                        </span>
-                        {entry.mood != null && MOODS[entry.mood] && (
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            fontSize: 10, fontWeight: 600,
-                            color: MOODS[entry.mood].color,
-                            background: `${MOODS[entry.mood].color}18`,
-                            border: `1px solid ${MOODS[entry.mood].color}40`,
-                            borderRadius: 6, padding: "2px 6px",
+                filteredEntries.slice(0, historyLimit).map((entry, i) => {
+                  const isExpanded = expandedDay === entry.day;
+                  const isLong = entry.text.length > 200;
+                  return (
+                    <motion.div
+                      key={entry.day}
+                      style={{
+                        margin: "0 14px 8px",
+                        borderRadius: 14,
+                        background: sub(0.02),
+                        border: `1px solid ${isExpanded ? sub(0.1) : sub(0.05)}`,
+                        overflow: "hidden",
+                        transition: "border-color 0.2s",
+                      }}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                    >
+                      {/* Header — always visible, tap to expand */}
+                      <div
+                        style={{ padding: "14px 16px", cursor: isLong ? "pointer" : "default" }}
+                        onClick={() => isLong && setExpandedDay(isExpanded ? null : entry.day)}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>
+                            <Calendar size={10} color="#7C5CFC" />
+                            <span>Day {entry.day}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 3,
+                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 6,
+                              background: entry.isChat ? "rgba(124,92,252,0.08)" : sub(0.04),
+                              color: entry.isChat ? "rgba(124,92,252,0.8)" : colors.textSecondary,
+                              border: entry.isChat ? "1px solid rgba(124,92,252,0.15)" : `1px solid ${sub(0.06)}`,
+                            }}>
+                              {entry.isChat ? <MessageCircle size={9} /> : <PenLine size={9} />}
+                              {entry.isChat ? "Chat" : "Write"}
+                            </span>
+                            {entry.mood != null && MOODS[entry.mood] && (
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                fontSize: 10, fontWeight: 600,
+                                color: MOODS[entry.mood].color,
+                                background: `${MOODS[entry.mood].color}18`,
+                                border: `1px solid ${MOODS[entry.mood].color}40`,
+                                borderRadius: 6, padding: "2px 6px",
+                              }}>
+                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: MOODS[entry.mood].color, display: "inline-block" }} />
+                                {MOODS[entry.mood].label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Preview / Full text */}
+                        <div style={{ fontSize: 12, lineHeight: 1.7, color: colors.textSecondary, whiteSpace: "pre-wrap" }}>
+                          {isExpanded || !isLong
+                            ? entry.text || "No text recorded"
+                            : entry.text.slice(0, 200) + "…"}
+                        </div>
+
+                        {/* Read more / less toggle */}
+                        {isLong && (
+                          <div style={{
+                            marginTop: 8, fontSize: 11, fontWeight: 700,
+                            color: "#7C5CFC", display: "flex", alignItems: "center", gap: 4,
                           }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: MOODS[entry.mood].color, display: "inline-block" }} />
-                            {MOODS[entry.mood].label}
-                          </span>
+                            {isExpanded ? "Show less ▲" : `Read full entry ▼`}
+                          </div>
                         )}
                       </div>
-                    </div>
-                    <div style={{
-                      fontSize: 12, lineHeight: 1.7,
-                      color: colors.textSecondary,
-                      whiteSpace: "pre-wrap",
-                    }}>
-                      {entry.text.length > 200 ? entry.text.slice(0, 200) + "..." : entry.text || "No text recorded"}
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  );
+                })
               )}
 
               {filteredEntries.length > historyLimit && (

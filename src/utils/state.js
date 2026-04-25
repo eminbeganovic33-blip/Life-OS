@@ -81,6 +81,13 @@ export const defaultState = () => ({
   questGraduations: {},
   // One-shot migration flag so we don't re-seed after a user retires everything.
   _activeQuestsMigrated: false,
+  // ── The Stake — user's articulated why, cost, and proof ──
+  // Set once during onboarding (or deferred). Edits create revision entries.
+  // Shape: { why, cost, proof, setAt, updatedAt, revisions: [{ why, cost, proof, at }] }
+  stake: null,
+  stakeDeferred: false, // user dismissed the prompt; voice is muted until stake is set
+  // ── Voice ── (ambient narrator layer)
+  voiceEnabled: true,
 });
 
 // ── Dev seed: 14 days of realistic progress for local development only ──

@@ -46,7 +46,7 @@ export default function AnalyticsView({ state }) {
   const maxXp = Math.max(...weeklyXp.map((d) => d.xp), 1);
 
   // Welcome state for brand new users
-  if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0) {
+  if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0 && Object.keys(state.completedQuests || {}).length === 0) {
     return (
       <div style={S.vc}>
         <div style={headerRow}>
