@@ -430,6 +430,9 @@ function TrackerCard({
   onExpandGoal, customGoalInput, setCustomGoalInput,
   onSelectGoal, onCustomGoalSubmit, onExtendGoal, onTriggerRelapse, fs,
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const startDate = state.sobrietyDates?.[tracker.id];
   const daysClean = startDate ? daysBetween(startDate) : 0;
   const isActive = !!startDate;

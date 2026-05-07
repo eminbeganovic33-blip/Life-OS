@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { useToast } from "../Toast";
@@ -86,6 +86,41 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   const [templateExIndex, setTemplateExIndex] = useState(0);
   const [templateSets, setTemplateSets] = useState([{ weight: "", reps: "" }]);
   const [templateCompletedIdx, setTemplateCompletedIdx] = useState(() => new Set());
+
+  // ── Workout engagement: rest timer + per-set lock state ──
+  // restTimer counts down seconds between sets so logging feels like a real workout flow.
+  // setsLocked tracks which set indices the user has explicitly completed (PR-style commit).
+  const [restTimer, setRestTimer] = useState(0); // seconds remaining
+  const [restGoal, setRestGoal] = useState(90); // default 90s rest, parsed from plan if available
+
+  useEffect(() => {
+    if (restTimer <= 0) return;
+    const id = setInterval(() => setRestTimer((t) => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(id);
+  }, [restTimer]);
+
+  // Pre-seed sets from prescribed count when entering AI/Template exercise
+  useEffect(() => {
+    if (mode !== "ai" || !aiPlan) return;
+    const cur = aiPlan[aiExerciseIndex];
+    if (!cur) return;
+    const count = Math.max(1, Math.min(10, parseInt(cur.sets, 10) || 3));
+    setAiSets(Array.from({ length: count }, () => ({ weight: "", reps: "" })));
+    setRestTimer(0);
+    if (cur.rest) {
+      const m = String(cur.rest).match(/(\d+)/);
+      if (m) setRestGoal(parseInt(m[1], 10) > 10 ? parseInt(m[1], 10) : parseInt(m[1], 10) * 60);
+    }
+  }, [mode, aiPlan, aiExerciseIndex]);
+
+  useEffect(() => {
+    if (mode !== "template" || !activeTemplate) return;
+    const cur = activeTemplate.exercises[templateExIndex];
+    if (!cur) return;
+    const count = Math.max(1, Math.min(10, parseInt(cur.sets, 10) || 3));
+    setTemplateSets(Array.from({ length: count }, () => ({ weight: "", reps: "" })));
+    setRestTimer(0);
+  }, [mode, activeTemplate, templateExIndex]);
 
   // Edit logged exercise state
   const [editingIndex, setEditingIndex] = useState(null);
@@ -402,6 +437,11 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const isBeatingVolume = lastSession && filledSets.length > 0 && totalVolume > lastSession.totalVol;
     const isBeatingWeight = lastSession && filledSets.length > 0 &&
       Math.max(...filledSets.map((s) => Number(s.weight) || 0)) > lastSession.maxWeight;
+    // Engagement: minimum 2 sets to commit. Single-set logs aren't a "workout."
+    const minSets = Math.min(2, setsList.length);
+    const canSave = filledSets.length >= minSets;
+    // Active set = first row not filled. Used to highlight where the user is.
+    const activeIdx = setsList.findIndex((s) => !Number(s.weight) || !Number(s.reps));
 
     return (
       <div style={ds.loggerCard}>
@@ -409,6 +449,38 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <span style={{ fontSize: 15, fontWeight: 800 }}>{exerciseName}</span>
           {hint && <span style={{ fontSize: 11, opacity: 0.4 }}>{hint}</span>}
         </div>
+
+        {/* Rest timer (between sets) */}
+        {restTimer > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 12px", borderRadius: 10, marginBottom: 10,
+            background: "rgba(124,92,252,0.08)",
+            border: "1px solid rgba(124,92,252,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: "#7C5CFC", animation: "pulse 1.2s ease-in-out infinite",
+              }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>
+                Rest · {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, "0")}
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.5 }}>
+                Set {activeIdx >= 0 ? activeIdx + 1 : setsList.length} up next
+              </span>
+            </div>
+            <button
+              onClick={() => setRestTimer(0)}
+              style={{
+                background: "transparent", border: "none", color: "#7C5CFC",
+                fontSize: 11, fontWeight: 700, cursor: "pointer", padding: "4px 8px",
+              }}
+            >
+              Skip
+            </button>
+          </div>
+        )}
 
         {/* Last session reference — the key progressive overload cue */}
         {lastSession && (
@@ -441,14 +513,30 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {setsList.map((set, i) => {
           const prevSet = lastSession?.sets[i];
+          const isFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+          const isActive = i === activeIdx;
           return (
-            <div key={i} style={ds.setRow}>
-              <div style={ds.setLabel}>Set {i + 1}</div>
+            <div
+              key={i}
+              style={{
+                ...ds.setRow,
+                ...(isActive && !isFilled ? { borderLeft: "2px solid #7C5CFC", paddingLeft: 8, background: "rgba(124,92,252,0.04)" } : {}),
+                ...(isFilled ? { opacity: 0.65 } : {}),
+              }}
+            >
+              <div style={{ ...ds.setLabel, color: isFilled ? "#22C55E" : ds.setLabel?.color }}>
+                {isFilled ? "✓" : ""} Set {i + 1}
+              </div>
               <input
                 type="number"
                 placeholder={prevSet ? `${prevSet.weight}` : "kg"}
                 value={set.weight}
                 onChange={(e) => handleSetChange(setsList, setFn, i, "weight", e.target.value)}
+                onBlur={() => {
+                  // When this set just got fully filled, kick off the rest timer.
+                  const justFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+                  if (justFilled && i < setsList.length - 1 && restTimer === 0) setRestTimer(restGoal);
+                }}
                 style={S.setInput}
               />
               <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
@@ -457,6 +545,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                 placeholder={prevSet ? `${prevSet.reps}` : "reps"}
                 value={set.reps}
                 onChange={(e) => handleSetChange(setsList, setFn, i, "reps", e.target.value)}
+                onBlur={() => {
+                  const justFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+                  if (justFilled && i < setsList.length - 1 && restTimer === 0) setRestTimer(restGoal);
+                }}
                 style={S.setInput}
               />
               {setsList.length > 1 && (
@@ -487,14 +579,25 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
         <div style={ds.loggerActions}>
           <button style={S.timerBtnSec} onClick={resetWorkout}>Cancel</button>
           <button
-            style={{ ...ds.doneBtn, opacity: filledSets.length === 0 ? 0.4 : 1 }}
+            style={{ ...ds.doneBtn, opacity: canSave ? 1 : 0.4 }}
             onClick={() => {
-              if (filledSets.length === 0) return;
+              if (!canSave) {
+                toast.show(
+                  filledSets.length === 0
+                    ? "Log at least 2 sets to count as a workout"
+                    : `${minSets - filledSets.length} more set${minSets - filledSets.length === 1 ? "" : "s"} to commit this lift`,
+                  "info"
+                );
+                return;
+              }
+              setRestTimer(0);
               onSave();
             }}
-            disabled={filledSets.length === 0}
+            disabled={!canSave}
           >
-            Log {filledSets.length} Set{filledSets.length !== 1 ? "s" : ""}
+            {canSave
+              ? `Log ${filledSets.length} Set${filledSets.length !== 1 ? "s" : ""}`
+              : `Need ${minSets - filledSets.length} more`}
           </button>
         </div>
       </div>
