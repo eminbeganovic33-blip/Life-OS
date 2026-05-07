@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA, getQuestTimeOfDay } from "./data";
 import { applyStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
