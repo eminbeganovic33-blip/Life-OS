@@ -889,7 +889,11 @@ function PreSealReflection({ state, save, day, colors, arcColor }) {
   const existing = state.sealReflections?.[day];
   const [answer, setAnswer] = useState("");
   const [dismissed, setDismissed] = useState(false);
-  const prompt = useMemo(() => getVoice("pre_seal", state), [state.currentDay]);
+  const prompt = useMemo(
+    () => getVoice("pre_seal", state),
+    // stake.why is referenced inside some pre_seal lines; recompute when it changes.
+    [state.currentDay, state.stake?.why, state.stake?.cost]
+  );
 
   if (!prompt || !save || dismissed) return null;
 

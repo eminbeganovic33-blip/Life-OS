@@ -88,6 +88,10 @@ export const defaultState = () => ({
   stakeDeferred: false, // user dismissed the prompt; voice is muted until stake is set
   // ── Voice ── (ambient narrator layer)
   voiceEnabled: true,
+  voiceNotifSettings: null, // { enabled, slots: { morning_intent, midday_check, evening_seal, late_recovery } }
+  // ── Pre-seal reflections — keyed by day number ──
+  // Shape: { [day]: { prompt, answer, date } }
+  sealReflections: {},
 });
 
 // ── Dev seed: 14 days of realistic progress for local development only ──

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS } from "../../styles/theme";
 import { TROPHIES } from "../../data";
 import { getTrophyTierColor } from "../../data/trophies";
-import { getTotalVolume, getLevel, getNextLevel, getLevelIndex, isPrestigeReady } from "../../utils";
+import { getTotalVolume, getLevel, getNextLevel, getLevelIndex, isPrestigeReady, dateToLocalDayKey } from "../../utils";
 import { getArc } from "../../utils/arcs";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
@@ -81,7 +81,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
   const [confirmPrestige, setConfirmPrestige] = useState(false);
 
   const handlePrestige = () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dateToLocalDayKey(new Date());
     const newPrestige = prestige + 1;
     save({
       ...state,
@@ -999,7 +999,7 @@ function JourneyCalendar({ state, isDark }) {
   const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
-  const today = now.toISOString().split("T")[0];
+  const today = dateToLocalDayKey(now);
   const canGoForward = monthOffset < 0;
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
 
@@ -1012,7 +1012,7 @@ function JourneyCalendar({ state, isDark }) {
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + d - 1);
-      dateToDayNum[date.toISOString().split("T")[0]] = d;
+      dateToDayNum[dateToLocalDayKey(date)] = d;
     }
   }
 
@@ -1022,7 +1022,7 @@ function JourneyCalendar({ state, isDark }) {
     Object.keys(state.completedDays).forEach((dayNum) => {
       const d = new Date(startDate);
       d.setDate(d.getDate() + Number(dayNum) - 1);
-      completedDates.add(d.toISOString().split("T")[0]);
+      completedDates.add(dateToLocalDayKey(d));
     });
   }
 

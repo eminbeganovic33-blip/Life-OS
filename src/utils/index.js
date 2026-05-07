@@ -3,6 +3,7 @@ export {
   getNextLevel,
   getLevelIndex,
   getTodayStr,
+  dateToLocalDayKey,
   getDayQuests,
   daysBetween,
   getTotalVolume,

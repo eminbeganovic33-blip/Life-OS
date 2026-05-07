@@ -51,7 +51,8 @@ function getContext(state = {}) {
   const isEvening = hour >= 17 && hour < 22;
   const isLate = hour >= 22 || hour < 5;
 
-  // Milestone proximity
+  // Milestone proximity. Convention: day 21 IS the boss day (the 21st day of
+  // the journey), day 20 is the eve. Boss days fall on 21, 42, 63, etc.
   const isBossDayEve = (day + 1) % 21 === 0;
   const isBossDay = day % 21 === 0 && day > 0;
   const isArcTransitionEve = [30, 90, 180, 365].includes(day + 1);
@@ -321,10 +322,27 @@ function preSeal(ctx) {
 // NOTIFICATION SLOTS — rendered at send time, not schedule time
 // ─────────────────────────────────────────────────────────────────
 
-function morningIntent(ctx) {
+function morningIntent(ctx, state) {
   const { arc, streak, day, missedYesterday } = ctx;
+  const stake = state?.stake;
   if (missedYesterday) {
+    // Reference the user's own words on recovery — same pattern as homeBanner.
+    if (stake?.cost) {
+      return {
+        title: "Life OS",
+        body: `You wrote: "${clipStake(stake.cost, 90)}" — it's still true.`,
+        tone: "recovery",
+      };
+    }
     return { title: "Life OS", body: "Yesterday slipped. Today doesn't have to.", tone: "recovery" };
+  }
+  // Day 7+ on a streak: occasionally remind them why
+  if (stake?.why && streak >= 7 && day % 7 === 0) {
+    return {
+      title: "Morning",
+      body: `"${clipStake(stake.why, 100)}" — keep going.`,
+      tone: "morning",
+    };
   }
   const body = pick(byArc(arc.id, {
     foundation: [
@@ -391,7 +409,7 @@ export function getVoice(slot, state, meta = {}) {
     case "home_banner": return homeBanner(ctx);
     case "post_quest": return postQuest(ctx, meta);
     case "pre_seal": return preSeal(ctx);
-    case "morning_intent": return morningIntent(ctx);
+    case "morning_intent": return morningIntent(ctx, state);
     case "midday_check": return middayCheck(ctx);
     case "evening_seal": return eveningSeal(ctx);
     case "late_recovery": return lateRecovery(ctx);
@@ -464,7 +482,9 @@ export function scheduleVoiceNotifications(getState, sendNotification) {
 
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const dateKey = now.toISOString().split("T")[0];
+    // Local-day key — must match getTodayStr() / dateToLocalDayKey() so dedupe
+    // works at local midnight, not UTC midnight.
+    const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
     for (const [slot, time] of Object.entries(settings.slots || DEFAULT_SLOT_TIMES)) {
       if (time !== hhmm) continue;

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
+import { useToast } from "../Toast";
 import { getTodayStr } from "../../utils";
 import { chatWithCoach, isAIConfigured } from "../../utils/ai";
 import { Bot, Pencil, Trash2, Flame, TrendingUp, History } from "lucide-react";
@@ -32,6 +33,7 @@ function parseAIPlan(raw) {
 
 export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDeleteEntry }) {
   const { theme, colors } = useTheme();
+  const toast = useToast();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
 
@@ -78,10 +80,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   // AI mode active exercise tracking
   const [aiExerciseIndex, setAiExerciseIndex] = useState(0);
   const [aiSets, setAiSets] = useState([{ weight: "", reps: "" }]);
+  const [aiCompletedIdx, setAiCompletedIdx] = useState(() => new Set());
 
   // Template mode tracking
   const [templateExIndex, setTemplateExIndex] = useState(0);
   const [templateSets, setTemplateSets] = useState([{ weight: "", reps: "" }]);
+  const [templateCompletedIdx, setTemplateCompletedIdx] = useState(() => new Set());
 
   // Edit logged exercise state
   const [editingIndex, setEditingIndex] = useState(null);
@@ -268,11 +272,16 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   // ── Save Functions ──
 
   function saveCustomExercise() {
+    if (!activeExercise) return;
     const validSets = sets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
-    if (validSets.length === 0 || !activeExercise) return;
+    if (validSets.length === 0) {
+      toast.show("Add at least one set with weight and reps", "error");
+      return;
+    }
     onSaveWorkout(activeExercise, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
     setActiveExercise(null);
     setSets([{ weight: "", reps: "" }]);
+    toast.show("Exercise saved", "success");
     // Stay in custom mode so user can add more exercises
   }
 
@@ -281,8 +290,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const current = aiPlan[aiExerciseIndex];
     if (!current) return;
     const validSets = aiSets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
-    if (validSets.length === 0) return;
+    if (validSets.length === 0) {
+      toast.show("Add at least one set with weight and reps", "error");
+      return;
+    }
     onSaveWorkout(current.exerciseId, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
+    setAiCompletedIdx((prev) => { const next = new Set(prev); next.add(aiExerciseIndex); return next; });
     if (aiExerciseIndex < aiPlan.length - 1) {
       setAiExerciseIndex(aiExerciseIndex + 1);
       setAiSets([{ weight: "", reps: "" }]);
@@ -298,6 +311,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const validSets = templateSets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
     if (validSets.length === 0) return;
     onSaveWorkout(current.exerciseId, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
+    setTemplateCompletedIdx((prev) => { const next = new Set(prev); next.add(templateExIndex); return next; });
     if (templateExIndex < activeTemplate.exercises.length - 1) {
       setTemplateExIndex(templateExIndex + 1);
       setTemplateSets([{ weight: "", reps: "" }]);
@@ -315,8 +329,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     setSearchQuery("");
     setAiExerciseIndex(0);
     setAiSets([{ weight: "", reps: "" }]);
+    setAiCompletedIdx(new Set());
     setTemplateExIndex(0);
     setTemplateSets([{ weight: "", reps: "" }]);
+    setTemplateCompletedIdx(new Set());
   }
 
   // ── Edit/Delete logged exercises ──
@@ -556,13 +572,13 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {/* AI Workout Plan */}
         {mode === "ai" && aiPlan && renderPlanView(
-          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan", setAiExerciseIndex
+          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan", setAiExerciseIndex, aiCompletedIdx
         )}
 
         {/* Template Workout Plan */}
         {mode === "template" && activeTemplate && renderPlanView(
           activeTemplate.exercises, templateExIndex, templateSets, setTemplateSets,
-          saveTemplateExercise, activeTemplate.name, setTemplateExIndex
+          saveTemplateExercise, activeTemplate.name, setTemplateExIndex, templateCompletedIdx
         )}
 
         {/* Custom Exercise Picker */}
@@ -771,7 +787,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // ── Shared Plan View (AI or Template) ──
 
-  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title, setCurrentIndex) {
+  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title, setCurrentIndex, completedSet) {
     return (
       <div style={ds.planSection}>
         <div style={ds.planHeader}>
@@ -786,7 +802,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         <div style={ds.planOverview}>
           {exercises.map((ex, i) => {
-            const done = i < currentIndex;
+            const done = completedSet ? completedSet.has(i) : false;
             const active = i === currentIndex;
             const exercise = getExerciseById(ex.exerciseId);
             return (

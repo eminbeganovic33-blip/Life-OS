@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA, getQuestTimeOfDay } from "./data";
-import { getPersonalizedQuote } from "./utils/intelligence";
-import { applyStreakMultiplier, getStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
+import { applyStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
 import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
-  getCalendarDay, getCategoryStreak, defaultState,
+  getCalendarDay, defaultState,
 } from "./utils";
-import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider, usePomodoroContext } from "./hooks";
+import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -45,8 +44,9 @@ const SettingsView = lazy(() => import("./components/views/SettingsView"));
 import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
-import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
+import { computeWeeklySummary, sendNotification, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
 import { scheduleVoiceNotifications } from "./utils/voice";
+import { getArc } from "./utils/arcs";
 import { initFcm } from "./utils/fcm";
 import { playSound } from "./utils/audio";
 import InstallPrompt from "./components/InstallPrompt";
@@ -132,7 +132,17 @@ function LifeOS() {
     const now = new Date().toISOString();
     const prev = state.stake;
     const revisions = prev
-      ? [...(prev.revisions || []), { why: prev.why, cost: prev.cost, proof: prev.proof, at: prev.updatedAt || prev.setAt }]
+      ? [
+          ...(prev.revisions || []),
+          {
+            why: prev.why,
+            cost: prev.cost,
+            proof: prev.proof,
+            // Fall back through updatedAt → setAt → now so revision entries
+            // never carry undefined timestamps.
+            at: prev.updatedAt ?? prev.setAt ?? now,
+          },
+        ]
       : [];
     save({
       ...state,
@@ -1077,25 +1087,32 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     <div style={themed("app")} data-app-shell role="application" aria-label="Life OS">
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
-      {renderModal()}
-      <ComebackModal
-        show={!!comebackInfo}
-        daysAway={comebackInfo?.daysAway || 0}
-        streak={comebackInfo?.streak || 0}
-        onClose={onDismissComeback}
-      />
-      <StakeSetupModal
-        show={showStake}
-        existing={stakeEditMode ? state?.stake : null}
-        onSave={onStakeSave}
-        onDefer={onStakeDefer}
-        onClose={onStakeClose}
-      />
-      {milestoneDay && (
-        <MilestoneUnlockModal
-          day={milestoneDay}
-          onDismiss={onDismissMilestone}
+      <ErrorBoundary name="Modals">{renderModal()}</ErrorBoundary>
+      <ErrorBoundary name="Comeback">
+        <ComebackModal
+          show={!!comebackInfo}
+          daysAway={comebackInfo?.daysAway || 0}
+          streak={comebackInfo?.streak || 0}
+          onClose={onDismissComeback}
         />
+      </ErrorBoundary>
+      <ErrorBoundary name="Stake">
+        <StakeSetupModal
+          show={showStake}
+          existing={stakeEditMode ? state?.stake : null}
+          onSave={onStakeSave}
+          onDefer={onStakeDefer}
+          onClose={onStakeClose}
+          arcColor={getArc(state?.currentDay || 1)?.color}
+        />
+      </ErrorBoundary>
+      {milestoneDay && (
+        <ErrorBoundary name="Milestone">
+          <MilestoneUnlockModal
+            day={milestoneDay}
+            onDismiss={onDismissMilestone}
+          />
+        </ErrorBoundary>
       )}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       {showTrialBanner && (

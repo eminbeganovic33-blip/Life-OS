@@ -37,8 +37,9 @@ const STEPS = [
   },
 ];
 
-export default function StakeSetupModal({ show, existing, onSave, onDefer, onClose }) {
+export default function StakeSetupModal({ show, existing, onSave, onDefer, onClose, arcColor }) {
   const { colors } = useTheme();
+  const accent = arcColor || "#7C5CFC";
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
     why: existing?.why || "",
@@ -129,7 +130,7 @@ export default function StakeSetupModal({ show, existing, onSave, onDefer, onClo
                 key={i}
                 style={{
                   ...styles.progressSeg,
-                  background: i <= step ? "#7C5CFC" : "rgba(255,255,255,0.08)",
+                  background: i <= step ? accent : "rgba(255,255,255,0.08)",
                 }}
               />
             ))}
@@ -143,7 +144,7 @@ export default function StakeSetupModal({ show, existing, onSave, onDefer, onClo
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <div style={{ ...styles.eyebrow, color: "#7C5CFC" }}>
+              <div style={{ ...styles.eyebrow, color: accent }}>
                 {current.eyebrow} · The Stake
               </div>
               <h2 style={{ ...styles.title, color: colors.text }}>{current.title}</h2>

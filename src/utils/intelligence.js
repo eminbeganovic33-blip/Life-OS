@@ -66,7 +66,9 @@ function dateHash(dateStr) {
 }
 
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  // Local timezone — see helpers.dateToLocalDayKey
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function scoreText(text) {

@@ -22,6 +22,9 @@ const TABS = [
 
 // ── Sign-in gate ───────────────────────────────────────────────────────────────
 function SignInGate({ onNavigate }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const ts = (s) => themeFlipMonochrome(s, isDark);
   const previews = [
     { Icon: Trophy, color: "#FFD700", title: "Global Leaderboard", desc: "See how you rank against warriors worldwide" },
     { Icon: Users, color: "#7C5CFC", title: "Add Friends", desc: "Keep each other accountable on the journey" },
@@ -29,40 +32,60 @@ function SignInGate({ onNavigate }) {
   ];
 
   return (
-    <div style={gateWrap}>
-      <div style={gateHero}>
+    <div style={ts(gateWrap)}>
+      <div style={ts(gateHero)}>
         <Globe size={40} color="#7C5CFC" />
-        <h2 style={gateTitle}>Join the Community</h2>
-        <p style={gateSub}>Sign in to compete, connect, and stay accountable with other Life OS warriors.</p>
+        <h2 style={ts(gateTitle)}>Join the Community</h2>
+        <p style={ts(gateSub)}>Sign in to compete, connect, and stay accountable with other Life OS warriors.</p>
       </div>
 
-      <div style={gateFeatures}>
+      <div style={ts(gateFeatures)}>
         {previews.map((p, i) => (
           <motion.div
             key={i}
-            style={gateFeatureCard}
+            style={ts(gateFeatureCard)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
           >
             <span style={{ display: "flex", alignItems: "center" }}><p.Icon size={24} color={p.color} /></span>
             <div>
-              <div style={gateFeatureTitle}>{p.title}</div>
-              <div style={gateFeatureDesc}>{p.desc}</div>
+              <div style={ts(gateFeatureTitle)}>{p.title}</div>
+              <div style={ts(gateFeatureDesc)}>{p.desc}</div>
             </div>
           </motion.div>
         ))}
       </div>
 
       <button
-        style={gateSignInBtn}
+        style={ts(gateSignInBtn)}
         onClick={() => onNavigate?.("auth")}
       >
         Sign In to Continue
       </button>
-      <p style={gateNote}>Free · No spam · Sync your progress across devices</p>
+      <p style={ts(gateNote)}>Free · No spam · Sync your progress across devices</p>
     </div>
   );
+}
+
+// Recursively swap `rgba(255,255,255,X)` and `#fff`/`#FFF`/`#FFFFFF` in a style
+// object so module-level styles can render correctly in light mode without
+// rewriting every constant. Cheap — runs once per render.
+function themeFlipMonochrome(styleObj, isDark) {
+  if (isDark) return styleObj;
+  if (!styleObj || typeof styleObj !== "object") return styleObj;
+  const flipped = {};
+  for (const [k, v] of Object.entries(styleObj)) {
+    if (typeof v === "string") {
+      flipped[k] = v
+        .replace(/rgba\(255,\s*255,\s*255,\s*([\d.]+)\)/g, "rgba(0,0,0,$1)")
+        .replace(/#fff(\b|;|\s|,|\))/gi, "#000$1")
+        .replace(/#ffffff(\b|;|\s|,|\))/gi, "#000000$1");
+    } else {
+      flipped[k] = v;
+    }
+  }
+  return flipped;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -70,6 +93,10 @@ export default function SocialView({ user, state, onNavigate }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const [activeTab, setActiveTab] = useState("Leaderboard");
+  // Helper: apply theme flip to any module-level style. Use as `ts(gateWrap)`.
+  const ts = (s) => themeFlipMonochrome(s, isDark);
+  // Helper: monochrome overlay for inline usage.
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
 
   if (!user) {
     return <SignInGate onNavigate={onNavigate} />;
@@ -78,16 +105,16 @@ export default function SocialView({ user, state, onNavigate }) {
   return (
     <div style={{ paddingTop: T.space.md, paddingBottom: 80 }}>
       {/* Header */}
-      <div style={header}>
+      <div style={ts(header)}>
         <div>
-          <h2 style={headerTitle}>Community</h2>
-          <p style={headerSub}>Compete, connect, and stay accountable</p>
+          <h2 style={ts(headerTitle)}>Community</h2>
+          <p style={ts(headerSub)}>Compete, connect, and stay accountable</p>
         </div>
         <Avatar name={user.displayName} photoURL={user.photoURL} avatar={state?.avatar} size={38} />
       </div>
 
       {/* Tab bar */}
-      <div style={tabBar}>
+      <div style={ts(tabBar)}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -109,6 +136,8 @@ export default function SocialView({ user, state, onNavigate }) {
 
 // ── Leaderboard ────────────────────────────────────────────────────────────────
 function LeaderboardTab({ user, state }) {
+  const { theme } = useTheme();
+  const ts = (s) => themeFlipMonochrome(s, theme === "dark");
   const [board, setBoard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -125,17 +154,17 @@ function LeaderboardTab({ user, state }) {
   const myRank = board.findIndex(e => e.uid === user.uid) + 1;
 
   return (
-    <div style={tabContent}>
+    <div style={ts(tabContent)}>
       {/* My rank banner */}
       {myRank > 0 && (
-        <div style={myRankBanner}>
+        <div style={ts(myRankBanner)}>
           <span style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Your rank</span>
           <span style={{ fontSize: T.font.xl, fontWeight: T.weight.black, color: "#7C5CFC" }}>#{myRank}</span>
           <span style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>out of {board.length}</span>
         </div>
       )}
 
-      <div style={sectionLabel}>Top Warriors</div>
+      <div style={ts(sectionLabel)}>Top Warriors</div>
 
       {loading && <LeaderboardSkeleton />}
       {error && <ErrorState text={error} onRetry={fetchBoard} />}
@@ -170,8 +199,8 @@ function LeaderboardTab({ user, state }) {
                   <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Day {entry.currentDay || 1}</div>
                 </div>
                 <div style={{ display: "flex", gap: T.space.sm, flexShrink: 0 }}>
-                  <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {entry.xp || 0}</span>
-                  <span style={streakChip}><Flame size={11} style={{ verticalAlign: -1 }} /> {entry.streak || 0}</span>
+                  <span style={ts(xpChip)}><Zap size={11} style={{ verticalAlign: -1 }} /> {entry.xp || 0}</span>
+                  <span style={ts(streakChip)}><Flame size={11} style={{ verticalAlign: -1 }} /> {entry.streak || 0}</span>
                 </div>
               </motion.div>
             );
@@ -184,6 +213,8 @@ function LeaderboardTab({ user, state }) {
 
 // ── Friends ────────────────────────────────────────────────────────────────────
 function FriendsTab({ user }) {
+  const { theme } = useTheme();
+  const ts = (s) => themeFlipMonochrome(s, theme === "dark");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -235,18 +266,18 @@ function FriendsTab({ user }) {
   };
 
   return (
-    <div style={tabContent}>
+    <div style={ts(tabContent)}>
       {/* Search */}
-      <div style={sectionLabel}>Find Friends</div>
-      <div style={searchRow}>
+      <div style={ts(sectionLabel)}>Find Friends</div>
+      <div style={ts(searchRow)}>
         <input
-          style={searchInput}
+          style={ts(searchInput)}
           placeholder="Search by display name..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleSearch()}
         />
-        <button style={searchBtn} onClick={handleSearch} disabled={searchLoading}>
+        <button style={ts(searchBtn)} onClick={handleSearch} disabled={searchLoading}>
           {searchLoading ? "..." : "Search"}
         </button>
       </div>
@@ -254,13 +285,13 @@ function FriendsTab({ user }) {
       {searchResults.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
           {searchResults.map(u => (
-            <div key={u.uid} style={friendRow}>
+            <div key={u.uid} style={ts(friendRow)}>
               <Avatar name={u.displayName} photoURL={u.photoURL} avatar={u.avatar} size={34} />
               <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{u.displayName || "User"}</span>
               {sentIds.has(u.uid) ? (
                 <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold, display: "flex", alignItems: "center", gap: 4 }}>Sent <Check size={12} /></span>
               ) : (
-                <button style={accentBtn} onClick={() => handleAdd(u)} disabled={actionLoading === u.uid}>
+                <button style={ts(accentBtn)} onClick={() => handleAdd(u)} disabled={actionLoading === u.uid}>
                   {actionLoading === u.uid ? "..." : "Add"}
                 </button>
               )}
@@ -275,11 +306,11 @@ function FriendsTab({ user }) {
           <div style={{ ...sectionLabel, color: "#F59E0B" }}>Pending Requests · {pending.length}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm, marginBottom: T.space.lg }}>
             {pending.map(req => (
-              <div key={req.id} style={friendRow}>
+              <div key={req.id} style={ts(friendRow)}>
                 <Avatar name={req.fromName} size={34} />
                 <span style={{ flex: 1, fontSize: T.font.md, fontWeight: T.weight.medium }}>{req.fromName || "Someone"}</span>
-                <button style={accentBtn} onClick={() => handleAccept(req)} disabled={actionLoading === req.id}>Accept</button>
-                <button style={declineBtn} onClick={() => handleDecline(req)} disabled={actionLoading === req.id}><X size={14} /></button>
+                <button style={ts(accentBtn)} onClick={() => handleAccept(req)} disabled={actionLoading === req.id}>Accept</button>
+                <button style={ts(declineBtn)} onClick={() => handleDecline(req)} disabled={actionLoading === req.id}><X size={14} /></button>
               </div>
             ))}
           </div>
@@ -287,21 +318,21 @@ function FriendsTab({ user }) {
       )}
 
       {/* Friends list */}
-      <div style={sectionLabel}>Friends · {friends.length}</div>
+      <div style={ts(sectionLabel)}>Friends · {friends.length}</div>
       {loading ? <Spinner /> : friends.length === 0 ? (
         <EmptyState icon={<Hand size={32} color="#F59E0B" />} title="No friends yet" desc="Search for friends above to start holding each other accountable." />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: T.space.sm }}>
           {friends.map(f => (
-            <div key={f.uid} style={friendRow}>
+            <div key={f.uid} style={ts(friendRow)}>
               <Avatar name={f.displayName} photoURL={f.photoURL} avatar={f.avatar} size={34} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: T.font.md, fontWeight: T.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.displayName || "Friend"}</div>
                 <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)" }}>Day {f.currentDay || 1}</div>
               </div>
               <div style={{ display: "flex", gap: T.space.sm }}>
-                <span style={xpChip}><Zap size={11} style={{ verticalAlign: -1 }} /> {f.xp || 0}</span>
-                <span style={streakChip}><Flame size={11} style={{ verticalAlign: -1 }} /> {f.streak || 0}</span>
+                <span style={ts(xpChip)}><Zap size={11} style={{ verticalAlign: -1 }} /> {f.xp || 0}</span>
+                <span style={ts(streakChip)}><Flame size={11} style={{ verticalAlign: -1 }} /> {f.streak || 0}</span>
               </div>
             </div>
           ))}
@@ -313,6 +344,8 @@ function FriendsTab({ user }) {
 
 // ── Challenges ─────────────────────────────────────────────────────────────────
 function ChallengesTab({ user }) {
+  const { theme } = useTheme();
+  const ts = (s) => themeFlipMonochrome(s, theme === "dark");
   const [active, setActive] = useState([]);
   const [publicList, setPublicList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -359,11 +392,11 @@ function ChallengesTab({ user }) {
   const daysLeft = (end) => Math.max(0, Math.ceil((new Date(end) - new Date()) / 86400000));
 
   return (
-    <div style={tabContent}>
+    <div style={ts(tabContent)}>
       {loading ? <Spinner /> : (
         <>
           {/* Active */}
-          <div style={sectionLabel}>Your Challenges · {active.length}</div>
+          <div style={ts(sectionLabel)}>Your Challenges · {active.length}</div>
           {active.length === 0 ? (
             <EmptyState icon={<Swords size={32} color="#F97316" />} title="No active challenges" desc="Join a public challenge or create your own below." />
           ) : (
@@ -373,15 +406,15 @@ function ChallengesTab({ user }) {
                 const pct = ch.target ? Math.min(100, (myProg / ch.target) * 100) : 0;
                 const tc = typeColors[ch.type] || typeColors.quest;
                 return (
-                  <div key={ch.id} style={challengeCard}>
+                  <div key={ch.id} style={ts(challengeCard)}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: T.space.sm }}>
                       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{ch.title}</div>
                       <span style={{ ...typeBadge, background: tc.bg, color: tc.color }}>{ch.type}</span>
                     </div>
-                    <div style={progressTrack}>
+                    <div style={ts(progressTrack)}>
                       <div style={{ ...progressFill, width: `${pct}%`, background: tc.color }} />
                     </div>
-                    <div style={challengeMeta}>
+                    <div style={ts(challengeMeta)}>
                       <span>{myProg} / {ch.target}</span>
                       <span>{daysLeft(ch.endDate)}d left</span>
                       <span>{(ch.participants || []).length} joined</span>
@@ -393,17 +426,17 @@ function ChallengesTab({ user }) {
           )}
 
           {/* Create */}
-          <button style={createToggleBtn} onClick={() => setShowCreate(v => !v)}>
+          <button style={ts(createToggleBtn)} onClick={() => setShowCreate(v => !v)}>
             {showCreate ? "Cancel" : <><Plus size={14} style={{ verticalAlign: -2 }} /> Create a Challenge</>}
           </button>
           {showCreate && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              style={createForm}
+              style={ts(createForm)}
             >
-              <input style={formInput} placeholder="Challenge title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-              <select style={formInput} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+              <input style={ts(formInput)} placeholder="Challenge title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+              <select style={ts(formInput)} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
                 <option value="streak">Streak</option>
                 <option value="xp">XP</option>
                 <option value="quest">Quests</option>
@@ -412,7 +445,7 @@ function ChallengesTab({ user }) {
                 <input style={{ ...formInput, flex: 1 }} placeholder="Target" type="number" value={form.target} onChange={e => setForm({ ...form, target: e.target.value })} />
                 <input style={{ ...formInput, flex: 1 }} placeholder="Days" type="number" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} />
               </div>
-              <button style={submitBtn} onClick={handleCreate} disabled={createLoading}>
+              <button style={ts(submitBtn)} onClick={handleCreate} disabled={createLoading}>
                 {createLoading ? "Creating..." : "Create Challenge"}
               </button>
             </motion.div>
@@ -428,7 +461,7 @@ function ChallengesTab({ user }) {
                 const joined = (ch.participants || []).includes(user.uid);
                 const tc = typeColors[ch.type] || typeColors.quest;
                 return (
-                  <div key={ch.id} style={friendRow}>
+                  <div key={ch.id} style={ts(friendRow)}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold }}>{ch.title}</div>
                       <div style={{ fontSize: T.font.xs, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
@@ -438,7 +471,7 @@ function ChallengesTab({ user }) {
                     {joined ? (
                       <span style={{ fontSize: T.font.xs, color: "#22C55E", fontWeight: T.weight.bold, display: "flex", alignItems: "center", gap: 4 }}>Joined <Check size={12} /></span>
                     ) : (
-                      <button style={accentBtn} onClick={() => handleJoin(ch.id)} disabled={joinLoading === ch.id}>
+                      <button style={ts(accentBtn)} onClick={() => handleJoin(ch.id)} disabled={joinLoading === ch.id}>
                         {joinLoading === ch.id ? "..." : "Join"}
                       </button>
                     )}
@@ -519,7 +552,7 @@ function ErrorState({ text, onRetry }) {
 
 function EmptyState({ icon, title, desc }) {
   return (
-    <div style={emptyWrap}>
+    <div style={ts(emptyWrap)}>
       <span style={{ display: "flex", justifyContent: "center" }}>{icon}</span>
       <div style={{ fontSize: T.font.md, fontWeight: T.weight.bold, marginTop: T.space.sm }}>{title}</div>
       <div style={{ fontSize: T.font.sm, color: "rgba(255,255,255,0.45)", marginTop: T.space.xs, lineHeight: 1.4 }}>{desc}</div>

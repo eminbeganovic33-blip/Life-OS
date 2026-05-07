@@ -1,15 +1,24 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { CATEGORIES } from "../../data";
 import { getDayQuests, getLevel, getLevelIndex } from "../../utils";
 import { CategoryIcon } from "../Icon";
-import { Trophy, Flame, Star, Zap, ChevronRight } from "lucide-react";
+import { Trophy, Flame, Star, Zap, ChevronRight, X } from "lucide-react";
 
 /**
  * Day completion celebration screen.
  * Shows a recap of the completed day with stats, streaks, and category breakdown.
  */
 export default function DayCompleteModal({ state, completedDay, onDismiss, onNavigate }) {
+  // Escape key dismisses (must run on every render so the latest onDismiss closure is captured)
+  useEffect(() => {
+    if (!state || !completedDay) return;
+    const onKey = (e) => { if (e.key === "Escape") onDismiss?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, completedDay, onDismiss]);
+
   if (!state || !completedDay) return null;
 
   const quests = getDayQuests(completedDay, state.customQuests, state);
@@ -47,6 +56,21 @@ export default function DayCompleteModal({ state, completedDay, onDismiss, onNav
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 280, damping: 22, delay: 0.1 }}
       >
+        {/* Close button (top-right) */}
+        <button
+          onClick={onDismiss}
+          aria-label="Close"
+          style={{
+            position: "absolute", top: 12, right: 12, zIndex: 10,
+            width: 32, height: 32, borderRadius: 16,
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <X size={16} />
+        </button>
+
         {/* Glow background */}
         <div style={glowBg} />
 

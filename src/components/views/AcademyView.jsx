@@ -567,8 +567,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
             key={course.id}
             style={{
               ...S.courseCard,
-              opacity: locked ? 0.4 : 1,
-              cursor: locked && premiumLocked ? "pointer" : "default",
+              opacity: locked ? 0.55 : 1,
+              cursor: locked && !premiumLocked ? "not-allowed" : (locked && premiumLocked ? "pointer" : "default"),
               border: isCompleted
                 ? "1px solid rgba(16,185,129,0.15)"
                 : isFocused

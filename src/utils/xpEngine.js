@@ -1,6 +1,8 @@
 // Feature Set 4: Intelligent XP Weighting
 // Parses quest text and assigns XP dynamically based on difficulty tier
 
+import { dateToLocalDayKey } from "./helpers";
+
 const TIER_3_KEYWORDS = [
   "workout", "gym", "cold shower", "run", "push-ups", "push ups",
   "steps", "10,000", "10000", "lifting", "squat", "deadlift",
@@ -28,6 +30,9 @@ const TIER_1_KEYWORDS = [
  */
 export function calculateQuestXP(text, day = 1) {
   const lower = text.toLowerCase();
+  // Cumulative tier bonus (NOT a one-shot milestone). Every 10 days deeper into
+  // the journey adds +2 to the daily floor: days 1-9 → +0, 10-19 → +2, 20-29 → +4, etc.
+  // Reads as "the deeper into the journey, the bigger the daily bonus."
   const dayBonus = Math.floor(day / 10) * 2;
 
   // Check highest tier first
@@ -254,7 +259,7 @@ function getWeeklyChallengeProgress(state, challenge) {
       for (let d = weekStart; d <= weekEnd; d++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + d - 1);
-        const key = date.toISOString().split("T")[0];
+        const key = dateToLocalDayKey(date);
         if (state.workoutLogs?.[key]?.length > 0) current++;
       }
       break;
@@ -299,7 +304,7 @@ function getWeeklyChallengeProgress(state, challenge) {
       for (let d = weekStart; d <= weekEnd; d++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + d - 1);
-        const key = date.toISOString().split("T")[0];
+        const key = dateToLocalDayKey(date);
         (state.workoutLogs?.[key] || []).forEach((entry) => {
           entry.sets.forEach((s) => { current += s.weight * s.reps; });
         });

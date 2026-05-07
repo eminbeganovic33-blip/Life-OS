@@ -3,7 +3,7 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { SOBRIETY_DEFAULTS } from "../../data";
 import { getProgramDay } from "../../data/forgePrograms";
-import { daysBetween } from "../../utils";
+import { daysBetween, getTodayStr } from "../../utils";
 import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
@@ -84,8 +84,11 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
       miniJournalEntry: { ...styles.miniJournalEntry, background: colors.cardBg },
       filterBtn: { ...styles.filterBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.textSecondary },
       journalEntry: { ...styles.journalEntry, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      journalInput: { ...styles.journalInput, background: colors.inputBg, color: colors.text, border: `1px solid ${colors.inputBorder}` },
     };
   }, [isDark, colors]);
+  // Light/dark-aware monochrome overlay (use in inline JSX where styles object can't reach).
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasUnlimitedForge = checkFeatureAccess(FEATURE_IDS.UNLIMITED_FORGE);
 
@@ -625,13 +628,13 @@ function TrackerCard({
                   <div
                     style={{
                       ...styles.milestoneDot,
-                      background: reached ? tracker.color : "rgba(255,255,255,0.1)",
-                      borderColor: reached ? tracker.color : "rgba(255,255,255,0.15)",
+                      background: reached ? tracker.color : sub(0.1),
+                      borderColor: reached ? tracker.color : sub(0.15),
                     }}
                   />
                   <span style={{
                     ...styles.milestoneLabel,
-                    color: reached ? tracker.color : "rgba(255,255,255,0.2)",
+                    color: reached ? tracker.color : sub(0.2),
                   }}>
                     {m}
                   </span>
@@ -704,7 +707,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
     const entry = {
       text: newEntry.trim(),
       tracker: entryTracker === "all" ? (activeTrackers[0] || "general") : entryTracker,
-      date: new Date().toISOString().split("T")[0],
+      date: getTodayStr(),
     };
     save({ ...state, recoveryJournals: [...(state.recoveryJournals || []), entry] });
     setNewEntry("");

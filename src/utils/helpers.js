@@ -34,8 +34,23 @@ export function isPrestigeReady(xp) {
 
 export const MAX_LEVEL_INDEX = LEVELS.length - 1;
 
+/**
+ * Convert a Date to a YYYY-MM-DD string in the USER'S LOCAL timezone.
+ *
+ * IMPORTANT: Do NOT use `toISOString()` for day-keyed persistence — that
+ * produces UTC, which causes streaks to break unfairly for users in
+ * non-UTC zones (a quest completed at 11pm PST becomes "tomorrow" in
+ * UTC). All day-keyed storage in this app must use local-day boundaries.
+ */
+export function dateToLocalDayKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
+  return dateToLocalDayKey(new Date());
 }
 
 /**
