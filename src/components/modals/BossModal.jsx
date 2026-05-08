@@ -1,6 +1,8 @@
 import { S } from "../../styles/theme";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export default function BossModal({ bossDay, onProgress }) {
+  useEscapeKey(onProgress);
   const isFinal = bossDay === 66;
   return (
     <div style={S.overlay}>

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { Pencil, BarChart3, Star, Trophy, Zap, BookOpen } from "lucide-react";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 const MILESTONES = {
   2: {
@@ -49,6 +50,7 @@ const MILESTONES = {
 };
 
 export default function MilestoneUnlockModal({ day, onDismiss }) {
+  useEscapeKey(onDismiss);
   const m = MILESTONES[day];
   if (!m) return null;
 

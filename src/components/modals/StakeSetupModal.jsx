@@ -48,8 +48,11 @@ export default function StakeSetupModal({ show, existing, onSave, onDefer, onClo
   });
   const taRef = useRef(null);
 
+  // Only reset on the false → true transition. If parent re-creates `existing`
+  // (common on every render), we don't want to wipe in-progress edits.
+  const prevShow = useRef(false);
   useEffect(() => {
-    if (show) {
+    if (show && !prevShow.current) {
       setStep(0);
       setValues({
         why: existing?.why || "",
@@ -57,7 +60,8 @@ export default function StakeSetupModal({ show, existing, onSave, onDefer, onClo
         proof: existing?.proof || "",
       });
     }
-  }, [show, existing]);
+    prevShow.current = show;
+  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (show && taRef.current) {

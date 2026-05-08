@@ -76,7 +76,7 @@ export default function HomeView({
   state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
   unlockedCustomCategories, onNavigate, onMarkRestDay, onLogMood,
-  onOpenActiveQuestPicker, onRetireActiveQuest,
+  onOpenActiveQuestPicker, onRetireActiveQuest, onOpenHelp,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -110,7 +110,13 @@ export default function HomeView({
       }),
     [state.sobrietyDates]
   );
-  const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
+  // Narrow deps: nudges only depend on these state slices, not the entire
+  // state object. Recomputing on every save (e.g. quest tap) was wasteful.
+  const topNudge = useMemo(
+    () => getProactiveNudges(state)[0] || null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.completedQuests, state.currentDay, state.streak, state.moods, state.journal, state.recoveryJournals]
+  );
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   const [activeGuide, setActiveGuide] = useState(null);
@@ -181,9 +187,20 @@ export default function HomeView({
   const postQuestTimerRef = useRef(null);
 
   // ── Handlers ──
+  // Detect non-touch (desktop). On touch devices, completed quests get a
+  // swipe hint; on desktop, swipe is impossible so a tap directly unchecks.
+  const isTouchDevice = typeof window !== "undefined" && (
+    "ontouchstart" in window || (navigator?.maxTouchPoints || 0) > 0
+  );
+
   function handleQuestClick(q) {
     if (completed.includes(q.id)) {
-      showSwipeHint(q.id);
+      if (isTouchDevice) {
+        showSwipeHint(q.id);
+      } else {
+        // Desktop: tap toggles off directly.
+        onUncheckQuest(q.id, q.xp);
+      }
     } else {
       onCheckQuest(q.id, q.xp);
       // Fire post-quest voice using projected next state (1 more completion)
@@ -504,6 +521,9 @@ export default function HomeView({
           <VoiceBanner key="voice-banner" state={state} colors={colors} arcColor={arc.color} />
         )}
       </AnimatePresence>
+
+      {/* ── Stake proof check-in (Boss Days) ── */}
+      <ProofCheckIn state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
 
       {/* ── Section Header ── */}
       <div style={ts.sectionHeader}>
@@ -843,6 +863,66 @@ export default function HomeView({
 }
 
 // ── Voice Banner — ambient, adaptive narrator line above the quest list ──
+// ── Stake proof check-in — surfaces on Boss Days (every 21st), once per day ──
+function ProofCheckIn({ state, save, day, colors, arcColor }) {
+  const stake = state.stake;
+  const isBossDay = day > 0 && day % 21 === 0;
+  const checkIns = stake?.proofCheckIns || [];
+  const alreadyAnswered = checkIns.some((c) => c.day === day);
+
+  if (!stake?.proof || !isBossDay || alreadyAnswered || !save) return null;
+
+  const respond = (response) => {
+    save({
+      ...state,
+      stake: {
+        ...stake,
+        proofCheckIns: [...(stake.proofCheckIns || []), { day, response, at: new Date().toISOString() }],
+      },
+    });
+  };
+
+  return (
+    <div style={{
+      margin: "0 14px 12px", padding: "14px 16px",
+      borderRadius: 12,
+      background: `linear-gradient(135deg, ${arcColor}15, ${arcColor}05)`,
+      border: `1px solid ${arcColor}30`,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: arcColor, letterSpacing: 0.8, marginBottom: 6, textTransform: "uppercase" }}>
+        Day {day} · Proof Check-in
+      </div>
+      <div style={{ fontSize: 12, fontStyle: "italic", color: colors.text, opacity: 0.85, marginBottom: 10, lineHeight: 1.5 }}>
+        You wrote: <span style={{ fontWeight: 600 }}>"{stake.proof}"</span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, marginBottom: 10 }}>
+        Have you seen the proof?
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[
+          { id: "yes", label: "Yes", emoji: "✓", color: "#22C55E" },
+          { id: "partially", label: "Partially", emoji: "·", color: "#F59E0B" },
+          { id: "not_yet", label: "Not yet", emoji: "✗", color: "#94A3B8" },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => respond(opt.id)}
+            style={{
+              flex: 1, padding: "8px 6px", borderRadius: 8,
+              background: "transparent",
+              border: `1px solid ${opt.color}40`,
+              color: opt.color,
+              fontSize: 11, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            <span style={{ marginRight: 4 }}>{opt.emoji}</span>{opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VoiceBanner({ state, colors, arcColor }) {
   const voice = getVoice("home_banner", state);
   if (!voice) return null;
@@ -1007,9 +1087,12 @@ function FlatQuestList({ quests, completed, ts, colors, ...questCardProps }) {
 function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, onMarkRestDay }) {
   const isRest = (state.restDays || []).includes(day);
   const [showInfo, setShowInfo] = useState(false);
+  const [showReasonPicker, setShowReasonPicker] = useState(false);
 
   // Already marked — show confirmation strip
   if (isRest) {
+    const meta = state.restDayMeta?.[day];
+    const reasonLabel = { sick: "Sick day", travel: "Travel day", recovery: "Recovery day", rest: "Rest day" }[meta?.reason || "rest"];
     return (
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
@@ -1019,9 +1102,59 @@ function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, o
       }}>
         <Shield size={14} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", flex: 1 }}>
-          Rest day — your streak is safe
+          {reasonLabel} — your streak is safe
         </span>
         <span style={{ fontSize: 10, color: "#3B82F6", opacity: 0.6 }}>🛡️ {state.streak}d streak held</span>
+      </div>
+    );
+  }
+
+  // Reason picker (revealed after tapping Mark rest)
+  if (showReasonPicker) {
+    const REASONS = [
+      { id: "rest", label: "Rest day", icon: "🛌", desc: "Planned recovery" },
+      { id: "sick", label: "Sick day", icon: "🤒", desc: "Body needs to heal" },
+      { id: "travel", label: "Travel day", icon: "✈️", desc: "Off your routine" },
+      { id: "recovery", label: "Recovery day", icon: "💪", desc: "Hard week, light load" },
+    ];
+    return (
+      <div style={{
+        margin: "8px 14px 0", padding: 12, borderRadius: 12,
+        background: "rgba(59,130,246,0.05)",
+        border: "1px solid rgba(59,130,246,0.15)",
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Why are you resting?
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {REASONS.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => { onMarkRestDay?.(day, r.id); setShowReasonPicker(false); }}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "flex-start",
+                padding: "10px 12px", borderRadius: 8,
+                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                color: colors.text, cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{r.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{r.label}</span>
+              <span style={{ fontSize: 10, opacity: 0.5, marginTop: 1 }}>{r.desc}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowReasonPicker(false)}
+          style={{
+            marginTop: 8, padding: "6px 12px", border: "none",
+            background: "transparent", color: colors.textSecondary,
+            fontSize: 11, cursor: "pointer", width: "100%",
+          }}
+        >
+          Cancel
+        </button>
       </div>
     );
   }
@@ -1057,7 +1190,7 @@ function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, o
           </div>
         </div>
         <button
-          onClick={() => onMarkRestDay?.(day)}
+          onClick={() => setShowReasonPicker(true)}
           style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
         >
           Rest day
@@ -1083,7 +1216,7 @@ function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, o
           </div>
         </div>
         <button
-          onClick={() => onMarkRestDay?.(day)}
+          onClick={() => setShowReasonPicker(true)}
           style={{
             flexShrink: 0, padding: "6px 12px", borderRadius: 8,
             background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)",

@@ -92,7 +92,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
       prestigeHistory: [...(state.prestigeHistory || []), { date: today, atStreak: state.streak, xpAtPrestige: state.xp }],
     });
     setConfirmPrestige(false);
-    playSound("levelUp");
+    // (Removed playSound — never imported; was crashing the prestige flow.)
   };
 
   return (

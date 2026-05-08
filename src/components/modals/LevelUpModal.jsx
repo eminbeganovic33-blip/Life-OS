@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { LEVELS } from "../../data";
 import { getArc } from "../../utils/arcs";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export default function LevelUpModal({ levelIndex, onDismiss, currentDay }) {
+  useEscapeKey(onDismiss);
   const level = LEVELS[levelIndex];
   if (!level) return null;
   const arc = currentDay ? getArc(currentDay) : null;

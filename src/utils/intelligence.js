@@ -24,6 +24,18 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 // --- Helpers ---
 
+// Match a quest id against a category. Quest ids are shaped like
+// `${category}-${rest}` for built-ins and `custom-${category}-...` for custom
+// quests. The previous implementation used `q.startsWith(cat)` which both
+// missed custom quests AND would partial-match any future category whose name
+// starts with another (e.g. "mind" vs "mindset"). This is exact.
+function questMatchesCategory(qid, cat) {
+  if (!qid || typeof qid !== "string") return false;
+  if (qid.startsWith(`${cat}-`)) return true;
+  if (qid.startsWith(`custom-${cat}-`)) return true;
+  return false;
+}
+
 export function getCategoryCompletionRates(state) {
   const { completedQuests = {} } = state;
   const counts = {};
@@ -34,13 +46,15 @@ export function getCategoryCompletionRates(state) {
     totals[cat] = 0;
   }
 
+  // Denominator = active days (days where the user completed *something*).
+  // The previous code incremented totals on every day key including days with
+  // no completions, dragging rates to ~0 for users who skipped many days.
   for (const day of Object.keys(completedQuests)) {
     const quests = completedQuests[day] || [];
+    if (quests.length === 0) continue;
     for (const cat of CATEGORIES_LIST) {
       totals[cat]++;
-      if (quests.some((q) => q.startsWith(cat))) {
-        counts[cat]++;
-      }
+      if (quests.some((q) => questMatchesCategory(q, cat))) counts[cat]++;
     }
   }
 

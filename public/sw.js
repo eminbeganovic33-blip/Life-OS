@@ -1,4 +1,4 @@
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE_NAME = `life-os-v${CACHE_VERSION}`;
 const PRECACHE = ["/", "/favicon.svg", "/icons.svg"];
 
@@ -22,13 +22,13 @@ self.addEventListener("fetch", (e) => {
 
   if (
     e.request.method !== "GET" ||
-    url.origin !== location.origin ||
-    url.pathname.startsWith("/api")
+    url.origin !== location.origin
   ) {
     return;
   }
 
-  // Navigation requests: serve cached shell, fall back to network
+  // Navigation requests: network-first for index.html so deploys propagate
+  // immediately, fall back to cached shell if offline.
   if (e.request.mode === "navigate") {
     e.respondWith(
       fetch(e.request).catch(() => caches.match("/"))
@@ -36,7 +36,25 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Assets: network-first, update cache in background
+  // Hashed Vite assets (immutable) → cache-first. The filename hash changes
+  // on every deploy so there's no staleness risk; this is the right call for
+  // PWA offline + fast repeat visits.
+  if (url.pathname.startsWith("/assets/")) {
+    e.respondWith(
+      caches.match(e.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(e.request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Other same-origin GETs (root manifests, icons): network-first, populate
+  // cache in background as a fallback for offline.
   e.respondWith(
     fetch(e.request)
       .then((response) => {

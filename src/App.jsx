@@ -29,6 +29,8 @@ import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import AddActiveQuestModal from "./components/modals/AddActiveQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
+import HelpModal from "./components/modals/HelpModal";
+import WeeklyReviewModal, { getIsoWeek } from "./components/modals/WeeklyReviewModal";
 import ComebackModal from "./components/modals/ComebackModal";
 import StakeSetupModal from "./components/modals/StakeSetupModal";
 import MilestoneUnlockModal from "./components/modals/MilestoneUnlockModal";
@@ -117,6 +119,8 @@ function LifeOS() {
 
   // Stake setup modal — shown on first app open if no stake and not deferred
   const [showStake, setShowStake] = useState(false);
+  const [showHelp, setShowHelp] = useState(null); // null | "xp" | "boss" | "streaks" | "stake"
+  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
   const [stakeEditMode, setStakeEditMode] = useState(false); // true when editing from Profile
   useEffect(() => {
     if (!state || comebackInfo || milestoneDay) return;
@@ -176,7 +180,12 @@ function LifeOS() {
   // Notification scheduler
   const notifIntervalRef = useRef(null);
 
-  // Track level changes to trigger level-up modal
+  // Track level changes to trigger level-up modal.
+  // Reset prevLevelRef on user.uid change so signing into a new account at a
+  // higher level doesn't fire a spurious modal.
+  useEffect(() => {
+    prevLevelRef.current = null;
+  }, [user?.uid]);
   useEffect(() => {
     if (!state) return;
     const currentLvl = getLevelIndex(state.xp);
@@ -197,6 +206,33 @@ function LifeOS() {
       toast.show("Streak freeze used — streak preserved!", "info", 4000);
     }
   }, [state?.streakFreezeUsedDate]);
+
+  // Weekly review auto-trigger: on Sunday, if not yet reviewed this ISO week
+  // and user has at least 7 days under their belt, surface the modal once.
+  useEffect(() => {
+    if (!state || state.currentDay < 7) return;
+    const today = new Date();
+    if (today.getDay() !== 0) return; // Sunday only
+    const isoWeek = getIsoWeek(today);
+    if (state.weeklyReviews?.[isoWeek]) return;
+    // Slight delay so it doesn't collide with morning brief / comeback / stake
+    const t = setTimeout(() => setShowWeeklyReview(true), 1200);
+    return () => clearTimeout(t);
+  }, [state?.currentDay, state?.weeklyReviews]);
+
+  // Streak freeze EARNED notification (every 7 streak days)
+  useEffect(() => {
+    if (!state) return;
+    const today = getTodayStr();
+    if (state.streakFreezeEarnedDate === today) {
+      const count = state.streakFreezes || 0;
+      toast.show(
+        `Streak freeze earned. You now have ${count} — they protect your streak when life happens.`,
+        "trophy",
+        5000
+      );
+    }
+  }, [state?.streakFreezeEarnedDate]);
 
   // Comeback detection — show modal if returning after 2+ days
   useEffect(() => {
@@ -481,13 +517,18 @@ function LifeOS() {
     // Track completion timestamp for analytics (time-of-day patterns)
     const prevTimes = state.questCompletedAt?.[day] || {};
     const newTimes = { ...prevTimes, [questId]: Date.now() };
+    // Track ACTUAL awarded XP per quest so uncheck refunds the same amount,
+    // even if streak/multiplier has changed since check time. Prevents drift.
+    const prevAwarded = state.xpAwardedByQuest?.[day] || {};
+    const newAwarded = { ...prevAwarded, [questId]: boostedXp };
     showXp(boostedXp);
     const ns = {
       ...state,
       xp: newXp,
-      lifetimeXp: (state.lifetimeXp || state.xp) + boostedXp,
+      lifetimeXp: (state.lifetimeXp ?? 0) + boostedXp,
       completedQuests: { ...state.completedQuests, [day]: dc },
       questCompletedAt: { ...(state.questCompletedAt || {}), [day]: newTimes },
+      xpAwardedByQuest: { ...(state.xpAwardedByQuest || {}), [day]: newAwarded },
       xpByDay: addXpToday(state.xpByDay, boostedXp),
     };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
@@ -519,21 +560,36 @@ function LifeOS() {
     const dc = [...completed];
     if (!dc.includes(questId)) return;
     dc.splice(dc.indexOf(questId), 1);
-    const newXp = Math.max(0, state.xp - xpVal);
+    // Refund the actual amount we awarded at check time (boosted by the
+    // multiplier-of-the-moment), not the raw quest XP. Falls back to xpVal
+    // for legacy state that pre-dates xpAwardedByQuest.
+    const awarded = state.xpAwardedByQuest?.[day]?.[questId] ?? xpVal;
+    const newXp = Math.max(0, state.xp - awarded);
+    const newAwardedDay = { ...(state.xpAwardedByQuest?.[day] || {}) };
+    delete newAwardedDay[questId];
     const ns = {
       ...state,
       xp: newXp,
       completedQuests: { ...state.completedQuests, [day]: dc },
-      xpByDay: addXpToday(state.xpByDay, -xpVal),
+      xpAwardedByQuest: { ...(state.xpAwardedByQuest || {}), [day]: newAwardedDay },
+      xpByDay: addXpToday(state.xpByDay, -awarded),
     };
     save(ns);
   }
 
-  function markRestDay(dayNum) {
+  // Rest day reasons (D7: streak grace types). Stored in restDayMeta keyed by
+  // day number. Legacy entries in restDays without metadata fall back to "rest".
+  function markRestDay(dayNum, reason = "rest", note = "") {
     const existing = state.restDays || [];
-    if (existing.includes(dayNum)) return;
-    save({ ...state, restDays: [...existing, dayNum] });
-    toast.show("Rest day marked — your streak is safe.", "success", 3000);
+    const alreadyMarked = existing.includes(dayNum);
+    const meta = state.restDayMeta || {};
+    save({
+      ...state,
+      restDays: alreadyMarked ? existing : [...existing, dayNum],
+      restDayMeta: { ...meta, [dayNum]: { reason, note, at: getTodayStr() } },
+    });
+    const labels = { rest: "Rest day", sick: "Sick day", travel: "Travel day", recovery: "Recovery day" };
+    toast.show(`${labels[reason] || "Rest day"} marked — your streak is safe.`, "success", 3000);
   }
 
   function completeDay() {
@@ -1033,6 +1089,7 @@ function LifeOS() {
             onStakeClose: handleStakeClose,
             openStakeEditor,
           }}
+          help={{ showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview }}
         />
       </LifeOSProvider>
       </PomodoroProvider>
@@ -1040,8 +1097,10 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone, stake }) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone, stake, help }) {
   const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor } = stake || {};
+  const { showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview } = help || {};
+  const openHelp = (tab) => setShowHelp?.(tab || "xp");
   const {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
@@ -1106,6 +1165,16 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
           arcColor={getArc(state?.currentDay || 1)?.color}
         />
       </ErrorBoundary>
+      {showHelp && (
+        <ErrorBoundary name="Help">
+          <HelpModal initialTab={showHelp} onClose={() => setShowHelp(null)} />
+        </ErrorBoundary>
+      )}
+      {showWeeklyReview && state && (
+        <ErrorBoundary name="WeeklyReview">
+          <WeeklyReviewModal state={state} save={save} onClose={() => setShowWeeklyReview(false)} />
+        </ErrorBoundary>
+      )}
       {milestoneDay && (
         <ErrorBoundary name="Milestone">
           <MilestoneUnlockModal
@@ -1181,6 +1250,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   onNavigate={handleViewChange}
                   onMarkRestDay={markRestDay}
                   onLogMood={logMood}
+                  onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
             )}
@@ -1238,6 +1308,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   user={user}
                   onReset={resetApp}
                   onBack={() => handleViewChange("profile")}
+                  onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
             )}

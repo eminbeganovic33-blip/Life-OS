@@ -124,6 +124,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // Edit logged exercise state
   const [editingIndex, setEditingIndex] = useState(null);
+  // Two-tap delete: first click sets the index, second click confirms.
+  const [deleteConfirmIdx, setDeleteConfirmIdx] = useState(null);
+  // Workout completion recap modal
+  const [showWorkoutRecap, setShowWorkoutRecap] = useState(null);
   const [editSets, setEditSets] = useState([]);
 
   // Library state
@@ -335,7 +339,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       setAiExerciseIndex(aiExerciseIndex + 1);
       setAiSets([{ weight: "", reps: "" }]);
     } else {
-      resetWorkout();
+      // Final exercise — show recap before exiting
+      setShowWorkoutRecap({
+        title: "AI Workout Plan",
+        completedCount: aiPlan.length,
+        plan: aiPlan,
+      });
     }
   }
 
@@ -351,7 +360,11 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       setTemplateExIndex(templateExIndex + 1);
       setTemplateSets([{ weight: "", reps: "" }]);
     } else {
-      resetWorkout();
+      setShowWorkoutRecap({
+        title: activeTemplate.name,
+        completedCount: activeTemplate.exercises.length,
+        plan: activeTemplate.exercises,
+      });
     }
   }
 
@@ -396,6 +409,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   }
 
   function confirmDeleteEntry(index) {
+    if (deleteConfirmIdx !== index) {
+      setDeleteConfirmIdx(index);
+      setTimeout(() => setDeleteConfirmIdx((cur) => (cur === index ? null : cur)), 4000);
+      return;
+    }
+    setDeleteConfirmIdx(null);
     onDeleteEntry(index);
     if (editingIndex === index) {
       setEditingIndex(null);
@@ -819,9 +838,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                       <Pencil size={13} />
                     </button>
                     <button
-                      style={ds.deleteBtn}
+                      style={{
+                        ...ds.deleteBtn,
+                        ...(deleteConfirmIdx === i ? { background: "rgba(239,68,68,0.15)", borderColor: "#EF4444", color: "#EF4444" } : {}),
+                      }}
                       onClick={() => confirmDeleteEntry(i)}
-                      title="Delete"
+                      title={deleteConfirmIdx === i ? "Tap again to confirm" : "Delete"}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -1040,6 +1062,78 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           onStartTemplate={(t) => { startTemplate(t); setTab("workout"); }}
         />
       )}
+
+      {/* Workout completion recap */}
+      {showWorkoutRecap && (
+        <WorkoutRecapModal
+          recap={showWorkoutRecap}
+          todayLogs={todayLogs}
+          onClose={() => { setShowWorkoutRecap(null); resetWorkout(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function WorkoutRecapModal({ recap, todayLogs, onClose }) {
+  // Sum today's volume across all exercises
+  const totalVolume = (todayLogs || []).reduce((sum, log) => {
+    return sum + (log.sets || []).reduce((s, set) => s + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0);
+  }, 0);
+  const totalSets = (todayLogs || []).reduce((sum, log) => sum + (log.sets?.length || 0), 0);
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 9999, padding: 20,
+    }}
+    onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "linear-gradient(145deg,#1a1530,#0f0a20)",
+          borderRadius: 18, padding: 28, maxWidth: 360, width: "100%",
+          border: "1px solid rgba(124,92,252,0.25)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🏋️</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#7C5CFC", letterSpacing: 1, marginBottom: 4 }}>
+          WORKOUT COMPLETE
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>
+          {recap.title}
+        </div>
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 8, marginBottom: 20,
+        }}>
+          <div style={{ padding: "12px 6px", background: "rgba(124,92,252,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#7C5CFC" }}>{recap.completedCount}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>exercises</div>
+          </div>
+          <div style={{ padding: "12px 6px", background: "rgba(34,197,94,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#22C55E" }}>{totalSets}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>sets</div>
+          </div>
+          <div style={{ padding: "12px 6px", background: "rgba(249,115,22,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#F97316" }}>{totalVolume.toLocaleString()}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>kg vol</div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "linear-gradient(135deg,#7C5CFC,#6D28D9)",
+            border: "none", color: "#fff", fontSize: 14, fontWeight: 700,
+            padding: "12px 32px", borderRadius: 10, width: "100%", cursor: "pointer",
+          }}
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }

@@ -188,26 +188,31 @@ export function reconcileStreaks(s) {
   const lastActive = s.lastActiveDate;
   if (!lastActive || lastActive === today) return s;
 
-  // Check if any missed day was an intentional rest day
+  // Check if any missed day was an intentional rest day. Walk forward
+  // from the day AFTER lastActive up to the day BEFORE today, in journey-day
+  // numbers so we can match against state.restDays directly.
   const restDays = s.restDays || [];
   const missedDays = daysBetween(lastActive);
-  const lastActiveDate = new Date(lastActive);
+  // The day-number of `lastActive`. Today's journey day is s.currentDay; if the
+  // user missed N days, lastActive corresponded to currentDay - N.
+  const lastActiveDayNum = s.currentDay - missedDays;
   let allMissedWereRest = true;
-  for (let i = 1; i < missedDays; i++) {
-    const checkDate = new Date(lastActiveDate);
-    checkDate.setDate(checkDate.getDate() + i);
-    const checkDay = s.currentDay - (daysBetween(checkDate.toISOString().slice(0, 10)));
+  for (let i = 1; i <= missedDays; i++) {
+    const checkDay = lastActiveDayNum + i;
     if (!restDays.includes(checkDay)) { allMissedWereRest = false; break; }
   }
 
-  if (missedDays > 1 && !allMissedWereRest) {
+  // ANY miss should consume a freeze or break the streak. The previous code
+  // gave a free pass on single-day misses (missedDays > 1) AND gated freeze
+  // consumption on missedDays <= 2 (which never fired for the 1-day case).
+  if (missedDays >= 1 && !allMissedWereRest) {
     const freezes = s.streakFreezes || 0;
     if (freezes > 0 && missedDays <= 2) {
       s = {
         ...s,
         streakFreezes: freezes - 1,
         streakFreezeUsedDate: today,
-        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak }],
+        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak, missedDays }],
       };
     } else {
       s = { ...s, streak: 0 };
@@ -223,6 +228,8 @@ export function reconcileStreaks(s) {
       s = {
         ...s,
         streakFreezes: Math.min(currentFreezes + 1, MAX_FREEZES),
+        // Mark "earned today" so App can show a one-time toast on hydrate.
+        streakFreezeEarnedDate: today,
         lastFreezeAwardedAtStreak: newMilestone,
       };
     }

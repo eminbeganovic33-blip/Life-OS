@@ -23,7 +23,7 @@ const DEFAULT_MODELS = [
   "claude-3-5-sonnet-20241022",
 ];
 
-export default function SettingsView({ state, save, user, onReset, onBack }) {
+export default function SettingsView({ state, save, user, onReset, onBack, onOpenHelp }) {
   const { theme, toggleTheme, colors } = useTheme();
   const isDark = theme === "dark";
   const { logout } = useAuth();
@@ -387,6 +387,38 @@ export default function SettingsView({ state, save, user, onReset, onBack }) {
           </div>
         </div>
       </div>
+
+      {/* ── HELP / EXPLAINERS ───────────────────────────────────────────────── */}
+      {onOpenHelp && (
+        <>
+          <div style={sectionLabel}>How it works</div>
+          <div style={{ ...card, padding: 0, marginBottom: 16, overflow: "hidden" }}>
+            {[
+              { id: "xp", label: "How XP is calculated" },
+              { id: "boss", label: "What's a Boss Day?" },
+              { id: "streaks", label: "Streaks & Freezes" },
+              { id: "stake", label: "What is The Stake?" },
+            ].map((row, i, arr) => (
+              <button
+                key={row.id}
+                onClick={() => onOpenHelp(row.id)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "13px 16px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: i < arr.length - 1 ? `1px solid ${colors.cardBorder || "rgba(255,255,255,0.05)"}` : "none",
+                  color: colors.text, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <span>{row.label}</span>
+                <span style={{ opacity: 0.4, fontSize: 14 }}>›</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* ── VOICE ────────────────────────────────────────────────────────────── */}
       <div style={sectionLabel}>Voice</div>

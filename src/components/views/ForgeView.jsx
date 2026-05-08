@@ -8,6 +8,7 @@ import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
 import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
+import { useToast } from "../Toast";
 import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign, Zap } from "lucide-react";
 
 // ── Cross-module: related quests per tracker ──
@@ -96,6 +97,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
   const [expandedGoal, setExpandedGoal] = useState(null); // trackerId being goal-picked
   const [customGoalInput, setCustomGoalInput] = useState("");
   const [journalFilter, setJournalFilter] = useState("all");
+  const toast = useToast();
 
   const forgeGoals = state.forgeGoals || {};
 
@@ -116,11 +118,12 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
 
   function handleCustomGoalSubmit(trackerId) {
     const val = parseInt(customGoalInput, 10);
-    // F2: show inline validation instead of silent failure
-    if (!val || val < 1) return;
+    if (!val || val < 1) {
+      toast.show("Enter a number of days first.", "info");
+      return;
+    }
     if (val < 21) {
-      // nudge user toward minimum meaningful goal
-      setCustomGoalInput("21");
+      toast.show("Forge goals start at 21 days — that's where habits actually shift.", "info", 4000);
       return;
     }
     const newGoals = { ...forgeGoals, [trackerId]: val };
