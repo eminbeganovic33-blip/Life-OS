@@ -69,7 +69,7 @@ export default function MorningBrief({ state, user, onDismiss }) {
   const [aiBrief, setAiBrief] = useState(null);
   const [loading, setLoading] = useState(isAIConfigured()); // only wait if AI will actually fetch
 
-  const userName = user?.displayName || state.userName || "Warrior";
+  const userName = user?.displayName?.split(" ")[0] || state.userName || null;
   const quote = getPersonalizedQuote(state, MOTIVATION_CARDS);
   const nudges = getProactiveNudges(state).slice(0, 2);
   const localBrief = buildLocalBrief(state);
@@ -113,7 +113,7 @@ export default function MorningBrief({ state, user, onDismiss }) {
         <p style={s.dateLabel}>
           {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        <h1 style={s.greeting}>{getGreeting()}, {userName}</h1>
+        <h1 style={s.greeting}>{getGreeting()}{userName ? `, ${userName}` : ""}</h1>
         <p style={s.subtitle}>Day {state.currentDay} &middot; {state.streak || 0}-day streak</p>
 
         {/* Brief */}

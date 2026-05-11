@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
-import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA, getQuestTimeOfDay } from "./data";
-import { applyStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
+import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA } from "./data";
+import { getPersonalizedQuote } from "./utils/intelligence";
+import { applyStreakMultiplier, getStreakMultiplier, getWeeklyChallenge } from "./utils/xpEngine";
 import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
-  getCalendarDay, defaultState,
+  getCalendarDay, getCategoryStreak, defaultState,
 } from "./utils";
-import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider } from "./hooks";
+import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider, usePomodoroContext } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -27,13 +28,11 @@ import BossModal from "./components/modals/BossModal";
 import LevelUpModal from "./components/modals/LevelUpModal";
 import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
-import AddActiveQuestModal from "./components/modals/AddActiveQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
-import HelpModal from "./components/modals/HelpModal";
-import WeeklyReviewModal, { getIsoWeek } from "./components/modals/WeeklyReviewModal";
 import ComebackModal from "./components/modals/ComebackModal";
-import StakeSetupModal from "./components/modals/StakeSetupModal";
-import MilestoneUnlockModal from "./components/modals/MilestoneUnlockModal";
+import InstallPrompt from "./components/InstallPrompt";
+import UpdateToast from "./components/UpdateToast";
+// DashboardView removed — merged into HomeView (Wave 1)
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
 const AcademyView = lazy(() => import("./components/views/AcademyView"));
@@ -42,17 +41,11 @@ const DojoView = lazy(() => import("./components/views/DojoView"));
 const ProfileView = lazy(() => import("./components/views/ProfileView"));
 const AnalyticsView = lazy(() => import("./components/views/AnalyticsView"));
 const SocialView = lazy(() => import("./components/views/SocialView"));
-const SettingsView = lazy(() => import("./components/views/SettingsView"));
 import { updatePublicProfile } from "./utils/social";
 import UpgradeScreen from "./components/UpgradeScreen";
 import WeeklySummaryBanner from "./components/WeeklySummaryBanner";
-import { computeWeeklySummary, sendNotification, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
-import { scheduleVoiceNotifications } from "./utils/voice";
-import { getArc } from "./utils/arcs";
-import { initFcm } from "./utils/fcm";
+import { computeWeeklySummary, sendNotification, checkStreakAtRisk, getDefaultNotificationSettings, scheduleNotificationCheck } from "./utils/notifications";
 import { playSound } from "./utils/audio";
-import InstallPrompt from "./components/InstallPrompt";
-import OnboardingTour from "./components/OnboardingTour";
 
 injectGlobalStyles();
 
@@ -114,78 +107,10 @@ function LifeOS() {
   // Comeback modal
   const [comebackInfo, setComebackInfo] = useState(null);
 
-  // Milestone unlock modal (days 2, 3, 7)
-  const [milestoneDay, setMilestoneDay] = useState(null);
-
-  // Stake setup modal — shown on first app open if no stake and not deferred
-  const [showStake, setShowStake] = useState(false);
-  const [showHelp, setShowHelp] = useState(null); // null | "xp" | "boss" | "streaks" | "stake"
-  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
-  const [stakeEditMode, setStakeEditMode] = useState(false); // true when editing from Profile
-  useEffect(() => {
-    if (!state || comebackInfo || milestoneDay) return;
-    if (stakeEditMode) return; // already open for editing
-    if (state.stake || state.stakeDeferred) return;
-    if (!state.onboarded) return; // wait until onboarding finishes
-    // Delay slightly so it doesn't collide with Comeback/Milestone modals
-    const t = setTimeout(() => setShowStake(true), 600);
-    return () => clearTimeout(t);
-  }, [state?.stake, state?.stakeDeferred, state?.onboarded, comebackInfo, milestoneDay, stakeEditMode]);
-
-  const handleStakeSave = (stakeValues) => {
-    const now = new Date().toISOString();
-    const prev = state.stake;
-    const revisions = prev
-      ? [
-          ...(prev.revisions || []),
-          {
-            why: prev.why,
-            cost: prev.cost,
-            proof: prev.proof,
-            // Fall back through updatedAt → setAt → now so revision entries
-            // never carry undefined timestamps.
-            at: prev.updatedAt ?? prev.setAt ?? now,
-          },
-        ]
-      : [];
-    save({
-      ...state,
-      stake: {
-        ...stakeValues,
-        setAt: prev?.setAt || now,
-        updatedAt: now,
-        revisions,
-      },
-      stakeDeferred: false,
-    });
-    setShowStake(false);
-    setStakeEditMode(false);
-  };
-
-  const handleStakeDefer = () => {
-    save({ ...state, stakeDeferred: true });
-    setShowStake(false);
-  };
-
-  const handleStakeClose = () => {
-    setShowStake(false);
-    setStakeEditMode(false);
-  };
-
-  const openStakeEditor = () => {
-    setStakeEditMode(true);
-    setShowStake(true);
-  };
-
   // Notification scheduler
   const notifIntervalRef = useRef(null);
 
-  // Track level changes to trigger level-up modal.
-  // Reset prevLevelRef on user.uid change so signing into a new account at a
-  // higher level doesn't fire a spurious modal.
-  useEffect(() => {
-    prevLevelRef.current = null;
-  }, [user?.uid]);
+  // Track level changes to trigger level-up modal
   useEffect(() => {
     if (!state) return;
     const currentLvl = getLevelIndex(state.xp);
@@ -207,33 +132,6 @@ function LifeOS() {
     }
   }, [state?.streakFreezeUsedDate]);
 
-  // Weekly review auto-trigger: on Sunday, if not yet reviewed this ISO week
-  // and user has at least 7 days under their belt, surface the modal once.
-  useEffect(() => {
-    if (!state || state.currentDay < 7) return;
-    const today = new Date();
-    if (today.getDay() !== 0) return; // Sunday only
-    const isoWeek = getIsoWeek(today);
-    if (state.weeklyReviews?.[isoWeek]) return;
-    // Slight delay so it doesn't collide with morning brief / comeback / stake
-    const t = setTimeout(() => setShowWeeklyReview(true), 1200);
-    return () => clearTimeout(t);
-  }, [state?.currentDay, state?.weeklyReviews]);
-
-  // Streak freeze EARNED notification (every 7 streak days)
-  useEffect(() => {
-    if (!state) return;
-    const today = getTodayStr();
-    if (state.streakFreezeEarnedDate === today) {
-      const count = state.streakFreezes || 0;
-      toast.show(
-        `Streak freeze earned. You now have ${count} — they protect your streak when life happens.`,
-        "trophy",
-        5000
-      );
-    }
-  }, [state?.streakFreezeEarnedDate]);
-
   // Comeback detection — show modal if returning after 2+ days
   useEffect(() => {
     if (!state || comebackCheckedRef.current) return;
@@ -247,22 +145,6 @@ function LifeOS() {
       setComebackInfo({ daysAway: diffDays, streak: state.streak });
     }
   }, [state?.lastActiveDate]);
-
-  // Milestone unlock moments — Days 2, 3, 7
-  useEffect(() => {
-    if (!state) return;
-    const MILESTONE_DAYS = [2, 3, 7];
-    const seen = state.seenMilestones || {};
-    // currentDay advances when user completes a day — check if we just hit a milestone
-    const d = state.currentDay;
-    if (MILESTONE_DAYS.includes(d) && !seen[d] && !milestoneDay) {
-      // Show after a short delay so the day-complete animation can settle
-      setTimeout(() => {
-        setMilestoneDay(d);
-        setConfettiBurst((c) => c + 1);
-      }, 900);
-    }
-  }, [state?.currentDay]);
 
   // Weekly challenge completion check
   useEffect(() => {
@@ -285,7 +167,7 @@ function LifeOS() {
 
   // Morning Brief — shows full-screen brief on first daily open
   useEffect(() => {
-    if (state && !modal && view === "home") {
+    if (state && !modal && (view === "home" || view === "dashboard")) {
       const today = getTodayStr();
       if (!state.motivationSeen?.includes(today)) {
         setTimeout(() => setModal("morning_brief"), 500);
@@ -315,31 +197,6 @@ function LifeOS() {
       if (notifIntervalRef.current) clearInterval(notifIntervalRef.current);
     };
   }, [state?.notificationSettings?.enabled, state?.currentDay]);
-
-  // Voice notification scheduler — reads latest state via ref on every tick
-  const stateRefForVoice = useRef(state);
-  useEffect(() => { stateRefForVoice.current = state; }, [state]);
-  useEffect(() => {
-    if (!state) return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    const id = scheduleVoiceNotifications(
-      () => stateRefForVoice.current,
-      (title, body) => sendNotification(title, body)
-    );
-    return () => clearInterval(id);
-  }, [state?.voiceEnabled, Notification?.permission]);
-
-  // FCM: once the user is signed in and has enabled notifications, capture
-  // their device token so background push can be delivered when the app is
-  // closed. No-op if Firebase/VAPID/permission are not all ready — the
-  // foreground polling effect above continues to cover those cases.
-  useEffect(() => {
-    if (!user || !state) return;
-    const settings = state.notificationSettings || getDefaultNotificationSettings();
-    if (!settings.enabled) return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    initFcm(user).catch(() => {});
-  }, [user?.uid, state?.notificationSettings?.enabled]);
 
   // Weekly summary check — show on Sundays (or user-set day) if not dismissed this week
   useEffect(() => {
@@ -391,26 +248,6 @@ function LifeOS() {
               updates.premium = { ...(state.premium || {}), trialStartedAt: Date.now() };
             }
           }
-          // Seed 4 active quests from focusCategories (or sensible default)
-          const seeds = (preferences?.focusCategories && preferences.focusCategories.length > 0)
-            ? preferences.focusCategories.slice(0, 4)
-            : ["sleep", "water", "exercise", "mind"];
-          // Pad to 4 with defaults if user picked fewer
-          const padDefaults = ["sleep", "water", "exercise", "mind", "shower", "reading"];
-          const seedCategories = [...seeds];
-          for (const cat of padDefaults) {
-            if (seedCategories.length >= 4) break;
-            if (!seedCategories.includes(cat)) seedCategories.push(cat);
-          }
-          const now = Date.now();
-          updates.activeQuests = seedCategories.slice(0, 4).map((category, i) => ({
-            id: `aq_${now}_${i}`,
-            category,
-            questIndex: 0,
-            timeOfDay: getQuestTimeOfDay(category, 0),
-            addedAt: now,
-          }));
-          updates._activeQuestsMigrated = true;
           save(updates);
           setShowOnboarding(false);
         }}
@@ -474,39 +311,19 @@ function LifeOS() {
   }
 
   function dismissForgeSuccess() {
-    // Mark only the current milestone as seen, then advance to the next queued one.
-    const queue = forgeMilestoneQueueRef.current;
-    const current = queue[0];
-    if (current) {
-      const newSeen = { ...(state.forgeStoriesSeen || {}), [current.key]: true };
+    // Mark all milestones as seen at once
+    const allMilestones = forgeMilestoneQueueRef.current;
+    if (allMilestones.length > 0) {
+      const newSeen = { ...(state.forgeStoriesSeen || {}) };
+      allMilestones.forEach((m) => { newSeen[m.key] = true; });
       save({ ...state, forgeStoriesSeen: newSeen });
     }
-    const remaining = queue.slice(1);
-    forgeMilestoneQueueRef.current = remaining;
-    if (remaining.length > 0) {
-      // Show the next milestone after a short beat so the modal animation can re-trigger
-      setForgeStory(null);
-      setModal(null);
-      setTimeout(() => {
-        setForgeStory(remaining[0]);
-        setModal("forge_success");
-      }, 180);
-    } else {
-      setForgeStory(null);
-      setModal(null);
-    }
+    forgeMilestoneQueueRef.current = [];
+    setForgeStory(null);
+    setModal(null);
   }
 
   // ── Quest Actions ──
-  // Helper: add delta XP to today's xpByDay bucket (keyed by ISO date).
-  // Ensures both checkQuest, completeDay, and progressLifecycle converge on
-  // the same per-day total regardless of which handler triggered the gain.
-  function addXpToday(xpByDay = {}, delta) {
-    const key = getTodayStr();
-    const prev = xpByDay[key] || 0;
-    return { ...xpByDay, [key]: Math.max(0, prev + delta) };
-  }
-
   // Check a quest (one-way click — unchecking uses uncheckQuest via swipe)
   function checkQuest(questId, xpVal) {
     const dc = [...completed];
@@ -514,32 +331,11 @@ function LifeOS() {
     dc.push(questId);
     const boostedXp = applyStreakMultiplier(xpVal, state.streak);
     const newXp = state.xp + boostedXp;
-    // Track completion timestamp for analytics (time-of-day patterns)
-    const prevTimes = state.questCompletedAt?.[day] || {};
-    const newTimes = { ...prevTimes, [questId]: Date.now() };
-    // Track ACTUAL awarded XP per quest so uncheck refunds the same amount,
-    // even if streak/multiplier has changed since check time. Prevents drift.
-    const prevAwarded = state.xpAwardedByQuest?.[day] || {};
-    const newAwarded = { ...prevAwarded, [questId]: boostedXp };
     showXp(boostedXp);
-    const ns = {
-      ...state,
-      xp: newXp,
-      lifetimeXp: (state.lifetimeXp ?? 0) + boostedXp,
-      completedQuests: { ...state.completedQuests, [day]: dc },
-      questCompletedAt: { ...(state.questCompletedAt || {}), [day]: newTimes },
-      xpAwardedByQuest: { ...(state.xpAwardedByQuest || {}), [day]: newAwarded },
-      xpByDay: addXpToday(state.xpByDay, boostedXp),
-    };
+    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
-    const finalState = {
-      ...ns,
-      xp: ns.xp + xpBonus,
-      unlockedTrophies: unlocked,
-      // Include any trophy bonus in the same per-day bucket
-      xpByDay: xpBonus > 0 ? addXpToday(ns.xpByDay, xpBonus) : ns.xpByDay,
-    };
+    const finalState = { ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked };
     save(finalState);
     playSound("questCheck");
     navigator.vibrate?.(30);
@@ -560,36 +356,16 @@ function LifeOS() {
     const dc = [...completed];
     if (!dc.includes(questId)) return;
     dc.splice(dc.indexOf(questId), 1);
-    // Refund the actual amount we awarded at check time (boosted by the
-    // multiplier-of-the-moment), not the raw quest XP. Falls back to xpVal
-    // for legacy state that pre-dates xpAwardedByQuest.
-    const awarded = state.xpAwardedByQuest?.[day]?.[questId] ?? xpVal;
-    const newXp = Math.max(0, state.xp - awarded);
-    const newAwardedDay = { ...(state.xpAwardedByQuest?.[day] || {}) };
-    delete newAwardedDay[questId];
-    const ns = {
-      ...state,
-      xp: newXp,
-      completedQuests: { ...state.completedQuests, [day]: dc },
-      xpAwardedByQuest: { ...(state.xpAwardedByQuest || {}), [day]: newAwardedDay },
-      xpByDay: addXpToday(state.xpByDay, -awarded),
-    };
+    const newXp = Math.max(0, state.xp - xpVal);
+    const ns = { ...state, xp: newXp, completedQuests: { ...state.completedQuests, [day]: dc } };
     save(ns);
   }
 
-  // Rest day reasons (D7: streak grace types). Stored in restDayMeta keyed by
-  // day number. Legacy entries in restDays without metadata fall back to "rest".
-  function markRestDay(dayNum, reason = "rest", note = "") {
+  function markRestDay(dayNum) {
     const existing = state.restDays || [];
-    const alreadyMarked = existing.includes(dayNum);
-    const meta = state.restDayMeta || {};
-    save({
-      ...state,
-      restDays: alreadyMarked ? existing : [...existing, dayNum],
-      restDayMeta: { ...meta, [dayNum]: { reason, note, at: getTodayStr() } },
-    });
-    const labels = { rest: "Rest day", sick: "Sick day", travel: "Travel day", recovery: "Recovery day" };
-    toast.show(`${labels[reason] || "Rest day"} marked — your streak is safe.`, "success", 3000);
+    if (existing.includes(dayNum)) return;
+    save({ ...state, restDays: [...existing, dayNum] });
+    toast.show("Rest day marked — your streak is safe.", "success", 3000);
   }
 
   function completeDay() {
@@ -608,12 +384,7 @@ function LifeOS() {
     };
     const { unlocked, xpBonus, newlyUnlocked } = checkTrophies(ns);
     if (xpBonus > 0) showXp(xpBonus);
-    save({
-      ...ns,
-      xp: ns.xp + xpBonus,
-      unlockedTrophies: unlocked,
-      xpByDay: xpBonus > 0 ? addXpToday(ns.xpByDay, xpBonus) : ns.xpByDay,
-    });
+    save({ ...ns, xp: ns.xp + xpBonus, unlockedTrophies: unlocked });
     setConfettiBurst((c) => c + 1);
     playSound("dayComplete");
     if (newlyUnlocked?.length > 0) {
@@ -649,18 +420,12 @@ function LifeOS() {
       bossClears,
       masteryMode,
       xp: state.xp + xpBonus,
-      xpByDay: xpBonus > 0 ? addXpToday(state.xpByDay, xpBonus) : state.xpByDay,
     };
     if (xpBonus > 0) showXp(xpBonus);
 
     const { unlocked, xpBonus: tXp } = checkTrophies(ns);
     if (tXp > 0) showXp(tXp);
-    save({
-      ...ns,
-      xp: ns.xp + tXp,
-      unlockedTrophies: unlocked,
-      xpByDay: tXp > 0 ? addXpToday(ns.xpByDay, tXp) : ns.xpByDay,
-    });
+    save({ ...ns, xp: ns.xp + tXp, unlockedTrophies: unlocked });
     setModal(null);
     setBossDay(null);
   }
@@ -677,7 +442,8 @@ function LifeOS() {
       journal: { ...state.journal, [day]: journalText || state.journal[day] },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
-    toast.show("Journal saved ✓", "success", 2000);
+    toast.show("Journal saved", "success", 2000);
+    setView("home");
   }
 
   // Save raw journal content (used by chat journal for auto-save)
@@ -687,19 +453,6 @@ function LifeOS() {
       journal: { ...state.journal, [day]: rawContent },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
-  }
-
-  // Log mood directly from HomeView (1-tap, no journal flow).
-  // Tapping the currently-selected mood clears it.
-  function logMood(moodIndex) {
-    const current = state.moods?.[day];
-    const next = current === moodIndex ? null : moodIndex;
-    const nextMoods = { ...(state.moods || {}) };
-    if (next === null) delete nextMoods[day];
-    else nextMoods[day] = next;
-    save({ ...state, moods: nextMoods });
-    // Keep the Journal view's local state in sync so the mood row there reflects the change
-    setSelectedMood(next);
   }
 
   // ── Dojo ──
@@ -890,56 +643,9 @@ function LifeOS() {
   function addCustomQuest(quest) {
     // Validate max length for quest text
     if (!quest || !quest.text || quest.text.length > 200) return;
-    const norm = quest.text.trim().toLowerCase();
-    // Prevent duplicate against existing custom quests
-    const existing = state.customQuests || [];
-    if (existing.some((q) => q.text.trim().toLowerCase() === norm)) {
-      toast.show("Quest already added", "info", 2000);
-      return;
-    }
-    // Prevent duplicate against today's core quest texts
-    const coreTexts = getDayQuests(day, [], state).map((q) => q.text.trim().toLowerCase());
-    if (coreTexts.includes(norm)) {
-      toast.show("That quest is already in today's list", "info", 2000);
-      return;
-    }
-    save({ ...state, customQuests: [...existing, quest] });
+    save({ ...state, customQuests: [...(state.customQuests || []), quest] });
     setModal(null);
     toast.show("Custom quest added!", "success", 2000);
-  }
-
-  // ── Active quests (#11) ──
-  function addActiveQuest(aq) {
-    if (!aq || !aq.category) return;
-    // Dedup: don't add same category+index twice
-    const existing = state.activeQuests || [];
-    if (existing.some((q) => q.category === aq.category && q.questIndex === aq.questIndex)) {
-      toast.show("Already in your quests", "info", 2000);
-      return;
-    }
-    save({
-      ...state,
-      activeQuests: [...existing, aq],
-      // If user had retired this exact (cat, idx) previously, un-retire it
-      retiredQuestIds: (state.retiredQuestIds || []).filter(
-        (rid) => rid !== `${aq.category}-${aq.questIndex}`
-      ),
-    });
-    toast.show("Quest added!", "success", 1500);
-    setModal(null);
-  }
-
-  function retireActiveQuest(aqId) {
-    const existing = state.activeQuests || [];
-    const target = existing.find((q) => q.id === aqId);
-    if (!target) return;
-    const retiredKey = `${target.category}-${target.questIndex}`;
-    save({
-      ...state,
-      activeQuests: existing.filter((q) => q.id !== aqId),
-      retiredQuestIds: [...(state.retiredQuestIds || []), retiredKey],
-    });
-    toast.show("Quest retired", "info", 1500);
   }
 
   function removeCustomQuest(questId) {
@@ -988,26 +694,16 @@ function LifeOS() {
       );
     }
     if (modal === "boss") {
-      return <BossModal bossDay={bossDay} onProgress={progressLifecycle} />;
+      return <BossModal bossDay={bossDay} onProgress={progressLifecycle} state={state} />;
     }
     if (modal === "levelup") {
-      return <LevelUpModal levelIndex={levelUpIndex} currentDay={state.currentDay} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
+      return <LevelUpModal levelIndex={levelUpIndex} onDismiss={() => { setModal(null); setLevelUpIndex(null); }} />;
     }
     if (modal === "forge_success" && forgeMilestoneQueueRef.current.length > 0) {
       return (
         <ForgeSuccessModal
           milestones={forgeMilestoneQueueRef.current}
           onDismiss={dismissForgeSuccess}
-        />
-      );
-    }
-    if (modal === "add_active_quest") {
-      return (
-        <AddActiveQuestModal
-          activeQuests={state.activeQuests || []}
-          retiredQuestIds={state.retiredQuestIds || []}
-          onAdd={addActiveQuest}
-          onClose={() => setModal(null)}
         />
       );
     }
@@ -1029,7 +725,6 @@ function LifeOS() {
           state={state}
           completedDay={dayCompleteDay}
           onDismiss={() => { setModal(null); setDayCompleteDay(null); }}
-          onNavigate={(v) => { setModal(null); setDayCompleteDay(null); setView(v); }}
         />
       );
     }
@@ -1055,8 +750,6 @@ function LifeOS() {
     state, save, view, setView, xpPopup,
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
-    addActiveQuest, retireActiveQuest,
-    logMood,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
@@ -1076,20 +769,6 @@ function LifeOS() {
           setShowWeeklySummary={setShowWeeklySummary}
           comebackInfo={comebackInfo}
           onDismissComeback={() => setComebackInfo(null)}
-          milestoneDay={milestoneDay}
-          onDismissMilestone={() => {
-            save({ ...state, seenMilestones: { ...(state.seenMilestones || {}), [milestoneDay]: true } });
-            setMilestoneDay(null);
-          }}
-          stake={{
-            showStake,
-            stakeEditMode,
-            onStakeSave: handleStakeSave,
-            onStakeDefer: handleStakeDefer,
-            onStakeClose: handleStakeClose,
-            openStakeEditor,
-          }}
-          help={{ showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview }}
         />
       </LifeOSProvider>
       </PomodoroProvider>
@@ -1097,15 +776,11 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, milestoneDay, onDismissMilestone, stake, help }) {
-  const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor } = stake || {};
-  const { showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview } = help || {};
-  const openHelp = (tab) => setShowHelp?.(tab || "xp");
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback }) {
   const {
     state, save, view, setView, xpPopup,
-    checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
+    checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
-    addActiveQuest, retireActiveQuest, logMood,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
@@ -1119,13 +794,11 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
   const { themed } = useTheme();
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   const showTrialBanner = isTrialActive && !isPremiumActive && trialDaysRemaining <= 2 && trialDaysRemaining > 0 && !trialBannerDismissed;
-  // C: track which Academy course to auto-open when navigating from a quest
-  const [pendingOpenCourse, setPendingOpenCourse] = useState(null);
 
   const day = state.currentDay;
 
-  // Centralized view change handler — accepts optional options { openCourse }
-  function handleViewChange(v, opts = {}) {
+  // Centralized view change handler — initializes state for views that need it
+  function handleViewChange(v) {
     if (v === "auth") {
       setSkipAuth(false);
       return;
@@ -1134,11 +807,6 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
       setJournalText(state.journal?.[day] || "");
       setSelectedMood(state.moods?.[day] ?? null);
     }
-    if (v === "academy" && opts.openCourse) {
-      setPendingOpenCourse(opts.openCourse);
-    } else if (v !== "academy") {
-      setPendingOpenCourse(null);
-    }
     setView(v);
   }
 
@@ -1146,43 +814,13 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     <div style={themed("app")} data-app-shell role="application" aria-label="Life OS">
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
-      <ErrorBoundary name="Modals">{renderModal()}</ErrorBoundary>
-      <ErrorBoundary name="Comeback">
-        <ComebackModal
-          show={!!comebackInfo}
-          daysAway={comebackInfo?.daysAway || 0}
-          streak={comebackInfo?.streak || 0}
-          onClose={onDismissComeback}
-        />
-      </ErrorBoundary>
-      <ErrorBoundary name="Stake">
-        <StakeSetupModal
-          show={showStake}
-          existing={stakeEditMode ? state?.stake : null}
-          onSave={onStakeSave}
-          onDefer={onStakeDefer}
-          onClose={onStakeClose}
-          arcColor={getArc(state?.currentDay || 1)?.color}
-        />
-      </ErrorBoundary>
-      {showHelp && (
-        <ErrorBoundary name="Help">
-          <HelpModal initialTab={showHelp} onClose={() => setShowHelp(null)} />
-        </ErrorBoundary>
-      )}
-      {showWeeklyReview && state && (
-        <ErrorBoundary name="WeeklyReview">
-          <WeeklyReviewModal state={state} save={save} onClose={() => setShowWeeklyReview(false)} />
-        </ErrorBoundary>
-      )}
-      {milestoneDay && (
-        <ErrorBoundary name="Milestone">
-          <MilestoneUnlockModal
-            day={milestoneDay}
-            onDismiss={onDismissMilestone}
-          />
-        </ErrorBoundary>
-      )}
+      {renderModal()}
+      <ComebackModal
+        show={!!comebackInfo}
+        daysAway={comebackInfo?.daysAway || 0}
+        streak={comebackInfo?.streak || 0}
+        onClose={onDismissComeback}
+      />
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       {showTrialBanner && (
         <button
@@ -1210,7 +848,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         </button>
       )}
       <main id="main-content" style={S.content}>
-        {view === "home" && showWeeklySummary && (
+        {(view === "home" || view === "dashboard") && showWeeklySummary && (
           <WeeklySummaryBanner
             summary={computeWeeklySummary(state)}
             onDismiss={() => {
@@ -1232,7 +870,6 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
               <ErrorBoundary name="Quests" key="eb-home">
                 <HomeView
                   state={state}
-                  save={save}
                   user={user}
                   xpPopup={xpPopup}
                   onCheckQuest={checkQuest}
@@ -1242,15 +879,11 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   canCompleteDay={canCompleteDay}
                   calendarDay={calendarDay}
                   onOpenCustomQuest={() => setModal("custom_quest")}
-                  onOpenActiveQuestPicker={() => setModal("add_active_quest")}
                   onAddSuggestedQuest={addCustomQuest}
                   onRemoveCustomQuest={removeCustomQuest}
-                  onRetireActiveQuest={retireActiveQuest}
                   unlockedCustomCategories={unlockedCustomCategories}
                   onNavigate={handleViewChange}
                   onMarkRestDay={markRestDay}
-                  onLogMood={logMood}
-                  onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
             )}
@@ -1262,10 +895,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   setJournalText={setJournalText}
                   selectedMood={selectedMood}
                   setSelectedMood={setSelectedMood}
-                  onLogMood={logMood}
                   onSave={saveJournal}
                   onSaveRaw={saveJournalRaw}
-                  onNavigate={handleViewChange}
                 />
               </ErrorBoundary>
             )}
@@ -1283,7 +914,6 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   allCourses={ALL_COURSES}
                   onCheckInsight={checkBookInsight}
                   onUncheckInsight={uncheckBookInsight}
-                  openCourse={pendingOpenCourse}
                 />
               </ErrorBoundary>
             )}
@@ -1295,20 +925,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   user={user}
                   onReset={resetApp}
                   onOpenNotifications={() => setModal("notifications")}
-                  onOpenStake={openStakeEditor}
                   onNavigate={handleViewChange}
-                />
-              </ErrorBoundary>
-            )}
-            {view === "settings" && (
-              <ErrorBoundary name="Settings" key="eb-settings">
-                <SettingsView
-                  state={state}
-                  save={save}
-                  user={user}
-                  onReset={resetApp}
-                  onBack={() => handleViewChange("profile")}
-                  onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
             )}
@@ -1317,8 +934,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         </AnimatePresence>
       </main>
       <BottomNav view={view} setView={handleViewChange} />
-      <InstallPrompt />
-      <OnboardingTour />
+      <UpdateToast />
+      {state.onboarded && <InstallPrompt />}
     </div>
   );
 }

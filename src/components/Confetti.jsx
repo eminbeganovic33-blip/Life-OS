@@ -92,9 +92,17 @@ export default function Confetti({ trigger, type = "burst", originX = 0.5, origi
     }
 
     frame = requestAnimationFrame(animate);
+
+    // Safety: force-clear any stuck particles after max lifetime
+    const safetyTimer = setTimeout(() => {
+      activeRef.current = false;
+      setParticles([]);
+    }, 3000);
+
     return () => {
       activeRef.current = false;
       cancelAnimationFrame(frame);
+      clearTimeout(safetyTimer);
     };
   }, [trigger]); // eslint-disable-line react-hooks/exhaustive-deps
 

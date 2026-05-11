@@ -1,16 +1,23 @@
 import { useState } from "react";
-import { useTheme } from "../hooks/useTheme";
+import { motion } from "framer-motion";
+import { S } from "../styles/theme";
 import { CATEGORIES, SOBRIETY_DEFAULTS } from "../data";
 
 function HeroIllustration() {
   return (
     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: 8 }}>
+      {/* Background glow */}
       <circle cx="60" cy="60" r="50" fill="url(#heroGlow)" opacity="0.15" />
+      {/* Shield */}
       <path d="M60 18L88 30V54C88 74 76 88 60 96C44 88 32 74 32 54V30L60 18Z"
         fill="url(#heroShield)" opacity="0.9" />
+      {/* Inner shield accent */}
       <path d="M60 26L80 35V54C80 70 71 81 60 87C49 81 40 70 40 54V35L60 26Z"
         fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-      <path d="M56 38L44 62H56L52 82L76 52H64L68 38H56Z" fill="#fff" opacity="0.95" />
+      {/* Lightning bolt */}
+      <path d="M56 38L44 62H56L52 82L76 52H64L68 38H56Z"
+        fill="#fff" opacity="0.95" />
+      {/* Sparkles */}
       <circle cx="28" cy="38" r="2" fill="#FACC15" opacity="0.6">
         <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
       </circle>
@@ -56,10 +63,6 @@ const TRIAL_BENEFITS = [
 ];
 
 export default function Onboarding({ onFinish }) {
-  const { theme, colors } = useTheme();
-  const isDark = theme === "dark";
-  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
-
   const [step, setStep] = useState(0);
   const [userName, setUserName] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -67,14 +70,17 @@ export default function Onboarding({ onFinish }) {
   const [tourSlide, setTourSlide] = useState(0);
   const [acceptedTrial, setAcceptedTrial] = useState(false);
 
-  const ob = getStyles(isDark, colors, sub);
-
   const currentStep = STEPS[step];
   const canGoNext = step < STEPS.length - 1;
   const canGoBack = step > 0;
 
-  function next() { if (canGoNext) setStep(step + 1); }
-  function back() { if (canGoBack) setStep(step - 1); }
+  function next() {
+    if (canGoNext) setStep(step + 1);
+  }
+
+  function back() {
+    if (canGoBack) setStep(step - 1);
+  }
 
   function toggleCategory(id) {
     setSelectedCategories((prev) =>
@@ -97,10 +103,11 @@ export default function Onboarding({ onFinish }) {
     });
   }
 
+  // Progress indicator
   const progress = ((step + 1) / STEPS.length) * 100;
 
   return (
-    <div style={ob.root}>
+    <div style={S.app}>
       <div style={ob.container}>
         {/* Progress bar */}
         <div style={ob.progressBar}>
@@ -110,29 +117,72 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Welcome */}
         {currentStep === "welcome" && (
           <div style={ob.slide}>
-            <HeroIllustration />
-            <h1 style={ob.obTitle}>Life OS</h1>
-            <p style={ob.heroSub}>Your Operating System for Self-Mastery</p>
-            <p style={ob.description}>
-              Daily quests to build unbreakable habits,
-              break free from what holds you back, and become the
-              strongest version of yourself. No end date — just consistent growth.
-            </p>
-            <div style={ob.statRow}>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>6</div>
-                <div style={ob.statLabel}>Life Areas</div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+            >
+              <HeroIllustration />
+            </motion.div>
+
+            <motion.h1
+              style={S.obTitle}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, duration: 0.4 }}
+            >
+              Life OS
+            </motion.h1>
+
+            <motion.p
+              style={{ ...ob.heroSub, fontSize: 15, lineHeight: 1.5 }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.28, duration: 0.4 }}
+            >
+              Most people know <em>what</em> they should do.<br />
+              They just don't do it — consistently.
+            </motion.p>
+
+            <motion.div
+              style={ob.hookBox}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.38, duration: 0.4 }}
+            >
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>🔥</span>
+                <span>Break the habits that are holding you back</span>
               </div>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>8</div>
-                <div style={ob.statLabel}>Levels</div>
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>⚡</span>
+                <span>Build the rituals that make you unstoppable</span>
               </div>
-              <div style={ob.stat}>
-                <div style={ob.statNum}>∞</div>
-                <div style={ob.statLabel}>Your Journey</div>
+              <div style={ob.hookItem}>
+                <span style={ob.hookEmoji}>📈</span>
+                <span>Track your growth — one day at a time</span>
               </div>
-            </div>
-            <button style={ob.primaryBtn} onClick={next}>Begin Setup →</button>
+            </motion.div>
+
+            <motion.p
+              style={ob.hookSub}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.4 }}
+            >
+              66 days to transform. No end date to your potential.
+            </motion.p>
+
+            <motion.button
+              style={S.primaryBtn}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.58, duration: 0.35 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={next}
+            >
+              Start My Transformation →
+            </motion.button>
           </div>
         )}
 
@@ -153,7 +203,7 @@ export default function Onboarding({ onFinish }) {
             />
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
-              <button style={ob.primaryBtn} onClick={next}>
+              <button style={S.primaryBtn} onClick={next}>
                 {userName.trim() ? `Continue as ${userName.trim()}` : "Skip →"}
               </button>
             </div>
@@ -167,24 +217,9 @@ export default function Onboarding({ onFinish }) {
             <h2 style={ob.stepTitle}>Choose Your Focus</h2>
             <p style={ob.stepDesc}>
               Which areas matter most to you right now?
-              We'll prioritize quest suggestions to match.
+              You'll get quests in all areas, but we'll tailor suggestions
+              to your priorities.
             </p>
-            {/* O1: quick explainer of how quests work */}
-            <div style={{
-              margin: "6px 0 14px",
-              padding: "10px 12px",
-              borderRadius: 10,
-              background: "rgba(124,92,252,0.06)",
-              border: "1px solid rgba(124,92,252,0.15)",
-              fontSize: 11,
-              lineHeight: 1.5,
-              color: colors.textSecondary,
-              textAlign: "left",
-            }}>
-              <div style={{ fontWeight: 700, color: "#7C5CFC", marginBottom: 4 }}>How quests work</div>
-              Each day you'll get small, tappable habit quests. Complete them to earn XP,
-              build streaks, and level up. Add your own on Day 4+.
-            </div>
             <div style={ob.categoryGrid}>
               {CATEGORIES.map((c) => {
                 const selected = selectedCategories.includes(c.id);
@@ -194,12 +229,12 @@ export default function Onboarding({ onFinish }) {
                     onClick={() => toggleCategory(c.id)}
                     style={{
                       ...ob.categoryCard,
-                      borderColor: selected ? c.color : sub(0.08),
-                      background: selected ? `${c.color}15` : sub(0.02),
+                      borderColor: selected ? c.color : "rgba(255,255,255,0.08)",
+                      background: selected ? `${c.color}15` : "rgba(255,255,255,0.02)",
                     }}
                   >
                     <div style={{ fontSize: 28 }}>{c.icon}</div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: selected ? c.color : colors.text }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: selected ? c.color : "#E2E2EE" }}>
                       {c.label}
                     </div>
                     {selected && <div style={{ ...ob.checkMark, background: c.color }}>✓</div>}
@@ -209,7 +244,7 @@ export default function Onboarding({ onFinish }) {
             </div>
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
-              <button style={ob.primaryBtn} onClick={next}>
+              <button style={S.primaryBtn} onClick={next}>
                 {selectedCategories.length > 0
                   ? `Continue with ${selectedCategories.length} focus area${selectedCategories.length !== 1 ? "s" : ""}`
                   : "Skip — I'll do everything →"}
@@ -236,8 +271,8 @@ export default function Onboarding({ onFinish }) {
                     onClick={() => toggleTracker(t.id)}
                     style={{
                       ...ob.trackerCard,
-                      borderColor: selected ? t.color : sub(0.08),
-                      background: selected ? `${t.color}12` : sub(0.02),
+                      borderColor: selected ? t.color : "rgba(255,255,255,0.08)",
+                      background: selected ? `${t.color}12` : "rgba(255,255,255,0.02)",
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -252,10 +287,10 @@ export default function Onboarding({ onFinish }) {
                         {t.label.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: selected ? t.color : colors.text }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: selected ? t.color : "#E2E2EE" }}>
                           {t.label}
                         </div>
-                        <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                        <div style={{ fontSize: 11, opacity: 0.4 }}>
                           {t.id === "smoking" && "30-day science-backed quit program"}
                           {t.id === "alcohol" && "Daily guidance through withdrawal and beyond"}
                           {t.id === "junkfood" && "Rewire your relationship with food"}
@@ -268,23 +303,9 @@ export default function Onboarding({ onFinish }) {
                 );
               })}
             </div>
-
-            {/* Push permission — tied to Forge context (highest intent moment) */}
-            {"Notification" in window && Notification.permission === "default" && selectedTrackers.length > 0 && (
-              <div style={ob.notifHint}>
-                <span style={{ fontSize: 16 }}>🔔</span>
-                <span style={{ fontSize: 12, color: colors.textSecondary, flex: 1, lineHeight: 1.4 }}>
-                  We'll send reminders before your highest-risk windows to keep you on track.
-                </span>
-                <button style={ob.notifMiniBtn} onClick={() => Notification.requestPermission()}>
-                  Allow
-                </button>
-              </div>
-            )}
-
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
-              <button style={ob.primaryBtn} onClick={next}>
+              <button style={S.primaryBtn} onClick={next}>
                 {selectedTrackers.length > 0
                   ? `Start tracking ${selectedTrackers.length} →`
                   : "Skip — none for now →"}
@@ -296,7 +317,9 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Feature Tour */}
         {currentStep === "tour" && (
           <div style={ob.slide}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>{FEATURES[tourSlide].i}</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>
+              {FEATURES[tourSlide].i}
+            </div>
             <h2 style={ob.stepTitle}>{FEATURES[tourSlide].t}</h2>
             <p style={ob.stepDesc}>{FEATURES[tourSlide].d}</p>
             <div style={ob.tourDots}>
@@ -306,7 +329,7 @@ export default function Onboarding({ onFinish }) {
                   onClick={() => setTourSlide(i)}
                   style={{
                     ...ob.dot,
-                    background: i === tourSlide ? "#7C5CFC" : sub(0.15),
+                    background: i === tourSlide ? "#7C5CFC" : "rgba(255,255,255,0.15)",
                     width: i === tourSlide ? 24 : 8,
                   }}
                 />
@@ -314,17 +337,25 @@ export default function Onboarding({ onFinish }) {
             </div>
             <div style={ob.tourNav}>
               {tourSlide > 0 ? (
-                <button style={ob.tourBtn} onClick={() => setTourSlide(tourSlide - 1)}>← Prev</button>
+                <button style={ob.tourBtn} onClick={() => setTourSlide(tourSlide - 1)}>
+                  ← Prev
+                </button>
               ) : <div />}
               {tourSlide < FEATURES.length - 1 ? (
-                <button style={ob.tourBtn} onClick={() => setTourSlide(tourSlide + 1)}>Next →</button>
+                <button style={ob.tourBtn} onClick={() => setTourSlide(tourSlide + 1)}>
+                  Next →
+                </button>
               ) : (
-                <button style={{ ...ob.tourBtn, color: "#7C5CFC", borderColor: "#7C5CFC" }} onClick={next}>Done →</button>
+                <button style={{ ...ob.tourBtn, color: "#7C5CFC", borderColor: "#7C5CFC" }} onClick={next}>
+                  Done →
+                </button>
               )}
             </div>
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
-              <button style={ob.skipBtn} onClick={next}>Skip tour →</button>
+              <button style={{ ...ob.skipBtn }} onClick={next}>
+                Skip tour →
+              </button>
             </div>
           </div>
         )}
@@ -332,7 +363,9 @@ export default function Onboarding({ onFinish }) {
         {/* Step: Trial Offer */}
         {currentStep === "trial" && (
           <div style={ob.slide}>
-            <div style={ob.trialCrown}><span style={{ fontSize: 36 }}>👑</span></div>
+            <div style={ob.trialCrown}>
+              <span style={{ fontSize: 36 }}>👑</span>
+            </div>
             <h2 style={ob.stepTitle}>Try Premium Free</h2>
             <p style={ob.stepDesc}>
               Get the full Life OS experience for 7 days. No card required —
@@ -344,7 +377,7 @@ export default function Onboarding({ onFinish }) {
                   <span style={{ fontSize: 22 }}>{b.i}</span>
                   <div style={{ flex: 1, textAlign: "left" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#FFD700" }}>{b.t}</div>
-                    <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>{b.d}</div>
+                    <div style={{ fontSize: 11, opacity: 0.5, marginTop: 1 }}>{b.d}</div>
                   </div>
                   <span style={{ color: "#10B981", fontSize: 14, fontWeight: 700 }}>✓</span>
                 </div>
@@ -354,10 +387,16 @@ export default function Onboarding({ onFinish }) {
               After 7 days you'll automatically return to free — no surprise charges.
             </div>
             <div style={{ ...ob.btnRow, flexDirection: "column", gap: 8 }}>
-              <button style={ob.trialAcceptBtn} onClick={() => { setAcceptedTrial(true); next(); }}>
+              <button
+                style={ob.trialAcceptBtn}
+                onClick={() => { setAcceptedTrial(true); next(); }}
+              >
                 Start 7-Day Free Trial
               </button>
-              <button style={ob.trialSkipBtn} onClick={() => { setAcceptedTrial(false); next(); }}>
+              <button
+                style={ob.trialSkipBtn}
+                onClick={() => { setAcceptedTrial(false); next(); }}
+              >
                 Maybe later — continue free
               </button>
             </div>
@@ -374,11 +413,12 @@ export default function Onboarding({ onFinish }) {
             </h2>
             <p style={ob.stepDesc}>Your transformation starts now.</p>
 
+            {/* Summary */}
             <div style={ob.summary}>
               {selectedCategories.length > 0 && (
                 <div style={ob.summaryRow}>
-                  <span style={{ color: colors.textSecondary }}>Focus:</span>
-                  <span style={{ color: colors.text }}>
+                  <span style={{ opacity: 0.5 }}>Focus:</span>
+                  <span>
                     {selectedCategories
                       .map((id) => CATEGORIES.find((c) => c.id === id)?.label)
                       .filter(Boolean)
@@ -388,8 +428,8 @@ export default function Onboarding({ onFinish }) {
               )}
               {selectedTrackers.length > 0 && (
                 <div style={ob.summaryRow}>
-                  <span style={{ color: colors.textSecondary }}>Quitting:</span>
-                  <span style={{ color: colors.text }}>
+                  <span style={{ opacity: 0.5 }}>Quitting:</span>
+                  <span>
                     {selectedTrackers
                       .map((id) => SOBRIETY_DEFAULTS.find((t) => t.id === id)?.label)
                       .filter(Boolean)
@@ -398,12 +438,12 @@ export default function Onboarding({ onFinish }) {
                 </div>
               )}
               <div style={ob.summaryRow}>
-                <span style={{ color: colors.textSecondary }}>Journey:</span>
-                <span style={{ color: colors.text }}>Ongoing self-mastery</span>
+                <span style={{ opacity: 0.5 }}>Journey:</span>
+                <span>Ongoing self-mastery</span>
               </div>
               {acceptedTrial && (
                 <div style={ob.summaryRow}>
-                  <span style={{ color: colors.textSecondary }}>Trial:</span>
+                  <span style={{ opacity: 0.5 }}>Trial:</span>
                   <span style={{ color: "#FFD700" }}>7-day Premium ✓</span>
                 </div>
               )}
@@ -411,12 +451,24 @@ export default function Onboarding({ onFinish }) {
 
             <div style={ob.readyQuote}>
               "The journey of a thousand miles begins with a single step."
-              <div style={{ color: colors.textSecondary, marginTop: 4 }}>— Lao Tzu</div>
+              <div style={{ opacity: 0.4, marginTop: 4 }}>— Lao Tzu</div>
             </div>
+
+            {/* Notification permission prompt */}
+            {"Notification" in window && Notification.permission === "default" && (
+              <button
+                style={ob.notifBtn}
+                onClick={() => Notification.requestPermission()}
+              >
+                🔔 Enable daily reminders
+              </button>
+            )}
 
             <div style={ob.btnRow}>
               <button style={ob.backBtn} onClick={back}>Back</button>
-              <button style={ob.primaryBtn} onClick={finish}>Launch Life OS →</button>
+              <button style={S.primaryBtn} onClick={finish}>
+                Launch Life OS →
+              </button>
             </div>
           </div>
         )}
@@ -425,244 +477,341 @@ export default function Onboarding({ onFinish }) {
   );
 }
 
-function getStyles(isDark, colors, sub) {
-  return {
-    root: {
-      minHeight: "100vh",
-      background: isDark ? "#0D0D14" : "#F5F5F7",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    container: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "100vh",
-      padding: "20px 24px",
-      textAlign: "center",
-      position: "relative",
-      width: "100%",
-    },
-    progressBar: {
-      position: "fixed",
-      top: 0, left: 0, right: 0,
-      height: 3,
-      background: sub(0.05),
-      zIndex: 100,
-    },
-    progressFill: {
-      height: "100%",
-      background: "linear-gradient(90deg, #7C5CFC, #EC4899)",
-      transition: "width 0.4s ease",
-      borderRadius: "0 2px 2px 0",
-    },
-    slide: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      maxWidth: 380,
-      width: "100%",
-    },
-    obTitle: {
-      fontSize: 32,
-      fontWeight: 900,
-      color: colors.text,
-      margin: "0 0 4px",
-      letterSpacing: -0.5,
-    },
-    heroSub: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginTop: 6,
-      marginBottom: 16,
-    },
-    description: {
-      fontSize: 13,
-      lineHeight: 1.6,
-      color: colors.textSecondary,
-      marginBottom: 24,
-      maxWidth: 320,
-    },
-    statRow: { display: "flex", gap: 24, marginBottom: 28 },
-    stat: { textAlign: "center" },
-    statNum: {
-      fontSize: 28,
-      fontWeight: 900,
-      background: "linear-gradient(135deg, #7C5CFC, #EC4899)",
-      WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent",
-    },
-    statLabel: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      fontWeight: 600,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-    stepTitle: {
-      fontSize: 24,
-      fontWeight: 800,
-      margin: "0 0 8px",
-      color: colors.text,
-    },
-    stepDesc: {
-      fontSize: 13,
-      lineHeight: 1.5,
-      color: colors.textSecondary,
-      marginBottom: 20,
-      maxWidth: 320,
-    },
-    input: {
-      width: "100%",
-      maxWidth: 280,
-      padding: "14px 18px",
-      borderRadius: 12,
-      border: `1px solid rgba(124,92,252,0.3)`,
-      background: sub(0.03),
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: 600,
-      textAlign: "center",
-      outline: "none",
-      marginBottom: 20,
-    },
-    categoryGrid: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr 1fr",
-      gap: 10,
-      marginBottom: 20,
-      width: "100%",
-    },
-    categoryCard: {
-      padding: "16px 8px",
-      borderRadius: 14,
-      border: "1.5px solid",
-      textAlign: "center",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 6,
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-      position: "relative",
-    },
-    trackerList: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, width: "100%" },
-    trackerCard: {
-      padding: "14px 16px",
-      borderRadius: 14,
-      border: "1.5px solid",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      cursor: "pointer",
-      textAlign: "left",
-      position: "relative",
-    },
-    notifHint: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "12px 14px",
-      borderRadius: 12,
-      background: "rgba(124,92,252,0.06)",
-      border: "1px solid rgba(124,92,252,0.12)",
-      width: "100%",
-      marginBottom: 12,
-      boxSizing: "border-box",
-    },
-    notifMiniBtn: {
-      padding: "6px 14px",
-      borderRadius: 8,
-      border: "none",
-      background: "#7C5CFC",
-      color: "#fff",
-      fontSize: 12,
-      fontWeight: 700,
-      cursor: "pointer",
-      flexShrink: 0,
-    },
-    checkMark: {
-      width: 22, height: 22, borderRadius: "50%",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
-    },
-    tourDots: {
-      display: "flex", gap: 6, alignItems: "center",
-      justifyContent: "center", marginBottom: 20,
-    },
-    dot: { height: 8, borderRadius: 4, transition: "all 0.3s ease", cursor: "pointer" },
-    tourNav: { display: "flex", justifyContent: "space-between", width: "100%", marginBottom: 16 },
-    tourBtn: {
-      padding: "8px 18px", borderRadius: 10,
-      border: `1px solid ${sub(0.15)}`,
-      background: "transparent", color: colors.text,
-      fontSize: 13, fontWeight: 600, cursor: "pointer",
-    },
-    btnRow: {
-      display: "flex", gap: 10, width: "100%",
-      justifyContent: "center", alignItems: "center", marginTop: 4,
-    },
-    backBtn: {
-      padding: "12px 20px", borderRadius: 12,
-      border: `1px solid ${sub(0.1)}`,
-      background: "transparent", color: colors.textSecondary,
-      fontSize: 14, fontWeight: 600, cursor: "pointer",
-    },
-    skipBtn: {
-      padding: "12px 20px", borderRadius: 12,
-      border: "none", background: "transparent",
-      color: colors.textSecondary,
-      fontSize: 13, fontWeight: 600, cursor: "pointer",
-    },
-    primaryBtn: {
-      padding: "13px 24px", borderRadius: 12, border: "none",
-      background: "linear-gradient(135deg, #7C5CFC, #6D28D9)",
-      color: "#fff", fontSize: 14, fontWeight: 700,
-      cursor: "pointer", letterSpacing: 0.2,
-      boxShadow: "0 4px 16px rgba(124,92,252,0.3)",
-    },
-    summary: {
-      width: "100%", padding: "16px",
-      borderRadius: 14,
-      background: sub(0.03),
-      border: `1px solid ${sub(0.06)}`,
-      marginBottom: 20,
-      display: "flex", flexDirection: "column", gap: 10,
-    },
-    summaryRow: { display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600 },
-    readyQuote: {
-      fontSize: 13, fontStyle: "italic",
-      color: colors.textSecondary,
-      lineHeight: 1.5, marginBottom: 24, maxWidth: 300,
-    },
-    trialCrown: {
-      width: 72, height: 72, borderRadius: "50%",
-      background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,215,0,0.05))",
-      border: "2px solid rgba(255,215,0,0.25)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      margin: "0 auto 12px",
-      boxShadow: "0 0 40px rgba(255,215,0,0.12)",
-    },
-    trialBenefits: { width: "100%", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 },
-    trialBenefitRow: {
-      display: "flex", alignItems: "center", gap: 12,
-      padding: "12px 14px", borderRadius: 12,
-      background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.1)",
-    },
-    trialNote: { fontSize: 11, color: colors.textSecondary, marginBottom: 16, maxWidth: 280, lineHeight: 1.5 },
-    trialAcceptBtn: {
-      width: "100%", padding: "14px 20px", borderRadius: 12, border: "none",
-      background: "linear-gradient(135deg, #FFD700, #FFA500)",
-      color: "#0D0D14", fontSize: 14, fontWeight: 800, cursor: "pointer",
-      boxShadow: "0 4px 24px rgba(255,215,0,0.18)", letterSpacing: 0.3,
-    },
-    trialSkipBtn: {
-      width: "100%", padding: "12px 20px", borderRadius: 12,
-      border: `1px solid ${sub(0.08)}`,
-      background: "transparent", color: colors.textSecondary,
-      fontSize: 13, fontWeight: 600, cursor: "pointer",
-    },
-  };
-}
+// ── Styles ──
+
+const ob = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "100vh",
+    padding: "20px 24px",
+    textAlign: "center",
+    position: "relative",
+  },
+  progressBar: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    background: "rgba(255,255,255,0.05)",
+    zIndex: 100,
+  },
+  progressFill: {
+    height: "100%",
+    background: "linear-gradient(90deg, #7C5CFC, #EC4899)",
+    transition: "width 0.4s ease",
+    borderRadius: "0 2px 2px 0",
+  },
+  slide: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    maxWidth: 380,
+    width: "100%",
+  },
+  heroIcon: {
+    fontSize: 64,
+    marginBottom: 12,
+  },
+  heroSub: {
+    fontSize: 14,
+    opacity: 0.65,
+    marginTop: 6,
+    marginBottom: 16,
+    lineHeight: 1.6,
+  },
+  hookBox: {
+    width: "100%",
+    maxWidth: 320,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginBottom: 16,
+    padding: "16px 18px",
+    borderRadius: 14,
+    background: "rgba(124,92,252,0.07)",
+    border: "1px solid rgba(124,92,252,0.12)",
+    textAlign: "left",
+  },
+  hookItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    opacity: 0.85,
+    lineHeight: 1.4,
+  },
+  hookEmoji: {
+    fontSize: 18,
+    flexShrink: 0,
+  },
+  hookSub: {
+    fontSize: 12,
+    opacity: 0.4,
+    marginBottom: 20,
+    fontStyle: "italic",
+  },
+  description: {
+    fontSize: 13,
+    lineHeight: 1.6,
+    opacity: 0.6,
+    marginBottom: 24,
+    maxWidth: 320,
+  },
+  statRow: {
+    display: "flex",
+    gap: 24,
+    marginBottom: 28,
+  },
+  stat: {
+    textAlign: "center",
+  },
+  statNum: {
+    fontSize: 28,
+    fontWeight: 900,
+    background: "linear-gradient(135deg, #7C5CFC, #EC4899)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+  },
+  statLabel: {
+    fontSize: 10,
+    opacity: 0.4,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontWeight: 800,
+    margin: "0 0 8px",
+    color: "#E2E2EE",
+  },
+  stepDesc: {
+    fontSize: 13,
+    lineHeight: 1.5,
+    opacity: 0.5,
+    marginBottom: 20,
+    maxWidth: 320,
+  },
+  input: {
+    width: "100%",
+    maxWidth: 280,
+    padding: "14px 18px",
+    borderRadius: 12,
+    border: "1px solid rgba(124,92,252,0.3)",
+    background: "rgba(255,255,255,0.03)",
+    color: "#E2E2EE",
+    fontSize: 16,
+    fontWeight: 600,
+    textAlign: "center",
+    outline: "none",
+    marginBottom: 20,
+  },
+  categoryGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: 10,
+    marginBottom: 20,
+    width: "100%",
+  },
+  categoryCard: {
+    padding: "16px 8px",
+    borderRadius: 14,
+    border: "1.5px solid",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    position: "relative",
+  },
+  trackerList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginBottom: 20,
+    width: "100%",
+  },
+  trackerCard: {
+    padding: "14px 16px",
+    borderRadius: 14,
+    border: "1.5px solid",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+    textAlign: "left",
+    position: "relative",
+  },
+  checkMark: {
+    width: 22,
+    height: 22,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#fff",
+    flexShrink: 0,
+  },
+  tourDots: {
+    display: "flex",
+    gap: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+    transition: "all 0.3s ease",
+    cursor: "pointer",
+  },
+  tourNav: {
+    display: "flex",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 16,
+  },
+  tourBtn: {
+    padding: "8px 18px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.15)",
+    background: "transparent",
+    color: "#E2E2EE",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  btnRow: {
+    display: "flex",
+    gap: 10,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  backBtn: {
+    padding: "12px 20px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "transparent",
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  skipBtn: {
+    padding: "12px 20px",
+    borderRadius: 12,
+    border: "none",
+    background: "transparent",
+    color: "rgba(255,255,255,0.3)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  summary: {
+    width: "100%",
+    padding: "16px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    marginBottom: 20,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  summaryRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  readyQuote: {
+    fontSize: 13,
+    fontStyle: "italic",
+    opacity: 0.4,
+    lineHeight: 1.5,
+    marginBottom: 24,
+    maxWidth: 300,
+  },
+  notifBtn: {
+    width: "100%",
+    padding: "12px 16px",
+    borderRadius: 12,
+    border: "1px solid rgba(124,92,252,0.2)",
+    background: "rgba(124,92,252,0.08)",
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    marginBottom: 16,
+  },
+  trialCrown: {
+    width: 72,
+    height: 72,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,215,0,0.05))",
+    border: "2px solid rgba(255,215,0,0.25)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 12px",
+    boxShadow: "0 0 40px rgba(255,215,0,0.12)",
+  },
+  trialBenefits: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 12,
+  },
+  trialBenefitRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 12,
+    background: "rgba(255,215,0,0.04)",
+    border: "1px solid rgba(255,215,0,0.1)",
+  },
+  trialNote: {
+    fontSize: 11,
+    opacity: 0.45,
+    marginBottom: 16,
+    maxWidth: 280,
+    lineHeight: 1.5,
+  },
+  trialAcceptBtn: {
+    width: "100%",
+    padding: "14px 20px",
+    borderRadius: 12,
+    border: "none",
+    background: "linear-gradient(135deg, #FFD700, #FFA500)",
+    color: "#0D0D14",
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 4px 24px rgba(255,215,0,0.18)",
+    letterSpacing: 0.3,
+  },
+  trialSkipBtn: {
+    width: "100%",
+    padding: "12px 20px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "transparent",
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+};

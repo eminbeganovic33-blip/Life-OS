@@ -2,19 +2,16 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS, MOODS } from "../../data";
-import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween } from "../../utils";
-import { getArc, getArcProgress } from "../../utils/arcs";
+import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
+import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween, getTodayStr } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
-import { getVoice } from "../../utils/voice";
-
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
+import SmartInsights from "../SmartInsights";
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import QuestCard from "./home/QuestCard";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Shield, Quote, Calendar, BookOpen } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar, Heart } from "lucide-react";
 
 function formatDate() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -22,37 +19,37 @@ function formatDate() {
 
 const SWIPE_THRESHOLD = 60;
 
-// ── Time-of-day blocks (now driven by each quest's own timeOfDay tag) ──
+// ── Quest time-of-day mapping ──
 const TIME_BLOCKS = {
   morning: {
     label: "Morning Ritual",
     LucideIcon: Sunrise,
+    categories: ["sleep", "water", "shower", "nutrition"],
     gradient: "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(249,115,22,0.02))",
     accent: "#FBBF24",
   },
   afternoon: {
     label: "Daily Challenges",
     LucideIcon: Zap,
+    categories: ["exercise", "work", "reading", "finance"],
     gradient: "linear-gradient(135deg, rgba(124,92,252,0.06), rgba(59,130,246,0.02))",
     accent: "#7C5CFC",
   },
   evening: {
     label: "Evening Growth",
     LucideIcon: Moon,
+    categories: ["mind", "screen", "social", "creative"],
     gradient: "linear-gradient(135deg, rgba(139,92,246,0.06), rgba(236,72,153,0.02))",
     accent: "#A78BFA",
   },
 };
 
-// "anytime" quests fall into afternoon by default.
-function getTimeBlockKey(q) {
-  const t = q?.timeOfDay;
-  if (t === "morning" || t === "afternoon" || t === "evening") return t;
-  return "afternoon";
+function getTimeBlock(categoryId) {
+  for (const [key, block] of Object.entries(TIME_BLOCKS)) {
+    if (block.categories.includes(categoryId)) return key;
+  }
+  return "afternoon"; // default
 }
-
-// Flat-list threshold: small rosters render as a single list (no accordion).
-const FLAT_LIST_MAX = 6;
 
 // ── Circular Progress Ring ──
 function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trackColor = "rgba(0,0,0,0.08)" }) {
@@ -73,31 +70,23 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 }
 
 export default function HomeView({
-  state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay,
+  state, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate, onMarkRestDay, onLogMood,
-  onOpenActiveQuestPicker, onRetireActiveQuest, onOpenHelp,
+  unlockedCustomCategories, onNavigate, onMarkRestDay,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const ts = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
   const day = state.currentDay;
-  // H1 fix: include state.activeQuests so list refreshes when quests are added/retired
-  const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.activeQuests, state.currentDay]);
+  const quests = useMemo(() => getDayQuests(day, state.customQuests, state), [day, state.customQuests, state.currentDay]);
   const completed = state.completedQuests[day] || [];
-  // A: Exclude bonus quest IDs from the regular count so counter never shows "7/6"
-  const completedRegular = useMemo(() => completed.filter(id => !id.startsWith("bonus-")), [completed]);
-  const completedBonus = useMemo(() => completed.filter(id => id.startsWith("bonus-")), [completed]);
-  const allDone = completedRegular.length === quests.length && quests.length > 0;
+  const allDone = completed.length === quests.length && quests.length > 0;
   const level = getLevel(state.xp);
   const nextLevel = getNextLevel(state.xp);
   const levelIdx = getLevelIndex(state.xp);
   const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
-  const dayProgress = quests.length > 0 ? completedRegular.length / quests.length : 0;
-  // Arc system
-  const arc = getArc(day);
-  const arcProgress = getArcProgress(day);
+  const dayProgress = quests.length > 0 ? completed.length / quests.length : 0;
 
   // Dashboard-layer data
   const userName = user?.displayName?.split(" ")[0] || state.userName || null;
@@ -110,22 +99,35 @@ export default function HomeView({
       }),
     [state.sobrietyDates]
   );
-  // Narrow deps: nudges only depend on these state slices, not the entire
-  // state object. Recomputing on every save (e.g. quest tap) was wasteful.
-  const topNudge = useMemo(
-    () => getProactiveNudges(state)[0] || null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.completedQuests, state.currentDay, state.streak, state.moods, state.journal, state.recoveryJournals]
-  );
+  const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
+  // Dojo: today's logged workouts
+  const todayWorkouts = useMemo(() => {
+    const key = getTodayStr();
+    return (state.workoutLogs || {})[key] || [];
+  }, [state.workoutLogs]);
+  const todayVolume = useMemo(() =>
+    todayWorkouts.reduce((sum, w) => sum + (w.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0),
+    [todayWorkouts]
+  );
+  const todayDojoXp = todayWorkouts.length > 0 ? 20 * todayWorkouts.length + Math.floor(todayVolume / 100) : 0;
+
+  // Wellness score: streak(35) + recent quest activity(40) + mood(25)
+  const wellnessScore = useMemo(() => {
+    const { streak = 0, completedQuests = {}, moods = {} } = state;
+    const streakPts = Math.min(streak, 35);
+    const recentDays = Array.from({ length: 7 }, (_, i) => day - 1 - i).filter(d => d > 0);
+    const activeDays = recentDays.filter(d => (completedQuests[d] || []).length > 2).length;
+    const questPts = recentDays.length > 0 ? Math.round((activeDays / recentDays.length) * 40) : 0;
+    const recentMoods = recentDays.map(d => moods[d]).filter(m => m != null && m >= 1);
+    const avgMood = recentMoods.length > 0 ? recentMoods.reduce((a, b) => a + b, 0) / recentMoods.length : null;
+    const moodPts = avgMood != null ? Math.round(((avgMood - 1) / 4) * 25) : Math.round(questPts * 0.3);
+    return Math.min(100, streakPts + questPts + moodPts);
+  }, [state.streak, state.completedQuests, state.moods, day]);
+
   const [activeGuide, setActiveGuide] = useState(null);
-  // H7: Default to current time-of-day block expanded, others collapsed
-  const [collapsedBlocks, setCollapsedBlocks] = useState(() => {
-    const h = new Date().getHours();
-    const current = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
-    return { morning: current !== "morning", afternoon: current !== "afternoon", evening: current !== "evening" };
-  });
+  const [collapsedBlocks, setCollapsedBlocks] = useState({});
   const [swipeHint, setSwipeHint] = useState(null);
   const swipeHintTimer = useRef(null);
   const touchStartX = useRef(0);
@@ -137,16 +139,15 @@ export default function HomeView({
     swipeHintTimer.current = setTimeout(() => setSwipeHint(null), 2000);
   }, []);
 
-  // ── Quest grouping by quest.timeOfDay ──
+  // ── Quest grouping by time block ──
   const groupedQuests = useMemo(() => {
     const groups = { morning: [], afternoon: [], evening: [] };
     quests.forEach((q) => {
-      groups[getTimeBlockKey(q)].push(q);
+      const block = getTimeBlock(q.category);
+      groups[block].push(q);
     });
     return groups;
   }, [quests]);
-
-  const useFlatList = quests.length <= FLAT_LIST_MAX;
 
   // ── Category streaks ──
   const categoryStreaks = useMemo(() => {
@@ -158,20 +159,9 @@ export default function HomeView({
     return streaks;
   }, [state.completedQuests, day]);
 
-  // ── Category mastery (Novice/Initiate/Adept/Expert/Master/Grandmaster) ──
-  // Only surface badges beyond Novice to avoid cluttering day-1 cards.
-  const categoryMastery = useMemo(() => {
-    const out = {};
-    CATEGORIES.forEach((cat) => {
-      const m = getCategoryMastery(state, cat.id);
-      if (m.levelIndex > 0) out[cat.id] = m;
-    });
-    return out;
-  }, [state.completedQuests]);
-
   // ── Focus quest — most impactful uncompleted quest ──
   const focusQuest = useMemo(() => {
-    const uncompleted = quests.filter((q) => !completedRegular.includes(q.id));
+    const uncompleted = quests.filter((q) => !completed.includes(q.id));
     if (uncompleted.length === 0) return null;
     return uncompleted.sort((a, b) => {
       const aStreak = categoryStreaks[a.category] || 0;
@@ -182,43 +172,12 @@ export default function HomeView({
     })[0];
   }, [quests, completed, categoryStreaks]);
 
-  // ── Post-quest voice flash (transient micro-line) ──
-  const [postQuestVoice, setPostQuestVoice] = useState(null);
-  const postQuestTimerRef = useRef(null);
-
   // ── Handlers ──
-  // Detect non-touch (desktop). On touch devices, completed quests get a
-  // swipe hint; on desktop, swipe is impossible so a tap directly unchecks.
-  const isTouchDevice = typeof window !== "undefined" && (
-    "ontouchstart" in window || (navigator?.maxTouchPoints || 0) > 0
-  );
-
   function handleQuestClick(q) {
     if (completed.includes(q.id)) {
-      if (isTouchDevice) {
-        showSwipeHint(q.id);
-      } else {
-        // Desktop: tap toggles off directly.
-        onUncheckQuest(q.id, q.xp);
-      }
+      showSwipeHint(q.id);
     } else {
       onCheckQuest(q.id, q.xp);
-      // Fire post-quest voice using projected next state (1 more completion)
-      const projected = {
-        ...state,
-        completedQuests: {
-          ...(state.completedQuests || {}),
-          [day]: [...(state.completedQuests?.[day] || []), q.id],
-        },
-      };
-      const catId = String(q.id).split("-")[0];
-      const catStreak = getCategoryStreak(projected.completedQuests, catId, day);
-      const v = getVoice("post_quest", projected, { questId: q.id, categoryStreak: catStreak });
-      if (v) {
-        setPostQuestVoice(v);
-        if (postQuestTimerRef.current) clearTimeout(postQuestTimerRef.current);
-        postQuestTimerRef.current = setTimeout(() => setPostQuestVoice(null), 3600);
-      }
     }
   }
 
@@ -250,23 +209,16 @@ export default function HomeView({
   }
 
   // Shared QuestCard props
-  // C: navigate to Academy and open the linked course
-  const handleLearnWhy = useCallback((courseId) => {
-    onNavigate?.("academy", { openCourse: courseId });
-  }, [onNavigate]);
-
   const questCardProps = {
     isDark, colors, ts,
-    categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
+    categoryStreaks, focusQuest, swipeHint, activeGuide,
     onCheck: onCheckQuest, onUncheck: onUncheckQuest,
     onSwipeHintShow: showSwipeHint,
     onSwipeHintClear: () => setSwipeHint(null),
     onToggleGuide: handleToggleGuide,
     onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
-    onRetireActiveQuest,
     onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd,
     currentDay: state.currentDay,
-    onLearnWhy: handleLearnWhy,
   };
 
   const greeting = (() => {
@@ -275,34 +227,6 @@ export default function HomeView({
     if (h < 17) return "Good afternoon";
     return "Good evening";
   })();
-
-  const streakRingColor = allDone
-    ? "#22C55E"
-    : state.streak === 0
-    ? "#6B7280"
-    : state.streak >= 14
-    ? "#FBBF24"
-    : state.streak >= 7
-    ? "#F97316"
-    : "#7C5CFC";
-
-  const streakChipBg = state.streak === 0
-    ? "rgba(107,114,128,0.1)"
-    : state.streak >= 14
-    ? "rgba(251,191,36,0.1)"
-    : "rgba(249,115,22,0.1)";
-
-  const streakChipBorder = state.streak === 0
-    ? "1px solid rgba(107,114,128,0.2)"
-    : state.streak >= 14
-    ? "1px solid rgba(251,191,36,0.2)"
-    : "1px solid rgba(249,115,22,0.15)";
-
-  const streakChipColor = state.streak === 0
-    ? "#6B7280"
-    : state.streak >= 14
-    ? "#FBBF24"
-    : "#F97316";
 
   return (
     <div style={S.vc}>
@@ -317,71 +241,56 @@ export default function HomeView({
           <div style={ts.greetingText}>
             {greeting}{userName ? `, ${userName}` : ""}
           </div>
-          {/* C1: Progressive disclosure — Day 1–6 shows only level name, Day 7+ shows arc + XP bar */}
-          {day >= 7 ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: 13 }}>{arc.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: arc.color, letterSpacing: 0.3 }}>{arc.name}</span>
-                <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>· {arc.subtitle}</span>
-              </div>
-              <div style={ts.heroLevelXp}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-                  <span style={{ ...ts.levelXpText, fontSize: 11 }}>
-                    {level.name}
-                    {state.prestige > 0 && <span style={ts.prestigeInline}> ✦{state.prestige}</span>}
-                  </span>
-                  {nextLevel && (
-                    <span style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.5 }}>
-                      → {nextLevel.name}
-                    </span>
-                  )}
-                </div>
-                <div style={{ width: "100%", height: 4, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", overflow: "hidden" }}>
-                  <motion.div
-                    style={{ height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${arc.color}, ${arc.color}CC)` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${xpProgress * 100}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                  />
-                </div>
-                <div style={{ fontSize: 9, color: colors.textSecondary, opacity: 0.4, marginTop: 2 }}>
-                  {nextLevel ? `${nextLevel.xpReq - state.xp} XP to next level` : `${state.xp} XP · Max level`}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ ...ts.heroLevelXp, paddingBottom: 2 }}>
-              <span style={{ ...ts.levelXpText, fontSize: 11, opacity: 0.6 }}>
-                {level.name} · Day {day} of your journey
-              </span>
+          <div style={ts.heroPhase}>
+            {day <= 21 ? "Building Foundation" : day <= 66 ? "Gaining Momentum" : "Mastery Mode"}
+          </div>
+          <div style={ts.heroLevel}>
+            <span style={ts.levelBadge}>Lv.{levelIdx + 1}</span>
+            <span style={ts.levelName}>{level.name}</span>
+            {state.prestige > 0 && (
+              <span style={ts.prestigeBadge}>✦ {state.prestige}</span>
+            )}
+          </div>
+          <div style={ts.xpRow}>
+            <div style={ts.xpBarOuter}>
+              <div style={{ ...ts.xpBarInner, width: `${xpProgress * 100}%` }} />
             </div>
-          )}
+            <span style={ts.xpText}>
+              {nextLevel ? `${nextLevel.xpReq - state.xp} XP to ${nextLevel.name}` : `${state.xp} XP`}
+            </span>
+          </div>
+          {/* Wellness score */}
+          <div style={ts.wellnessRow}>
+            <Heart size={11} color={wellnessScore >= 70 ? "#22C55E" : wellnessScore >= 40 ? "#FBBF24" : "#EF4444"} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: wellnessScore >= 70 ? "#22C55E" : wellnessScore >= 40 ? "#FBBF24" : "#EF4444" }}>
+              {wellnessScore}
+            </span>
+            <span style={{ fontSize: 10, color: colors.textSecondary, fontWeight: 500 }}>wellbeing</span>
+          </div>
         </div>
 
         <div style={ts.heroRight}>
+          <span style={ts.profileChevron}>›</span>
           {/* Progress ring */}
           <div style={ts.ringWrap}>
             <ProgressRing
               progress={dayProgress}
               size={72}
               stroke={5}
-              color={streakRingColor}
+              color={allDone ? "#22C55E" : "#7C5CFC"}
               trackColor={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}
             />
             <div style={ts.ringCenter}>
-              <div style={{ ...ts.ringNumber, color: colors.text }}>{completedRegular.length}</div>
+              <div style={{ ...ts.ringNumber, color: colors.text }}>{completed.length}</div>
               <div style={ts.ringLabel}>/{quests.length}</div>
-              {completedBonus.length > 0 && (
-                <div style={{ fontSize: 8, color: "#FBBF24", fontWeight: 700, marginTop: 1 }}>+{completedBonus.length}✦</div>
-              )}
             </div>
           </div>
           {/* Streak + Multiplier */}
-          <div style={{ ...ts.streakChip, background: streakChipBg, border: streakChipBorder }}>
-            <Flame size={13} color={streakChipColor} />
-            <span style={{ ...ts.streakNumber, color: streakChipColor }}>{state.streak}</span>
-            {day >= 7 && state.streak >= 7 && getStreakMultiplier(state.streak).tier !== "none" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <div style={ts.streakChip}>
+            <Flame size={13} color="#F97316" />
+            <span style={ts.streakNumber}>{state.streak}</span>
+            {getStreakMultiplier(state.streak).tier !== "none" && (
               <span style={{
                 fontSize: 9,
                 fontWeight: 800,
@@ -406,6 +315,12 @@ export default function HomeView({
               </span>
             )}
           </div>
+          {[2, 6, 13, 29].includes(state.streak) && (
+            <div style={{ fontSize: 9, color: "#F97316", opacity: 0.75, fontWeight: 700, letterSpacing: 0.3 }}>
+              Tomorrow: {state.streak === 2 ? "1.2×" : state.streak === 6 ? "1.5×" : state.streak === 13 ? "1.8×" : "2×"} XP
+            </div>
+          )}
+        </div>
         </div>
       </motion.div>
 
@@ -424,31 +339,6 @@ export default function HomeView({
         )}
       </AnimatePresence>
 
-      {/* ── R4: Day 7 milestone banner ── */}
-      {day === 7 && !state.completedDays?.[7] && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          style={{
-            margin: "6px 14px 0",
-            padding: "12px 14px",
-            borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(251,191,36,0.1), rgba(249,115,22,0.06))",
-            border: "1px solid rgba(251,191,36,0.25)",
-            display: "flex", alignItems: "center", gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 20, flexShrink: 0 }}>🔥</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#FBBF24" }}>One week in.</div>
-            <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7, lineHeight: 1.4, marginTop: 1 }}>
-              Most people quit by Day 3. You're still here. Finish Day 7 and the streak multiplier kicks in.
-            </div>
-          </div>
-        </motion.div>
-      )}
-
       {/* ── Forge Tracker Row ── */}
       {activeTrackers.length > 0 && (
         <motion.div
@@ -456,34 +346,41 @@ export default function HomeView({
           onClick={() => onNavigate?.("forge")}
           whileTap={{ scale: 0.98 }}
         >
-          <div style={ts.forgeRowTop}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Flame size={14} color="#F97316" strokeWidth={2} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Forge</span>
+          {activeTrackers.map((t) => (
+            <div key={t.id} style={ts.forgeChip}>
+              <div style={{ ...ts.forgeDot, background: t.color }} />
+              <span style={ts.forgeLabel}>{t.label}</span>
+              <span style={{ ...ts.forgeDays, color: t.color }}>
+                {t.days}d
+              </span>
             </div>
-            <span style={{ fontSize: 11, color: colors.textSecondary, fontWeight: 500 }}>View all ›</span>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {activeTrackers.map((t) => (
-              <div key={t.id} style={ts.forgeChip}>
-                <div style={{ ...ts.forgeDot, background: t.color }} />
-                <span style={ts.forgeLabel}>{t.label}</span>
-                <span style={{ ...ts.forgeDays, color: t.color }}>
-                  {t.days} {t.days === 1 ? "day" : "days"}
-                </span>
-              </div>
-            ))}
-          </div>
+          ))}
+          <span style={{ fontSize: 11, color: colors.textSecondary, marginLeft: "auto", paddingRight: 2 }}>Forge ›</span>
         </motion.div>
       )}
 
-      {/* ── Inline Mood Picker ── */}
-      <MoodPickerRow
-        currentMood={state.moods?.[day]}
-        onLogMood={onLogMood}
-        ts={ts}
-        colors={colors}
-      />
+      {/* ── Dojo Activity (today's workouts) ── */}
+      {todayWorkouts.length > 0 && (
+        <motion.div
+          style={ts.dojoChip}
+          onClick={() => onNavigate?.("dojo")}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Dumbbell size={13} color="#7C5CFC" strokeWidth={2.5} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: colors.text }}>
+            {todayWorkouts.length} {todayWorkouts.length === 1 ? "exercise" : "exercises"} today
+          </span>
+          {todayVolume > 0 && (
+            <span style={{ fontSize: 11, color: colors.textSecondary }}>
+              · {todayVolume.toLocaleString()} vol
+            </span>
+          )}
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#7C5CFC", marginLeft: "auto" }}>
+            +{todayDojoXp} XP
+          </span>
+          <span style={{ fontSize: 11, color: colors.textSecondary, paddingRight: 2 }}>Dojo ›</span>
+        </motion.div>
+      )}
 
       {/* ── Top Nudge ── */}
       {topNudge && (
@@ -492,136 +389,76 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Voice Banner (ambient, adaptive) ── */}
-      <AnimatePresence mode="wait">
-        {postQuestVoice ? (
-          <motion.div
-            key="post-quest-voice"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.35 }}
-            style={{
-              margin: "0 14px 10px",
-              padding: "10px 14px",
-              borderLeft: "2px solid #22C55E",
-              borderRadius: 4,
-              fontSize: 13,
-              lineHeight: 1.45,
-              fontWeight: 500,
-              fontStyle: "italic",
-              color: colors.text,
-              opacity: 0.85,
-              letterSpacing: 0.1,
-            }}
-          >
-            {postQuestVoice.line}
-          </motion.div>
-        ) : (
-          <VoiceBanner key="voice-banner" state={state} colors={colors} arcColor={arc.color} />
-        )}
-      </AnimatePresence>
+      {/* ── Year in Pixels mini-strip ── */}
+      <JourneyStrip state={state} day={day} colors={colors} isDark={isDark} onNavigate={onNavigate} />
 
-      {/* ── Stake proof check-in (Boss Days) ── */}
-      <ProofCheckIn state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
+      {/* ── Active Category Streaks ── */}
+      {Object.keys(categoryStreaks).length > 0 && (
+        <div style={ts.streaksRow}>
+          {Object.entries(categoryStreaks)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 6)
+            .map(([catId, streak]) => {
+              const cat = CATEGORIES.find((c) => c.id === catId);
+              if (!cat) return null;
+              const mastery = getCategoryMastery(state, catId);
+              return (
+                <div key={catId} style={{ ...ts.streakItem, borderColor: `${cat.color}25` }}>
+                  <CategoryIcon id={catId} size={11} color={cat.color} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: cat.color }}>{streak}d</span>
+                  {mastery.levelIndex > 0 && (
+                    <span style={{ fontSize: 8, fontWeight: 700, color: mastery.color, opacity: 0.8 }} title={mastery.level}>
+                      {mastery.level.charAt(0)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
 
       {/* ── Section Header ── */}
       <div style={ts.sectionHeader}>
-        <div>
-          <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
-          {day <= 4 && (
-            <div style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.45, marginTop: 2 }}>
-              Complete each habit to earn XP and build your streak
-            </div>
-          )}
-        </div>
-        <button
-          style={ts.addBtn}
-          onClick={() => (onOpenActiveQuestPicker || onOpenCustomQuest)?.()}
-        >
-          + Add
-        </button>
+        <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
+        <button style={ts.addBtn} onClick={onOpenCustomQuest}>+ Add</button>
       </div>
 
-      {/* ── Focus Quest Highlight — only shown in accordion mode (>6 quests) to avoid duplication in flat list ── */}
-      <AnimatePresence>
-        {!useFlatList && focusQuest && !completed.includes(focusQuest.id) && (
-          <motion.div
-            key={focusQuest.id}
-            style={ts.focusCard}
-            onClick={() => handleQuestClick(focusQuest)}
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -4 }}
-            transition={{ duration: 0.22 }}
-            layout
-          >
-            <div style={ts.focusHeader}>
-              <Target size={11} strokeWidth={2.5} />
-              <span style={ts.focusLabel}>Priority Quest</span>
-            </div>
-            <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
-            <div style={ts.focusFooter}>
-              <span style={{ color: CATEGORIES.find((c) => c.id === focusQuest.category)?.color, fontSize: 11 }}>
-                {CATEGORIES.find((c) => c.id === focusQuest.category)?.icon}{" "}
-                {CATEGORIES.find((c) => c.id === focusQuest.category)?.label}
-              </span>
-              <span style={ts.focusXp}>+{focusQuest.xp} XP →</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── H12: Empty state when no quests configured ── */}
-      {quests.length === 0 && (
-        <div style={{
-          margin: "8px 14px 4px",
-          padding: "28px 20px",
-          borderRadius: 14,
-          background: isDark ? "rgba(124,92,252,0.04)" : "rgba(124,92,252,0.04)",
-          border: `1px dashed ${isDark ? "rgba(124,92,252,0.18)" : "rgba(124,92,252,0.2)"}`,
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 8,
-        }}>
-          <Target size={24} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5 }} />
-          <div style={{ fontSize: 14, fontWeight: 700, color: colors.text }}>No quests yet</div>
-          <div style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.5, maxWidth: 240 }}>
-            Tap <strong style={{ color: "#7C5CFC" }}>+ Add</strong> above to pick your first quests. Start with 2–4 and build up.
+      {/* ── Focus Quest Highlight ── */}
+      {focusQuest && !completed.includes(focusQuest.id) && (
+        <div
+          style={ts.focusCard}
+          onClick={() => handleQuestClick(focusQuest)}
+        >
+          <div style={ts.focusHeader}>
+            <Target size={11} strokeWidth={2.5} />
+            <span style={ts.focusLabel}>Priority Quest</span>
+          </div>
+          <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
+          <div style={ts.focusFooter}>
+            <span style={{ color: CATEGORIES.find((c) => c.id === focusQuest.category)?.color, fontSize: 11 }}>
+              {CATEGORIES.find((c) => c.id === focusQuest.category)?.icon}{" "}
+              {CATEGORIES.find((c) => c.id === focusQuest.category)?.label}
+            </span>
+            <span style={ts.focusXp}>+{focusQuest.xp} XP</span>
           </div>
         </div>
       )}
 
-      {/* ── Quest list: flat (≤6 quests) or time-block accordion (>6) ── */}
-      {useFlatList ? (
-        <FlatQuestList
-          quests={quests}
+      {/* ── Time Block Sections ── */}
+      {["morning", "afternoon", "evening"].map((key) => (
+        <TimeBlockSection
+          key={key}
+          blockKey={key}
+          block={TIME_BLOCKS[key]}
+          quests={groupedQuests[key]}
           completed={completed}
+          isCollapsed={collapsedBlocks[key]}
+          onToggle={() => toggleBlock(key)}
           ts={ts}
           colors={colors}
           {...questCardProps}
         />
-      ) : (
-        ["morning", "afternoon", "evening"].map((key) => (
-          <TimeBlockSection
-            key={key}
-            blockKey={key}
-            block={TIME_BLOCKS[key]}
-            quests={groupedQuests[key]}
-            completed={completed}
-            isCollapsed={collapsedBlocks[key]}
-            onToggle={() => toggleBlock(key)}
-            ts={ts}
-            colors={colors}
-            {...questCardProps}
-          />
-        ))
-      )}
-
-      {/* ── H3: Bonus Quest — elevated directly after quest list ── */}
-      <BonusQuestCard state={state} completed={completed} colors={colors} onCheckQuest={onCheckQuest} />
+      ))}
 
       {/* ── Weekly Challenge Tracker ── */}
       <WeeklyChallengeBanner state={state} ts={ts} />
@@ -630,7 +467,6 @@ export default function HomeView({
       {day > 3 && !allDone && (
         <InlineQuestSuggestions
           state={state}
-          quests={quests}
           isDark={isDark}
           colors={colors}
           onOpenCustomQuest={onOpenCustomQuest}
@@ -638,164 +474,66 @@ export default function HomeView({
         />
       )}
 
-      {/* ── Daily Quote — only after quests are done or only 1 remaining ── */}
-      {(allDone || quests.length - completedRegular.length <= 1) && <div style={ts.quoteCard}>
-        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
-        <div style={{ flex: 1 }}>
-          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
-          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
+      {/* ── Daily Bonus Quest ── */}
+      <BonusQuestCard state={state} completed={completed} colors={colors} onCheckQuest={onCheckQuest} />
+
+      {/* ── Weekly Challenge ── */}
+      <WeeklyChallengeCard state={state} colors={colors} isDark={isDark} />
+
+      {/* ── Temporal Lock ── */}
+      {isTimeLocked && (
+        <div style={ts.lockBox}>
+          <CircleCheck size={14} color="#7C5CFC" strokeWidth={2} />
+          <span style={{ fontSize: 12, opacity: 0.6, color: colors.text }}>
+            All quests complete! Come back tomorrow for Day {day + 1}.
+          </span>
         </div>
-      </div>}
-
-
-      {/* ── C2: Quests Cleared moment — fires the instant allDone becomes true ── */}
-      <AnimatePresence>
-        {allDone && (
-          <motion.div
-            key="quests-cleared"
-            initial={{ opacity: 0, y: 12, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            style={{
-              margin: "8px 14px 0",
-              padding: "16px 16px 14px",
-              borderRadius: 16,
-              background: isDark
-                ? "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(124,92,252,0.06))"
-                : "linear-gradient(135deg, rgba(34,197,94,0.07), rgba(124,92,252,0.04))",
-              border: "1px solid rgba(34,197,94,0.2)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <motion.span
-                initial={{ scale: 0, rotate: -20 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 14, delay: 0.15 }}
-                style={{ fontSize: 22, lineHeight: 1 }}
-              >
-                🎯
-              </motion.span>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#22C55E" }}>
-                  All quests cleared!
-                </div>
-                <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, marginTop: 1 }}>
-                  Want to do more, or call it a great day?
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                style={{
-                  flex: 1, minWidth: 90,
-                  padding: "9px 12px", borderRadius: 10,
-                  background: "rgba(124,92,252,0.1)", border: "1px solid rgba(124,92,252,0.2)",
-                  color: "#7C5CFC", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                }}
-                onClick={(e) => { e.stopPropagation(); onOpenActiveQuestPicker?.() || onOpenCustomQuest?.(); }}
-              >
-                + Add a quest
-              </button>
-              <button
-                style={{
-                  flex: 1, minWidth: 90,
-                  padding: "9px 12px", borderRadius: 10,
-                  background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.18)",
-                  color: "#F97316", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                }}
-                onClick={(e) => { e.stopPropagation(); onNavigate?.("dojo"); }}
-              >
-                🥊 Dojo
-              </button>
-              <button
-                style={{
-                  flex: 1, minWidth: 90,
-                  padding: "9px 12px", borderRadius: 10,
-                  background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)",
-                  color: "#22C55E", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                }}
-                onClick={(e) => { e.stopPropagation(); onNavigate?.("academy"); }}
-              >
-                📚 Academy
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Complete Day Button / Status ── */}
-      {isTimeLocked ? (
-        // All quests done but calendar hasn't advanced yet — explain the lock
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          style={{
-            margin: "10px 14px 0",
-            padding: "16px 18px",
-            borderRadius: 16,
-            background: `linear-gradient(135deg, rgba(124,92,252,0.1), rgba(124,92,252,0.04))`,
-            border: "1px solid rgba(124,92,252,0.25)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
-            >
-              <CircleCheck size={22} color="#7C5CFC" strokeWidth={2.5} />
-            </motion.div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#7C5CFC", lineHeight: 1.2 }}>
-                All quests complete ✓
-              </div>
-              <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.6, marginTop: 2 }}>
-                {arc.icon} {arc.name} · Day {day - arc.days[0] + 1} of {arc.days[1] - arc.days[0] + 1}
-              </div>
-            </div>
-            {completedBonus.length > 0 && (
-              <div style={{ marginLeft: "auto", fontSize: 10, color: "#FBBF24", fontWeight: 600 }}>+bonus ✦</div>
-            )}
-          </div>
-          <div style={{ fontSize: 12, color: colors.textSecondary, opacity: 0.7, lineHeight: 1.5 }}>
-            🔒 Seal Day {day} at midnight — come back then to lock in your streak and advance to Day {day + 1}.
-          </div>
-
-          {/* Pre-seal reflection prompt */}
-          <PreSealReflection state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
-        </motion.div>
-      ) : (
-        <button
-          style={{
-            ...ts.completeBtn,
-            opacity: allDone && canCompleteDay ? 1 : 0.4,
-            cursor: allDone && canCompleteDay ? "pointer" : "default",
-            background: allDone && canCompleteDay
-              ? "linear-gradient(135deg, #22C55E, #16A34A)"
-              : "linear-gradient(135deg, #7C5CFC, #6D28D9)",
-          }}
-          onClick={onCompleteDay}
-          disabled={!allDone || !canCompleteDay}
-        >
-          {allDone ? `Seal Day ${day}` : `${completedRegular.length} / ${quests.length} Quests`}
-        </button>
       )}
 
-      {/* ── Rest Day: prominent when streak is at risk, subtle otherwise ── */}
-      <RestDayControl
-        state={state}
-        day={day}
-        allDone={allDone}
-        canCompleteDay={canCompleteDay}
-        isDark={isDark}
-        colors={colors}
-        onMarkRestDay={onMarkRestDay}
-      />
+      {/* ── Complete Day Button ── */}
+      <button
+        style={{
+          ...ts.completeBtn,
+          opacity: allDone && canCompleteDay ? 1 : 0.35,
+          cursor: allDone && canCompleteDay ? "pointer" : "default",
+          background: allDone && canCompleteDay
+            ? "linear-gradient(135deg, #22C55E, #16A34A)"
+            : "linear-gradient(135deg, #7C5CFC, #6D28D9)",
+        }}
+        onClick={onCompleteDay}
+        disabled={!allDone || !canCompleteDay}
+      >
+        {allDone
+          ? canCompleteDay
+            ? `Complete Day ${day}`
+            : "Come back tomorrow"
+          : `${completed.length} / ${quests.length} Quests`}
+      </button>
+
+      {/* ── Rest Day option ── shown only when day not yet completed and not all done */}
+      {!allDone && canCompleteDay && !(state.restDays || []).includes(day) && (
+        <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 11,
+              color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+              padding: "6px 12px",
+              letterSpacing: 0.3,
+            }}
+            onClick={() => onMarkRestDay?.(day)}
+          >
+            Mark as rest day — streak preserved
+          </button>
+        </div>
+      )}
+      {(state.restDays || []).includes(day) && (
+        <div style={{ textAlign: "center", marginTop: 4, fontSize: 11, color: "#3B82F6", opacity: 0.7 }}>
+          Rest day — your streak is safe
+        </div>
+      )}
 
       {/* ── Lifting Streak ── */}
       {state.liftingStreak > 0 && (
@@ -808,34 +546,42 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── H10: Discovery cards for new users — labeled section ── */}
+      {/* ── Proactive AI Nudges (secondary — top nudge shown in header) ── */}
+      <ProactiveNudgesList state={state} colors={colors} ts={ts} onNavigate={onNavigate} />
+
+      {/* ── Smart Suggestions ── */}
+      <SmartInsights
+        suggestions={getQuestSuggestions(state)}
+        onAddQuest={(text, category) => {
+          if (onAddSuggestedQuest) {
+            onAddSuggestedQuest({ id: `s_${Date.now()}`, text, category: category || "mind" });
+          } else if (onOpenCustomQuest) {
+            onOpenCustomQuest();
+          }
+        }}
+      />
+
+      {/* ── Discovery cards for new users ── */}
       {day <= 5 && (
         <div style={ts.discoverySection}>
-          <div style={{
-            fontSize: 10, fontWeight: 700, opacity: 0.4,
-            textTransform: "uppercase", letterSpacing: 0.8,
-            padding: "0 2px 4px", color: colors.textSecondary,
-          }}>
-            New here? Explore
-          </div>
           {day <= 2 && (
             <div style={ts.discoveryCard} onClick={() => onNavigate?.("academy")}>
-              <BookOpen size={16} color={colors.textSecondary} strokeWidth={2} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 18 }}>📚</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Learn the science</div>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>Why each quest works — start with "Getting Started"</div>
               </div>
-              <span style={{ color: colors.textSecondary, fontSize: 14 }}>→</span>
+              <span style={{ color: colors.textSecondary }}>→</span>
             </div>
           )}
           {Object.keys(state.sobrietyDates || {}).length > 0 && day <= 3 && (
             <div style={ts.discoveryCard} onClick={() => onNavigate?.("forge")}>
-              <Flame size={16} color="#F97316" strokeWidth={2} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 18 }}>🔥</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>Check your Forge</div>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>Tips and support for breaking bad habits</div>
               </div>
-              <span style={{ color: colors.textSecondary, fontSize: 14 }}>→</span>
+              <span style={{ color: colors.textSecondary }}>→</span>
             </div>
           )}
           {day === 3 && (
@@ -857,439 +603,21 @@ export default function HomeView({
         </div>
       )}
 
+      {/* ── Daily Quote ── */}
+      <div style={ts.quoteCard}>
+        <Quote size={18} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <p style={ts.quoteText}>"{dailyQuote.quote}"</p>
+          <p style={ts.quoteAuthor}>— {dailyQuote.author}</p>
+        </div>
+      </div>
+
       <div style={{ height: 24 }} />
     </div>
   );
 }
 
-// ── Voice Banner — ambient, adaptive narrator line above the quest list ──
-// ── Stake proof check-in — surfaces on Boss Days (every 21st), once per day ──
-function ProofCheckIn({ state, save, day, colors, arcColor }) {
-  const stake = state.stake;
-  const isBossDay = day > 0 && day % 21 === 0;
-  const checkIns = stake?.proofCheckIns || [];
-  const alreadyAnswered = checkIns.some((c) => c.day === day);
-
-  if (!stake?.proof || !isBossDay || alreadyAnswered || !save) return null;
-
-  const respond = (response) => {
-    save({
-      ...state,
-      stake: {
-        ...stake,
-        proofCheckIns: [...(stake.proofCheckIns || []), { day, response, at: new Date().toISOString() }],
-      },
-    });
-  };
-
-  return (
-    <div style={{
-      margin: "0 14px 12px", padding: "14px 16px",
-      borderRadius: 12,
-      background: `linear-gradient(135deg, ${arcColor}15, ${arcColor}05)`,
-      border: `1px solid ${arcColor}30`,
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: arcColor, letterSpacing: 0.8, marginBottom: 6, textTransform: "uppercase" }}>
-        Day {day} · Proof Check-in
-      </div>
-      <div style={{ fontSize: 12, fontStyle: "italic", color: colors.text, opacity: 0.85, marginBottom: 10, lineHeight: 1.5 }}>
-        You wrote: <span style={{ fontWeight: 600 }}>"{stake.proof}"</span>
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, marginBottom: 10 }}>
-        Have you seen the proof?
-      </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        {[
-          { id: "yes", label: "Yes", emoji: "✓", color: "#22C55E" },
-          { id: "partially", label: "Partially", emoji: "·", color: "#F59E0B" },
-          { id: "not_yet", label: "Not yet", emoji: "✗", color: "#94A3B8" },
-        ].map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => respond(opt.id)}
-            style={{
-              flex: 1, padding: "8px 6px", borderRadius: 8,
-              background: "transparent",
-              border: `1px solid ${opt.color}40`,
-              color: opt.color,
-              fontSize: 11, fontWeight: 700, cursor: "pointer",
-            }}
-          >
-            <span style={{ marginRight: 4 }}>{opt.emoji}</span>{opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function VoiceBanner({ state, colors, arcColor }) {
-  const voice = getVoice("home_banner", state);
-  if (!voice) return null;
-
-  // Tone-based accent (fallback to arc color)
-  const toneColor = {
-    recovery: "#F97316",
-    boss: "#FBBF24",
-    milestone: "#FBBF24",
-    seal: "#22C55E",
-    morning: arcColor || "#7C5CFC",
-    nudge: "#F97316",
-    close: "#7C5CFC",
-  }[voice.tone] || arcColor || "#7C5CFC";
-
-  return (
-    <motion.div
-      key={voice.line}
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
-      style={{
-        margin: "0 14px 10px",
-        padding: "10px 14px",
-        borderLeft: `2px solid ${toneColor}`,
-        borderRadius: 4,
-        background: "transparent",
-        fontSize: 13,
-        lineHeight: 1.45,
-        fontWeight: 500,
-        fontStyle: "italic",
-        color: colors.text,
-        opacity: 0.78,
-        letterSpacing: 0.1,
-      }}
-    >
-      {voice.line}
-    </motion.div>
-  );
-}
-
-// ── Pre-seal reflection — one optional question before sealing the day ──
-function PreSealReflection({ state, save, day, colors, arcColor }) {
-  const existing = state.sealReflections?.[day];
-  const [answer, setAnswer] = useState("");
-  const [dismissed, setDismissed] = useState(false);
-  const prompt = useMemo(
-    () => getVoice("pre_seal", state),
-    // stake.why is referenced inside some pre_seal lines; recompute when it changes.
-    [state.currentDay, state.stake?.why, state.stake?.cost]
-  );
-
-  if (!prompt || !save || dismissed) return null;
-
-  // Already answered — show it quietly
-  if (existing) {
-    return (
-      <div style={{
-        marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${colors.cardBorder || "rgba(255,255,255,0.08)"}`,
-        fontSize: 11, opacity: 0.55,
-      }}>
-        <div style={{ fontStyle: "italic", marginBottom: 4, color: arcColor }}>{existing.prompt}</div>
-        <div style={{ color: colors.text, opacity: 0.75 }}>{existing.answer}</div>
-      </div>
-    );
-  }
-
-  const handleSave = () => {
-    if (!answer.trim()) return;
-    save({
-      ...state,
-      sealReflections: {
-        ...(state.sealReflections || {}),
-        [day]: {
-          prompt: prompt.line,
-          answer: answer.trim(),
-          date: new Date().toISOString(),
-        },
-      },
-    });
-    setAnswer("");
-  };
-
-  return (
-    <div style={{
-      marginTop: 14, paddingTop: 12,
-      borderTop: `1px dashed ${colors.cardBorder || "rgba(255,255,255,0.1)"}`,
-    }}>
-      <div style={{
-        fontSize: 12, fontStyle: "italic", color: arcColor, marginBottom: 8,
-        opacity: 0.9, fontWeight: 500,
-      }}>
-        {prompt.line}
-      </div>
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        placeholder="A sentence is enough. Or skip."
-        rows={2}
-        style={{
-          width: "100%", boxSizing: "border-box",
-          background: "rgba(255,255,255,0.03)",
-          border: `1px solid ${colors.cardBorder || "rgba(255,255,255,0.08)"}`,
-          borderRadius: 8, padding: "8px 10px",
-          fontSize: 12, color: colors.text, resize: "none",
-          fontFamily: "inherit", outline: "none",
-        }}
-      />
-      <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
-        <button
-          onClick={() => setDismissed(true)}
-          style={{
-            background: "transparent", border: "none",
-            color: colors.textSecondary, opacity: 0.5,
-            fontSize: 11, cursor: "pointer", padding: "4px 8px",
-          }}
-        >
-          Skip
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!answer.trim()}
-          style={{
-            background: answer.trim() ? arcColor : "transparent",
-            border: `1px solid ${arcColor}`,
-            color: answer.trim() ? "#fff" : arcColor,
-            fontSize: 11, fontWeight: 700,
-            padding: "4px 12px", borderRadius: 6,
-            cursor: answer.trim() ? "pointer" : "default",
-            opacity: answer.trim() ? 1 : 0.5,
-          }}
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Flat quest list (small-roster render path) ──
-function FlatQuestList({ quests, completed, ts, colors, ...questCardProps }) {
-  // Preserve natural day order; the active-quests list is already
-  // user-curated so we don't need to force-group by timeOfDay here.
-  return (
-    <div style={{ ...ts.timeBlock, padding: "4px 6px" }}>
-      {quests.map((q) => (
-        <QuestCard
-          key={q.id}
-          quest={q}
-          done={completed.includes(q.id)}
-          colors={colors}
-          ts={ts}
-          {...questCardProps}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ── Extracted JSX helpers (avoid IIFE-in-JSX which breaks rolldown/SWC) ──
-
-function RestDayControl({ state, day, allDone, canCompleteDay, isDark, colors, onMarkRestDay }) {
-  const isRest = (state.restDays || []).includes(day);
-  const [showInfo, setShowInfo] = useState(false);
-  const [showReasonPicker, setShowReasonPicker] = useState(false);
-
-  // Already marked — show confirmation strip
-  if (isRest) {
-    const meta = state.restDayMeta?.[day];
-    const reasonLabel = { sick: "Sick day", travel: "Travel day", recovery: "Recovery day", rest: "Rest day" }[meta?.reason || "rest"];
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        margin: "6px 14px 0", padding: "10px 14px",
-        borderRadius: 10, background: "rgba(59,130,246,0.08)",
-        border: "1px solid rgba(59,130,246,0.18)",
-      }}>
-        <Shield size={14} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", flex: 1 }}>
-          {reasonLabel} — your streak is safe
-        </span>
-        <span style={{ fontSize: 10, color: "#3B82F6", opacity: 0.6 }}>🛡️ {state.streak}d streak held</span>
-      </div>
-    );
-  }
-
-  // Reason picker (revealed after tapping Mark rest)
-  if (showReasonPicker) {
-    const REASONS = [
-      { id: "rest", label: "Rest day", icon: "🛌", desc: "Planned recovery" },
-      { id: "sick", label: "Sick day", icon: "🤒", desc: "Body needs to heal" },
-      { id: "travel", label: "Travel day", icon: "✈️", desc: "Off your routine" },
-      { id: "recovery", label: "Recovery day", icon: "💪", desc: "Hard week, light load" },
-    ];
-    return (
-      <div style={{
-        margin: "8px 14px 0", padding: 12, borderRadius: 12,
-        background: "rgba(59,130,246,0.05)",
-        border: "1px solid rgba(59,130,246,0.15)",
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          Why are you resting?
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          {REASONS.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => { onMarkRestDay?.(day, r.id); setShowReasonPicker(false); }}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "flex-start",
-                padding: "10px 12px", borderRadius: 8,
-                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-                border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
-                color: colors.text, cursor: "pointer", textAlign: "left",
-              }}
-            >
-              <span style={{ fontSize: 18 }}>{r.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{r.label}</span>
-              <span style={{ fontSize: 10, opacity: 0.5, marginTop: 1 }}>{r.desc}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setShowReasonPicker(false)}
-          style={{
-            marginTop: 8, padding: "6px 12px", border: "none",
-            background: "transparent", color: colors.textSecondary,
-            fontSize: 11, cursor: "pointer", width: "100%",
-          }}
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
-  // Day already fully done — no need to show rest option
-  if (allDone) return null;
-
-  // At-risk: streak active and it's late (8pm+)
-  const hour = new Date().getHours();
-  const hasStreak = (state.streak || 0) > 0;
-  const atRisk = hasStreak && hour >= 20;
-  const freezesAvailable = (state.streakFreezes || 0) > 0;
-
-  if (atRisk) {
-    return (
-      <div style={{
-        margin: "10px 14px 0", padding: "12px 14px", borderRadius: 12,
-        background: isDark
-          ? "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(124,92,252,0.05))"
-          : "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(124,92,252,0.06))",
-        border: "1px solid rgba(59,130,246,0.25)",
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <Shield size={18} color="#3B82F6" strokeWidth={2} style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, lineHeight: 1.3 }}>
-            Protect your {state.streak}-day streak
-          </div>
-          <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 1.4 }}>
-            {freezesAvailable
-              ? `You have ${state.streakFreezes} streak freeze${state.streakFreezes > 1 ? "s" : ""}. Mark as rest day and keep the streak.`
-              : "Can't finish today? Mark as rest day — your streak stays intact."}
-          </div>
-        </div>
-        <button
-          onClick={() => setShowReasonPicker(true)}
-          style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-        >
-          Rest day
-        </button>
-      </div>
-    );
-  }
-
-  // B: Always visible — clear, informative entry point
-  return (
-    <div style={{ margin: "8px 14px 0" }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "10px 14px", borderRadius: 10,
-        background: isDark ? "rgba(59,130,246,0.05)" : "rgba(59,130,246,0.04)",
-        border: `1px solid ${isDark ? "rgba(59,130,246,0.12)" : "rgba(59,130,246,0.12)"}`,
-      }}>
-        <Shield size={14} color="#3B82F6" strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.7 }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6" }}>Taking a rest day?</div>
-          <div style={{ fontSize: 10, color: colors.textSecondary, opacity: 0.6, marginTop: 1 }}>
-            Your streak is preserved. Best used 1–2× per week intentionally.
-          </div>
-        </div>
-        <button
-          onClick={() => setShowReasonPicker(true)}
-          style={{
-            flexShrink: 0, padding: "6px 12px", borderRadius: 8,
-            background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)",
-            color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer",
-          }}
-        >
-          Mark rest
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MoodPickerRow({ currentMood, onLogMood, ts, colors }) {
-  if (!onLogMood) return null;
-  const selected = typeof currentMood === "number" ? currentMood : null;
-  return (
-    <div style={{ ...ts.moodRow, flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-      <span style={{ ...ts.moodLabel, color: colors.textSecondary }}>
-        {selected !== null ? `Mood: ${MOODS[selected].label}` : "How are you today?"}
-      </span>
-      {/* H6: show mood label below each dot so users know what each color means */}
-      <div style={{ display: "flex", gap: 6, width: "100%" }}>
-        {MOODS.map((m, i) => {
-          const isActive = selected === i;
-          return (
-            <motion.button
-              key={m.label}
-              type="button"
-              aria-label={`Log mood: ${m.label}`}
-              aria-pressed={isActive}
-              onClick={() => onLogMood(i)}
-              whileTap={{ scale: 0.88 }}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 3,
-                padding: "5px 2px",
-                borderRadius: 8,
-                cursor: "pointer",
-                background: isActive ? `${m.color}18` : "transparent",
-                border: isActive ? `1px solid ${m.color}50` : "1px solid transparent",
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: isActive ? m.color : `${m.color}30`,
-                border: isActive ? `2px solid ${m.color}` : `2px solid transparent`,
-                boxShadow: isActive ? `0 0 0 3px ${m.color}25` : "none",
-                transition: "all 0.15s",
-              }} />
-              <span style={{
-                fontSize: 9,
-                fontWeight: isActive ? 700 : 400,
-                color: isActive ? m.color : colors.textSecondary,
-                opacity: isActive ? 1 : 0.5,
-                letterSpacing: 0.1,
-                lineHeight: 1,
-              }}>
-                {m.label}
-              </span>
-            </motion.button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function WeeklyChallengeBanner({ state, ts }) {
   const wc = getWeeklyChallenge(state);
@@ -1353,12 +681,140 @@ function BonusQuestCard({ state, completed, colors, onCheckQuest }) {
   );
 }
 
+function WeeklyChallengeCard({ state, colors, isDark }) {
+  const wc = getWeeklyChallenge(state);
+  if (!wc) return null;
+  return (
+    <div style={{ margin: "10px 14px 0", padding: "14px 16px", borderRadius: 14, background: wc.completed ? "rgba(34,197,94,0.06)" : "rgba(124,92,252,0.04)", border: wc.completed ? "1px solid rgba(34,197,94,0.12)" : "1px solid rgba(124,92,252,0.1)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <Swords size={14} color={wc.completed ? "#22C55E" : "#7C5CFC"} />
+        <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: wc.completed ? "#22C55E" : "#7C5CFC" }}>
+          Weekly Challenge
+        </span>
+        {wc.completed && <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", marginLeft: "auto" }}>Completed!</span>}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 10 }}>{wc.text}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, height: 6, borderRadius: 3, overflow: "hidden", background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
+          <div style={{ width: `${wc.percentComplete}%`, height: "100%", borderRadius: 3, background: wc.completed ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #7C5CFC, #6D28D9)", transition: "width 0.5s ease" }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, minWidth: 40, textAlign: "right" }}>{wc.progress}/{wc.target}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#FBBF24" }}>+{wc.xpReward} XP</span>
+      </div>
+    </div>
+  );
+}
+
+function ProactiveNudgesList({ state, colors, ts, onNavigate }) {
+  const nudges = getProactiveNudges(state).slice(1); // top nudge shown in header
+  if (nudges.length === 0) return null;
+  return (
+    <div style={ts.nudgesSection}>
+      {nudges.map((nudge, i) => (
+        <motion.div
+          key={nudge.type + i}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1, duration: 0.3 }}
+          style={ts.nudgeCard}
+          onClick={() => nudge.action && onNavigate?.(nudge.action)}
+        >
+          <span style={{ fontSize: 18, flexShrink: 0 }}>{nudge.icon}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: colors.text, marginBottom: 2 }}>{nudge.title}</div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 1.4 }}>{nudge.message}</div>
+          </div>
+          {nudge.action && <span style={{ fontSize: 14, color: colors.textSecondary, flexShrink: 0 }}>›</span>}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// ── Year in Pixels mini-strip ──
+function JourneyStrip({ state, day, colors, isDark, onNavigate }) {
+  // Show last 35 days as small coloured dots
+  const DOTS = 35;
+  const dots = useMemo(() => {
+    const startDate = state.startDate ? new Date(state.startDate) : null;
+    const todayStr = getTodayStr();
+    return Array.from({ length: DOTS }, (_, i) => {
+      const dotDay = day - (DOTS - 1 - i); // oldest first
+      if (dotDay < 1) return { key: i, type: "future" };
+
+      // Compute date string for this dotDay
+      let dateStr = null;
+      if (startDate) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + dotDay - 1);
+        dateStr = d.toISOString().split("T")[0];
+      }
+      const isToday = dateStr === todayStr;
+      const completed = !!(state.completedDays || {})[dotDay];
+      const isRest = (state.restDays || []).includes(dotDay);
+      const type = isToday ? "today" : completed ? "done" : isRest ? "rest" : dotDay < day ? "missed" : "future";
+      return { key: i, type, dotDay };
+    });
+  }, [state.completedDays, state.restDays, state.startDate, day]);
+
+  const completedCount = dots.filter(d => d.type === "done").length;
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+
+  return (
+    <motion.div
+      style={{
+        padding: "8px 14px",
+        margin: "2px 12px 4px",
+        borderRadius: 10,
+        background: sub(0.02),
+        border: `1px solid ${sub(0.04)}`,
+        cursor: "pointer",
+      }}
+      onClick={() => onNavigate?.("profile")}
+      whileTap={{ scale: 0.99 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Your Journey
+        </span>
+        <span style={{ fontSize: 10, color: "#7C5CFC", fontWeight: 600 }}>
+          {completedCount}/{day} days ›
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", overflow: "hidden" }}>
+        {dots.map((dot) => {
+          const size = 8;
+          const color = dot.type === "done" ? "#7C5CFC"
+            : dot.type === "today" ? "#7C5CFC"
+            : dot.type === "rest" ? "#3B82F6"
+            : dot.type === "missed" ? sub(0.12)
+            : "transparent";
+          const borderColor = dot.type === "today" ? "#7C5CFC" : "transparent";
+          return (
+            <div
+              key={dot.key}
+              style={{
+                width: size,
+                height: size,
+                borderRadius: 2,
+                background: color,
+                border: `1.5px solid ${borderColor}`,
+                flexShrink: 0,
+                opacity: dot.type === "future" ? 0 : 1,
+              }}
+            />
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Inline AI Quest Suggestions ──
-function InlineQuestSuggestions({ state, quests, isDark, colors, onOpenCustomQuest, onAddSuggestedQuest }) {
+function InlineQuestSuggestions({ state, isDark, colors, onOpenCustomQuest, onAddSuggestedQuest }) {
   const [suggestions, setSuggestions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [addedIndexes, setAddedIndexes] = useState(new Set());
   const hasFetched = useRef(false);
 
   useEffect(() => {
@@ -1374,11 +830,8 @@ function InlineQuestSuggestions({ state, quests, isDark, colors, onOpenCustomQue
     }).catch(() => setLoading(false));
   }, []);
 
-  // Fall back to local suggestions if no AI — pass current quest texts to avoid duplicates
-  const localSuggestions = useMemo(() => {
-    const existingTexts = (quests || []).map((q) => q.text);
-    return getQuestSuggestions(state, existingTexts).slice(0, 3);
-  }, [state, quests]);
+  // Fall back to local suggestions if no AI
+  const localSuggestions = useMemo(() => getQuestSuggestions(state).slice(0, 3), [state]);
   const displaySuggestions = suggestions || (isAIConfigured() ? null : localSuggestions);
 
   if (dismissed || (!loading && !displaySuggestions)) return null;
@@ -1428,8 +881,6 @@ function InlineQuestSuggestions({ state, quests, isDark, colors, onOpenCustomQue
               cursor: "pointer",
             }}
             onClick={() => {
-              if (addedIndexes.has(i)) return;
-              setAddedIndexes((prev) => new Set([...prev, i]));
               if (onAddSuggestedQuest) {
                 onAddSuggestedQuest({ id: `ai_${Date.now()}_${i}`, text: s.text, category: s.category || "mind" });
               } else {
@@ -1450,9 +901,7 @@ function InlineQuestSuggestions({ state, quests, isDark, colors, onOpenCustomQue
                 {s.reason}
               </div>
             </div>
-            <span style={{ fontSize: 10, color: addedIndexes.has(i) ? "#22C55E" : "#7C5CFC", fontWeight: 600, flexShrink: 0 }}>
-              {addedIndexes.has(i) ? "✓ Added" : "+ Add"}
-            </span>
+            <span style={{ fontSize: 10, color: "#7C5CFC", fontWeight: 600, flexShrink: 0 }}>+ Add</span>
           </motion.div>
         ))
       )}
@@ -1497,79 +946,104 @@ function getStyles(isDark, colors) {
       letterSpacing: -0.3,
       lineHeight: 1.2,
     },
-    heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500, opacity: 0.4 },
-    heroLevelXp: { marginTop: 8 },
-    levelXpText: { fontSize: 12, fontWeight: 600, color: "#7C5CFC" },
-    prestigeInline: { fontSize: 10, fontWeight: 800, color: "#FBBF24" },
+    profileChevron: {
+      position: "absolute",
+      top: 14,
+      right: 14,
+      fontSize: 20,
+      color: colors.textSecondary,
+      fontWeight: 300,
+    },
+    heroPhase: { fontSize: 11, color: colors.textSecondary, marginTop: 2, fontWeight: 500 },
+    heroLevel: { display: "flex", alignItems: "center", gap: 6, marginTop: 8 },
+    levelBadge: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: "#7C5CFC",
+      background: "rgba(124,92,252,0.12)",
+      padding: "2px 8px",
+      borderRadius: 6,
+      letterSpacing: 0.3,
+    },
+    levelName: { fontSize: 13, fontWeight: 700, color: "#7C5CFC" },
+    prestigeBadge: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: "#FBBF24",
+      background: "rgba(251,191,36,0.12)",
+      padding: "2px 7px",
+      borderRadius: 6,
+    },
+    xpRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 6 },
+    xpBarOuter: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+      background: subtle(0.08),
+      overflow: "hidden",
+    },
+    xpBarInner: {
+      height: "100%",
+      borderRadius: 2,
+      background: "linear-gradient(90deg,#7C5CFC,#EC4899)",
+      transition: "width 0.4s ease",
+    },
+    xpText: { fontSize: 10, fontWeight: 700, color: colors.textSecondary, flexShrink: 0, maxWidth: 120, textAlign: "right" },
     heroRight: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" },
     ringWrap: { position: "relative", width: 72, height: 72 },
+
+    // Wellness row (inside hero)
+    wellnessRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 5,
+    },
+
+    // Dojo activity chip
+    dojoChip: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "7px 14px",
+      margin: "4px 12px 2px",
+      borderRadius: 10,
+      background: subtle(0.02),
+      border: `1px solid rgba(124,92,252,0.08)`,
+      cursor: "pointer",
+    },
 
     // Forge tracker row
     forgeRow: {
       display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      padding: "12px 14px",
-      margin: "4px 12px 2px",
-      borderRadius: 12,
-      background: isDark
-        ? "linear-gradient(135deg, rgba(249,115,22,0.06), rgba(251,191,36,0.02))"
-        : "linear-gradient(135deg, rgba(249,115,22,0.07), rgba(251,191,36,0.03))",
-      border: `1px solid ${isDark ? "rgba(249,115,22,0.12)" : "rgba(249,115,22,0.15)"}`,
-      cursor: "pointer",
-    },
-    forgeRowTop: {
-      display: "flex",
-      justifyContent: "space-between",
       alignItems: "center",
+      gap: 6,
+      padding: "8px 14px",
+      margin: "4px 12px 2px",
+      borderRadius: 10,
+      background: subtle(0.03),
+      border: `1px solid ${subtle(0.05)}`,
+      cursor: "pointer",
+      overflow: "hidden",
     },
     forgeChip: {
       display: "flex",
       alignItems: "center",
-      gap: 5,
-      padding: "5px 10px",
+      gap: 4,
+      padding: "3px 8px",
       borderRadius: 8,
       background: subtle(0.04),
       border: `1px solid ${subtle(0.06)}`,
       flexShrink: 0,
     },
     forgeDot: {
-      width: 7,
-      height: 7,
+      width: 6,
+      height: 6,
       borderRadius: "50%",
       flexShrink: 0,
     },
-    forgeLabel: { fontSize: 12, fontWeight: 600, color: colors.text },
-    forgeDays: { fontSize: 12, fontWeight: 800 },
-
-    // Inline mood picker
-    moodRow: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 10,
-      padding: "8px 14px",
-      margin: "4px 12px 2px",
-    },
-    moodLabel: {
-      fontSize: 11,
-      fontWeight: 600,
-      letterSpacing: 0.2,
-      flexShrink: 0,
-    },
-    moodDots: {
-      display: "flex",
-      gap: 8,
-      alignItems: "center",
-    },
-    moodDot: {
-      width: 22,
-      height: 22,
-      borderRadius: "50%",
-      cursor: "pointer",
-      padding: 0,
-      transition: "all 0.15s ease",
-    },
+    forgeLabel: { fontSize: 11, fontWeight: 600, color: colors.textSecondary },
+    forgeDays: { fontSize: 11, fontWeight: 800 },
 
     // Quote
     quoteCard: {

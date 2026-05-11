@@ -1,74 +1,112 @@
-const CACHE_VERSION = 3;
-const CACHE_NAME = `life-os-v${CACHE_VERSION}`;
-const PRECACHE = ["/", "/favicon.svg", "/icons.svg"];
+// Life OS Service Worker
+// Bump CACHE_VERSION on deploy to force clients to fetch new assets.
+const CACHE_VERSION = "v3-2026-05-11";
+const STATIC_CACHE = `life-os-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `life-os-runtime-${CACHE_VERSION}`;
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
+const PRECACHE_URLS = [
+  "/",
+  "/index.html",
+  "/favicon.svg",
+  "/icons.svg",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
+
+// ── Install: precache app shell ──────────────────────────────────────────────
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
   );
-  // Don't skipWaiting — let the app prompt the user to refresh
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+// ── Activate: clear old caches ───────────────────────────────────────────────
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
+            .map((k) => caches.delete(k))
+        )
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-
-  if (
-    e.request.method !== "GET" ||
-    url.origin !== location.origin
-  ) {
-    return;
+// ── Message: allow the page to trigger skipWaiting ───────────────────────────
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
   }
+  if (event.data === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
-  // Navigation requests: network-first for index.html so deploys propagate
-  // immediately, fall back to cached shell if offline.
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match("/"))
+// ── Fetch strategies ─────────────────────────────────────────────────────────
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Only handle same-origin GETs. Let the browser handle POST/PUT/Firebase/etc.
+  if (request.method !== "GET" || url.origin !== location.origin) return;
+
+  // Navigation requests → network-first (so fresh HTML wins), fall back to cached shell
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(STATIC_CACHE).then((c) => c.put("/index.html", clone));
+          return res;
+        })
+        .catch(() =>
+          caches.match(request).then(
+            (cached) => cached || caches.match("/index.html") || caches.match("/")
+          )
+        )
     );
     return;
   }
 
-  // Hashed Vite assets (immutable) → cache-first. The filename hash changes
-  // on every deploy so there's no staleness risk; this is the right call for
-  // PWA offline + fast repeat visits.
+  // Hashed build assets (Vite puts them under /assets/) → cache-first, immutable
   if (url.pathname.startsWith("/assets/")) {
-    e.respondWith(
-      caches.match(e.request).then((cached) => {
+    event.respondWith(
+      caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(e.request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          return response;
+        return fetch(request).then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
+          }
+          return res;
         });
       })
     );
     return;
   }
 
-  // Other same-origin GETs (root manifests, icons): network-first, populate
-  // cache in background as a fallback for offline.
-  e.respondWith(
-    fetch(e.request)
-      .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-        return response;
-      })
-      .catch(() => caches.match(e.request))
+  // Everything else → stale-while-revalidate
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      const networkFetch = fetch(request)
+        .then((res) => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
+          }
+          return res;
+        })
+        .catch(() => cached);
+      return cached || networkFetch;
+    })
   );
-});
-
-// When a new SW takes over, tell all open tabs an update is ready
-self.addEventListener("message", (e) => {
-  if (e.data === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
 });
