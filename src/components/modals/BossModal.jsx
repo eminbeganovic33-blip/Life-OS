@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks";
 import { Trophy, Star, Zap, Shield, ChevronRight } from "lucide-react";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 // Randomised particles that burst outward on mount
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
@@ -35,6 +36,7 @@ function StatRow({ label, value, color = "#7C5CFC" }) {
 }
 
 export default function BossModal({ bossDay, onProgress, state }) {
+  useEscapeKey(onProgress);
   const { colors } = useTheme();
   const isFinal = bossDay === 66;
 

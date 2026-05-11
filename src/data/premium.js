@@ -18,13 +18,13 @@ export const PREMIUM_PLANS = {
 };
 
 export const FREE_LIMITS = {
-  questsPerCategory: 3, // first 3 quests in each category
+  questsPerCategory: 5, // first 5 quests in each category (was 3 — gives users more value before paywall)
   maxForgeTrackers: 4, // 4 default trackers free, custom ones need premium
   maxCustomQuests: 0, // no custom quests on free
   analyticsAccess: "basic", // basic analytics only (overview tab)
   journalAccess: "basic", // basic journal (no export, no search)
   courseTier: 1, // only tier-1 courses
-  trialDays: 7, // free trial duration
+  trialDays: 14, // extended from 7 to 14 — users need to feel the streak before deciding
 };
 
 export const PREMIUM_FEATURES = {

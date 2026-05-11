@@ -1,7 +1,11 @@
 import React, { useState } from "react";
-// No theme import needed — fully self-contained inline styles
+import { useTheme } from "../hooks/useTheme";
 
 const QuestGuidePanel = ({ guide, onAddQuest }) => {
+  const { theme, colors } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedBooks, setExpandedBooks] = useState({});
 
@@ -17,13 +21,13 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
 
   const styles = {
     panel: {
-      background: "rgba(255,255,255,0.02)",
+      background: sub(0.02),
       borderRadius: 12,
       padding: "14px 16px",
       maxWidth: 400,
       width: "100%",
       fontFamily: "inherit",
-      color: "#E2E2EE",
+      color: colors.text,
       fontSize: 12,
       lineHeight: 1.5,
       boxSizing: "border-box",
@@ -47,18 +51,18 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     title: {
       fontSize: 14,
       fontWeight: 700,
-      color: "#E2E2EE",
+      color: colors.text,
       margin: 0,
     },
     subtitle: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.55)",
+      color: colors.textSecondary,
       margin: 0,
     },
     section: {
-      background: "rgba(255,255,255,0.03)",
+      background: sub(0.03),
       borderRadius: 10,
-      border: "1px solid rgba(255,255,255,0.06)",
+      border: `1px solid ${sub(0.06)}`,
       padding: "10px 12px",
       marginBottom: 8,
     },
@@ -70,11 +74,11 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
       userSelect: "none",
       fontSize: 13,
       fontWeight: 600,
-      color: "#E2E2EE",
+      color: colors.text,
     },
     arrow: {
       fontSize: 12,
-      color: "rgba(226,226,238,0.45)",
+      color: colors.textSecondary,
       marginRight: 4,
       width: 14,
       display: "inline-block",
@@ -86,7 +90,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     },
     tipItem: {
       fontSize: 12,
-      color: "rgba(226,226,238,0.8)",
+      color: colors.textSecondary,
       marginBottom: 3,
     },
     stepItem: {
@@ -109,15 +113,15 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     stepLabel: {
       fontSize: 12,
       fontWeight: 600,
-      color: "#E2E2EE",
+      color: colors.text,
       marginBottom: 1,
     },
     stepDetail: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.6)",
+      color: colors.textSecondary,
     },
     bookItem: {
-      background: "rgba(255,255,255,0.03)",
+      background: sub(0.03),
       borderRadius: 8,
       padding: "8px 10px",
       marginBottom: 6,
@@ -132,15 +136,15 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     bookTitle: {
       fontSize: 12,
       fontWeight: 600,
-      color: "#E2E2EE",
+      color: colors.text,
     },
     bookAuthor: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.5)",
+      color: colors.textSecondary,
     },
     bookSummary: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.65)",
+      color: colors.textSecondary,
       marginTop: 6,
       lineHeight: 1.45,
     },
@@ -157,7 +161,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
       outline: "none",
     },
     card: {
-      background: "rgba(255,255,255,0.03)",
+      background: sub(0.03),
       borderRadius: 8,
       padding: "8px 10px",
       marginBottom: 6,
@@ -165,7 +169,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     cardName: {
       fontSize: 12,
       fontWeight: 600,
-      color: "#E2E2EE",
+      color: colors.text,
       marginBottom: 3,
     },
     badge: {
@@ -180,7 +184,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     },
     cardDesc: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.6)",
+      color: colors.textSecondary,
       lineHeight: 1.4,
     },
     levelRow: {
@@ -188,7 +192,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
       alignItems: "baseline",
       gap: 8,
       padding: "4px 0",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: `1px solid ${sub(0.04)}`,
     },
     levelBadge: {
       fontSize: 10,
@@ -199,12 +203,12 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     levelExercise: {
       fontSize: 11,
       fontWeight: 600,
-      color: "#E2E2EE",
+      color: colors.text,
       flex: 1,
     },
     levelReps: {
       fontSize: 10,
-      color: "rgba(226,226,238,0.55)",
+      color: colors.textSecondary,
     },
     levelCue: {
       fontSize: 10,
@@ -213,7 +217,7 @@ const QuestGuidePanel = ({ guide, onAddQuest }) => {
     },
     ingredientList: {
       fontSize: 11,
-      color: "rgba(226,226,238,0.55)",
+      color: colors.textSecondary,
       margin: "3px 0",
     },
     benefitText: {

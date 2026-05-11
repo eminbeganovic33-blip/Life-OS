@@ -26,22 +26,32 @@ export default function AnalyticsView({ state }) {
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasAdvancedAnalytics = checkFeatureAccess(FEATURE_IDS.ADVANCED_ANALYTICS);
 
-  const weeklyXp = useMemo(() => getWeeklyXpData(state), [state.xp, state.currentDay]);
+  const weeklyXp = useMemo(() => getWeeklyXpData(state), [state.completedQuests, state.startDate, state.currentDay]);
   const categoryRates = useMemo(() => getCategoryCompletionRates(state), [state.completedQuests, state.currentDay]);
   const moodTrend = useMemo(() => getMoodTrend(state), [state.moods, state.currentDay]);
   const insights = useMemo(() => getCorrelationInsights(state), [state.completedQuests, state.moods, state.currentDay]);
   const records = useMemo(() => getPersonalRecords(state), [state.completedQuests, state.completedDays, state.xp]);
   const heatmap = useMemo(() => getHeatmapData(state), [state.completedQuests, state.currentDay]);
 
+  // Theme-aware overrides for styles that need sub() (module-scope constants can't access it)
+  const recordCardT = { ...recordCard, background: sub(0.03), border: `1px solid ${sub(0.06)}` };
+  const barTrackT = { ...barTrack, background: sub(0.04) };
+  const catBarOuterT = { ...catBarOuter, background: sub(0.05) };
+  const heatStatT = { ...heatStat, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const emptyStateT = { ...emptyState, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const streakRowT = { ...streakRow, background: sub(0.03), border: `1px solid ${sub(0.05)}` };
+  const headerTitleT = { ...headerTitle, color: colors.text };
+  const heatColorsT = [sub(0.04), "rgba(124,92,252,0.2)", "rgba(124,92,252,0.4)", "rgba(124,92,252,0.65)", "rgba(124,92,252,0.9)"];
+
   const maxXp = Math.max(...weeklyXp.map((d) => d.xp), 1);
 
   // Welcome state for brand new users
-  if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0) {
+  if (state.currentDay <= 1 && Object.keys(state.completedDays || {}).length === 0 && Object.keys(state.completedQuests || {}).length === 0) {
     return (
       <div style={S.vc}>
         <div style={headerRow}>
           <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
-          <span style={headerTitle}>Analytics</span>
+          <span style={headerTitleT}>Analytics</span>
         </div>
         <motion.div
           style={welcomeState}
@@ -75,7 +85,7 @@ export default function AnalyticsView({ state }) {
       {/* Header */}
       <div style={headerRow}>
         <BarChart3 size={20} color="#7C5CFC" strokeWidth={2} />
-        <span style={headerTitle}>Analytics</span>
+        <span style={headerTitleT}>Analytics</span>
       </div>
 
       {/* Tab Switcher */}
@@ -115,20 +125,55 @@ export default function AnalyticsView({ state }) {
   );
 
   function renderOverview() {
+    const hasRealInsights = insights.length > 0;
+    const overviewInsights = hasRealInsights ? insights.slice(0, isPremium ? 2 : 1) : [];
+
     return (
       <>
+        {/* Pattern Insight teaser */}
+        {hasRealInsights && (
+          <>
+            <div style={{ ...sectionLabel, display: "flex", alignItems: "center", gap: 6 }}>
+              <Lightbulb size={12} color="#FBBF24" strokeWidth={2} />
+              Pattern Insight
+            </div>
+            {overviewInsights.map((insight, i) => (
+              <motion.div
+                key={i}
+                style={{ ...insightCard, opacity: !isPremium ? 0.7 : 1 }}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: !isPremium ? 0.7 : 1, x: 0 }}
+                transition={{ delay: i * 0.06 }}
+              >
+                <div style={insightIconBg}>
+                  <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+                </div>
+                <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{insight}</span>
+              </motion.div>
+            ))}
+            {!isPremium && (
+              <div
+                style={{ margin: "0 14px 10px", fontSize: 11, opacity: 0.45, cursor: "pointer", color: "#FBBF24", fontWeight: 600 }}
+                onClick={() => setTab("insights")}
+              >
+                See all insights →
+              </div>
+            )}
+          </>
+        )}
+
         {/* Personal Records */}
         <div style={sectionLabel}>Personal Records</div>
         <div style={recordsGrid}>
           {[
-            { Icon: Flame, val: records.longestStreak, label: "Best Streak", color: "#F97316" },
-            { Icon: Zap, val: records.highestDayXp, label: "Best Day XP", color: "#FBBF24" },
-            { Icon: CalendarCheck, val: records.totalDaysCompleted, label: "Days Done", color: "#22C55E" },
-            { Icon: CheckCircle, val: records.totalQuestsCompleted, label: "Quests Done", color: "#7C5CFC" },
+            { Icon: Flame, val: records.longestStreak, label: "Best Streak", sub: "consecutive days", color: "#F97316" },
+            { Icon: Zap, val: records.highestDayXp, label: "Best Day XP", sub: "peak single day", color: "#FBBF24" },
+            { Icon: CalendarCheck, val: records.totalDaysCompleted, label: "Days Done", sub: "total (any gap)", color: "#22C55E" },
+            { Icon: CheckCircle, val: records.totalQuestsCompleted, label: "Quests Done", sub: "lifetime quests", color: "#7C5CFC" },
           ].map((r, i) => (
             <motion.div
               key={i}
-              style={recordCard}
+              style={recordCardT}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.06 }}
@@ -138,6 +183,7 @@ export default function AnalyticsView({ state }) {
               </div>
               <div style={recordVal}>{r.val}</div>
               <div style={recordLabel}>{r.label}</div>
+              <div style={{ fontSize: 9, opacity: 0.4, marginTop: 2, fontWeight: 500 }}>{r.sub}</div>
             </motion.div>
           ))}
         </div>
@@ -164,7 +210,7 @@ export default function AnalyticsView({ state }) {
                 <div style={{ ...barValue, opacity: d.xp > 0 ? 1 : 0 }}>
                   {d.xp > 0 ? d.xp : ""}
                 </div>
-                <div style={barTrack}>
+                <div style={barTrackT}>
                   <motion.div
                     style={{
                       ...barFill,
@@ -182,10 +228,10 @@ export default function AnalyticsView({ state }) {
           })}
         </div>
 
-        {/* Category Completion */}
+        {/* S3: Only show categories that have at least some activity (non-zero rate) */}
         <div style={sectionLabel}>Category Completion Rate</div>
         <div style={catContainer}>
-          {categoryRates.map((c, i) => {
+          {categoryRates.filter((c) => c.rate > 0).map((c, i) => {
             const cat = CATEGORIES.find((cat) => cat.id === c.category);
             return (
               <motion.div
@@ -199,7 +245,7 @@ export default function AnalyticsView({ state }) {
                   {cat ? <CategoryIcon id={cat.id} size={14} color={cat.color} /> : <span>{c.icon}</span>}
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{c.label}</span>
                 </div>
-                <div style={catBarOuter}>
+                <div style={catBarOuterT}>
                   <motion.div
                     style={{ ...catBarInner, background: c.color }}
                     initial={{ width: 0 }}
@@ -222,6 +268,13 @@ export default function AnalyticsView({ state }) {
             <div style={moodChartContainer}>
               {moodTrend.map((m, i) => {
                 const mood = MOODS[m.mood];
+                // S5: Show weekday abbreviation instead of "D{n}"
+                const dayLabel = (() => {
+                  if (!state.startDate) return `D${m.day}`;
+                  const d = new Date(state.startDate);
+                  d.setDate(d.getDate() + m.day - 1);
+                  return d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2);
+                })();
                 return (
                   <motion.div
                     key={i}
@@ -229,6 +282,7 @@ export default function AnalyticsView({ state }) {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
+                    title={mood ? mood.label : "No mood logged"}
                   >
                     <div style={{
                       width: 14,
@@ -239,7 +293,7 @@ export default function AnalyticsView({ state }) {
                       opacity: mood ? 1 : 0.3,
                       boxShadow: mood ? `0 0 6px ${mood.color}60` : "none",
                     }} />
-                    <div style={moodDayLabel}>D{m.day}</div>
+                    <div style={moodDayLabel}>{dayLabel}</div>
                   </motion.div>
                 );
               })}
@@ -254,16 +308,18 @@ export default function AnalyticsView({ state }) {
     const startDate = state.startDate ? new Date(state.startDate) : new Date();
     const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-    // Build day objects: { day (1-based), date, mood, questsDone }
+    // Build day objects for all 365 days — future/untracked days shown as empty
     const days = [];
-    for (let d = 1; d <= Math.min(state.currentDay, 365); d++) {
+    for (let d = 1; d <= 365; d++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + d - 1);
+      const isFuture = d > state.currentDay;
       days.push({
         day: d,
         date,
-        mood: state.moods?.[d] !== undefined ? state.moods[d] : null,
-        questsDone: (state.completedQuests?.[d] || []).length,
+        mood: !isFuture && state.moods?.[d] !== undefined ? state.moods[d] : null,
+        questsDone: !isFuture ? (state.completedQuests?.[d] || []).length : 0,
+        isFuture,
       });
     }
 
@@ -312,25 +368,37 @@ export default function AnalyticsView({ state }) {
                 {month.days.map((d) => {
                   const color = d.mood !== null ? moodColors[d.mood] : null;
                   const hasActivity = d.questsDone > 0;
+                  const cellBg = d.isFuture
+                    ? sub(0.03)
+                    : color
+                    ? color
+                    : hasActivity
+                    ? "rgba(124,92,252,0.2)"
+                    : sub(0.06);
                   return (
+                    // S2: highlight today's pixel with a ring
                     <div
                       key={d.day}
-                      title={`Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
+                      title={d.isFuture
+                        ? `Day ${d.day} (future)`
+                        : d.day === state.currentDay
+                          ? `Today · Day ${d.day}`
+                          : `Day ${d.day}: ${d.mood !== null ? MOODS[d.mood].label : "No mood"} · ${d.questsDone} quests`}
                       style={{
                         width: 18,
                         height: 18,
                         borderRadius: 4,
-                        background: color
-                          ? color
-                          : hasActivity
-                          ? "rgba(124,92,252,0.2)"
-                          : sub(0.06),
-                        border: color
-                          ? `1px solid ${color}60`
-                          : `1px solid ${sub(0.08)}`,
-                        transition: "transform 0.1s",
+                        background: cellBg,
+                        border: d.day === state.currentDay
+                          ? "2px solid #7C5CFC"
+                          : color
+                            ? `1px solid ${color}60`
+                            : `1px solid ${sub(d.isFuture ? 0.04 : 0.08)}`,
                         cursor: "default",
-                        boxShadow: color ? `0 0 4px ${color}40` : "none",
+                        boxShadow: d.day === state.currentDay
+                          ? "0 0 6px rgba(124,92,252,0.5)"
+                          : color ? `0 0 4px ${color}40` : "none",
+                        opacity: d.isFuture ? 0.25 : 1,
                       }}
                     />
                   );
@@ -342,38 +410,38 @@ export default function AnalyticsView({ state }) {
 
         {/* Stats footer */}
         <div style={{ display: "flex", gap: 8, padding: "20px 14px 8px" }}>
-          <div style={heatStat}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{days.length}</div>
+          <div style={heatStatT}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{state.currentDay}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Days Tracked</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{moodDone}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Moods Logged</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
-              {moodDone > 0 ? Math.round((moodDone / days.length) * 100) : 0}%
+              {moodDone > 0 ? Math.round((moodDone / Math.max(state.currentDay, 1)) * 100) : 0}%
             </div>
-            <div style={{ fontSize: 10, opacity: 0.4 }}>Consistency</div>
+            <div style={{ fontSize: 10, opacity: 0.4 }}>Mood Rate</div>
           </div>
         </div>
-        {days.length < 7 && (
-          <div style={{ padding: "0 14px 12px", fontSize: 11, opacity: 0.3, textAlign: "center" }}>
-            Keep going — your year is just starting to fill in.
-          </div>
-        )}
+        {/* S2: Show start date + progress context */}
+        <div style={{ padding: "0 14px 16px", fontSize: 11, color: colors.textSecondary, opacity: 0.45, textAlign: "center" }}>
+          Day {state.currentDay} of 365 · started {state.startDate ? new Date(state.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "recently"} · keep going
+        </div>
       </>
     );
   }
 
   function renderHeatmap() {
+    const levelColors = heatColorsT;
     return (
       <>
         <div style={sectionLabel}>90-Day Activity Heatmap</div>
         <div style={heatmapLegend}>
           <span style={{ fontSize: 10, opacity: 0.35 }}>Less</span>
-          {[0, 1, 2, 3, 4].map((level) => (
-            <div key={level} style={{ ...heatCell, background: heatColors[level] }} />
+          {[1, 2, 3, 4].map((level) => (
+            <div key={level} style={{ width: 12, height: 12, borderRadius: 2, background: levelColors[level], flexShrink: 0 }} />
           ))}
           <span style={{ fontSize: 10, opacity: 0.35 }}>More</span>
         </div>
@@ -383,7 +451,7 @@ export default function AnalyticsView({ state }) {
               key={i}
               style={{
                 ...heatCell,
-                background: heatColors[d.intensity],
+                background: levelColors[d.intensity],
               }}
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -398,15 +466,15 @@ export default function AnalyticsView({ state }) {
 
         {/* Summary stats below heatmap */}
         <div style={{ padding: "0 14px", display: "flex", gap: 8 }}>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity > 0).length}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>Active Days</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{heatmap.filter((d) => d.intensity >= 3).length}</div>
             <div style={{ fontSize: 10, opacity: 0.4 }}>High Activity</div>
           </div>
-          <div style={heatStat}>
+          <div style={heatStatT}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
               {Math.round((heatmap.filter((d) => d.intensity > 0).length / Math.max(heatmap.length, 1)) * 100)}%
             </div>
@@ -418,31 +486,72 @@ export default function AnalyticsView({ state }) {
   }
 
   function renderInsights() {
+    const SAMPLE_INSIGHTS = [
+      "Days you complete 5+ quests, your mood averages 1.8 points higher.",
+      "Your best day of the week is Monday — 94% quest completion on average.",
+      "Sleep + Hydration together on the same day correlates with your peak mood.",
+      "You complete quests 2× faster before noon than after 6 PM.",
+    ];
+
     if (!hasAdvancedAnalytics) {
+      // S1: Show 1 real insight (or 1 sample) for free, then a subtle upgrade nudge
+      const freeInsight = insights[0] || SAMPLE_INSIGHTS[0];
       return (
-        <motion.div
-          style={premiumGate}
-          onClick={() => setShowUpgrade(true)}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div style={premiumIconBg}>
-            <Crown size={24} color="#FFD700" strokeWidth={1.5} />
+        <div>
+          <div style={sectionLabel}>Pattern Insights</div>
+          <div style={{ padding: "0 16px 8px", fontSize: 11, opacity: 0.35, lineHeight: 1.5 }}>
+            Based on your mood logs and quest completions.
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#FFD700", marginTop: 8 }}>Premium Insights</div>
-          <div style={{ fontSize: 12, opacity: 0.45, marginTop: 4, lineHeight: 1.6, maxWidth: 260 }}>
-            Unlock correlation insights, trend analysis, and category streaks.
-          </div>
-          <div style={premiumGateBtn}>
-            <span>Upgrade to Premium</span>
-            <ChevronRight size={14} />
-          </div>
-        </motion.div>
+          {/* One free insight */}
+          <motion.div
+            style={insightCard}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <div style={insightIconBg}>
+              <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
+            </div>
+            <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{freeInsight}</span>
+          </motion.div>
+
+          {/* Compact upgrade nudge */}
+          <motion.div
+            style={{
+              ...insightCard,
+              background: "rgba(251,191,36,0.05)",
+              border: "1px solid rgba(251,191,36,0.15)",
+              cursor: "pointer",
+              flexDirection: "column",
+              gap: 6,
+              alignItems: "flex-start",
+            }}
+            onClick={() => setShowUpgrade(true)}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Crown size={16} color="#FFD700" strokeWidth={1.5} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#FFD700" }}>
+                {insights.length > 1 ? `${insights.length - 1} more insight${insights.length > 2 ? "s" : ""} unlocked with Premium` : "Unlock more insights with Premium"}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.55, lineHeight: 1.5 }}>
+              Correlation analysis, trend detection, and category streaks.
+            </div>
+            <div style={{ ...premiumGateBtn, marginTop: 4, padding: "6px 14px", fontSize: 11 }}>
+              <span>Upgrade to Premium</span>
+              <ChevronRight size={12} />
+            </div>
+          </motion.div>
+        </div>
       );
     }
 
     return (
       <>
-        <div style={sectionLabel}>Correlation Insights</div>
+        <div style={sectionLabel}>Pattern Insights</div>
+        <div style={{ padding: "0 16px 10px", fontSize: 11, opacity: 0.35, lineHeight: 1.5 }}>
+          Computed from your actual mood logs, quest completions, and timing data.
+        </div>
         {insights.length > 0 ? (
           insights.map((insight, i) => (
             <motion.div
@@ -450,29 +559,35 @@ export default function AnalyticsView({ state }) {
               style={insightCard}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08 }}
+              transition={{ delay: i * 0.07 }}
             >
               <div style={insightIconBg}>
                 <Lightbulb size={14} color="#FBBF24" strokeWidth={2} />
               </div>
-              <span style={{ fontSize: 12, lineHeight: 1.6, flex: 1 }}>{insight}</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 12, lineHeight: 1.6 }}>{insight}</span>
+              </div>
             </motion.div>
           ))
         ) : (
-          <div style={emptyState}>
+          <div style={emptyStateT}>
             <Lightbulb size={20} color="rgba(255,255,255,0.2)" strokeWidth={1.5} />
-            <div style={{ marginTop: 8 }}>Complete a few more days with mood tracking to unlock correlation insights.</div>
+            <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>Not enough data yet</div>
+            <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
+              Log your mood for 5+ days to unlock real pattern insights across sleep, exercise, timing, and more.
+            </div>
           </div>
         )}
 
+        {/* S3: Only show categories with actual activity in streaks too */}
         <div style={sectionLabel}>Category Streaks</div>
-        {categoryRates.map((c, i) => {
+        {categoryRates.filter((c) => c.rate > 0 || getCatStreak(state, c.category) > 0).map((c, i) => {
           const cat = CATEGORIES.find((cat) => cat.id === c.category);
           const streakDays = getCatStreak(state, c.category);
           return (
             <motion.div
               key={c.category}
-              style={streakRow}
+              style={streakRowT}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
@@ -681,7 +796,8 @@ const heatCell = {
   width: "100%",
   aspectRatio: "1",
   borderRadius: 3,
-  minWidth: 8,
+  minWidth: 0,
+  maxWidth: 26,
 };
 const heatColors = [
   "rgba(255,255,255,0.04)",
@@ -765,6 +881,26 @@ const premiumGate = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+};
+
+const premiumGateOverlay = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "calc(100% - 28px)",
+  padding: "24px 20px",
+  borderRadius: 18,
+  background: "linear-gradient(135deg, rgba(15,10,30,0.92), rgba(20,10,40,0.88))",
+  border: "1px solid rgba(255,215,0,0.2)",
+  backdropFilter: "blur(8px)",
+  textAlign: "center",
+  cursor: "pointer",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+  zIndex: 2,
 };
 const premiumIconBg = {
   width: 48,

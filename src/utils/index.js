@@ -3,6 +3,7 @@ export {
   getNextLevel,
   getLevelIndex,
   getTodayStr,
+  dateToLocalDayKey,
   getDayQuests,
   daysBetween,
   getTotalVolume,
@@ -12,7 +13,7 @@ export {
   MAX_LEVEL_INDEX,
   reconcileStreaks,
 } from "./helpers";
-export { defaultState } from "./state";
+export { defaultState, devSeedState } from "./state";
 export {
   calculateQuestXP, getQuestTier,
   getStreakMultiplier, applyStreakMultiplier,

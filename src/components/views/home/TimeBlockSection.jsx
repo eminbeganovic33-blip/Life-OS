@@ -1,12 +1,14 @@
-import { CircleCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { CircleCheck, ChevronDown } from "lucide-react";
 import QuestCard from "./QuestCard";
 
 export default function TimeBlockSection({
   blockKey, block, quests, completed, isCollapsed, onToggle, ts, colors,
   // QuestCard pass-through props
-  isDark, categoryStreaks, focusQuest, swipeHint, activeGuide,
+  isDark, categoryStreaks, categoryMastery, focusQuest, swipeHint, activeGuide,
   onCheck, onUncheck, onSwipeHintShow, onSwipeHintClear,
   onToggleGuide, onNavigate, onOpenCustomQuest, onRemoveCustomQuest,
+  onRetireActiveQuest,
   onTouchStart, onTouchEnd, currentDay,
 }) {
   if (quests.length === 0) return null;
@@ -39,17 +41,36 @@ export default function TimeBlockSection({
         </div>
 
         <div style={ts.blockRight}>
-          {/* Mini progress */}
-          <div style={ts.miniProgress}>
-            <div style={{
-              ...ts.miniProgressFill,
-              width: `${(blockCompleted / quests.length) * 100}%`,
-              background: blockDone ? "#22C55E" : block.accent,
-            }} />
-          </div>
-          <span style={{ fontSize: 12, opacity: 0.3, transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)", transition: "transform 0.2s", color: colors.text }}>
-            ▼
-          </span>
+          {/* Quest count badge when collapsed */}
+          {isCollapsed && (
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: block.accent,
+              background: `${block.accent}15`,
+              padding: "2px 7px",
+              borderRadius: 6,
+              border: `1px solid ${block.accent}25`,
+            }}>
+              {quests.length - blockCompleted} left
+            </span>
+          )}
+          {/* Mini progress — only shown when expanded */}
+          {!isCollapsed && (
+            <div style={ts.miniProgress}>
+              <div style={{
+                ...ts.miniProgressFill,
+                width: `${(blockCompleted / quests.length) * 100}%`,
+                background: blockDone ? "#22C55E" : block.accent,
+              }} />
+            </div>
+          )}
+          <motion.span
+            animate={{ rotate: isCollapsed ? -90 : 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ display: "flex", opacity: 0.35, color: colors.text }}
+          >
+            <ChevronDown size={16} color={colors.text} />
+          </motion.span>
         </div>
       </div>
 
@@ -65,6 +86,7 @@ export default function TimeBlockSection({
               colors={colors}
               ts={ts}
               categoryStreaks={categoryStreaks}
+              categoryMastery={categoryMastery}
               focusQuest={focusQuest}
               swipeHint={swipeHint}
               activeGuide={activeGuide}
@@ -76,6 +98,7 @@ export default function TimeBlockSection({
               onNavigate={onNavigate}
               onOpenCustomQuest={onOpenCustomQuest}
               onRemoveCustomQuest={onRemoveCustomQuest}
+              onRetireActiveQuest={onRetireActiveQuest}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
               currentDay={currentDay}

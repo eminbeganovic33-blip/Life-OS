@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
+import { useToast } from "../Toast";
 import { getTodayStr } from "../../utils";
-import { chatWithCoach } from "../../utils/ai";
-import { Bot, Pencil, Trash2, Flame } from "lucide-react";
+import { chatWithCoach, isAIConfigured } from "../../utils/ai";
+import { Bot, Pencil, Trash2, Flame, TrendingUp, History } from "lucide-react";
 import {
   EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES,
   getExerciseById,
@@ -32,6 +33,7 @@ function parseAIPlan(raw) {
 
 export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDeleteEntry }) {
   const { theme, colors } = useTheme();
+  const toast = useToast();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
 
@@ -78,13 +80,54 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   // AI mode active exercise tracking
   const [aiExerciseIndex, setAiExerciseIndex] = useState(0);
   const [aiSets, setAiSets] = useState([{ weight: "", reps: "" }]);
+  const [aiCompletedIdx, setAiCompletedIdx] = useState(() => new Set());
 
   // Template mode tracking
   const [templateExIndex, setTemplateExIndex] = useState(0);
   const [templateSets, setTemplateSets] = useState([{ weight: "", reps: "" }]);
+  const [templateCompletedIdx, setTemplateCompletedIdx] = useState(() => new Set());
+
+  // ── Workout engagement: rest timer + per-set lock state ──
+  // restTimer counts down seconds between sets so logging feels like a real workout flow.
+  // setsLocked tracks which set indices the user has explicitly completed (PR-style commit).
+  const [restTimer, setRestTimer] = useState(0); // seconds remaining
+  const [restGoal, setRestGoal] = useState(90); // default 90s rest, parsed from plan if available
+
+  useEffect(() => {
+    if (restTimer <= 0) return;
+    const id = setInterval(() => setRestTimer((t) => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(id);
+  }, [restTimer]);
+
+  // Pre-seed sets from prescribed count when entering AI/Template exercise
+  useEffect(() => {
+    if (mode !== "ai" || !aiPlan) return;
+    const cur = aiPlan[aiExerciseIndex];
+    if (!cur) return;
+    const count = Math.max(1, Math.min(10, parseInt(cur.sets, 10) || 3));
+    setAiSets(Array.from({ length: count }, () => ({ weight: "", reps: "" })));
+    setRestTimer(0);
+    if (cur.rest) {
+      const m = String(cur.rest).match(/(\d+)/);
+      if (m) setRestGoal(parseInt(m[1], 10) > 10 ? parseInt(m[1], 10) : parseInt(m[1], 10) * 60);
+    }
+  }, [mode, aiPlan, aiExerciseIndex]);
+
+  useEffect(() => {
+    if (mode !== "template" || !activeTemplate) return;
+    const cur = activeTemplate.exercises[templateExIndex];
+    if (!cur) return;
+    const count = Math.max(1, Math.min(10, parseInt(cur.sets, 10) || 3));
+    setTemplateSets(Array.from({ length: count }, () => ({ weight: "", reps: "" })));
+    setRestTimer(0);
+  }, [mode, activeTemplate, templateExIndex]);
 
   // Edit logged exercise state
   const [editingIndex, setEditingIndex] = useState(null);
+  // Two-tap delete: first click sets the index, second click confirms.
+  const [deleteConfirmIdx, setDeleteConfirmIdx] = useState(null);
+  // Workout completion recap modal
+  const [showWorkoutRecap, setShowWorkoutRecap] = useState(null);
   const [editSets, setEditSets] = useState([]);
 
   // Library state
@@ -268,11 +311,16 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   // ── Save Functions ──
 
   function saveCustomExercise() {
+    if (!activeExercise) return;
     const validSets = sets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
-    if (validSets.length === 0 || !activeExercise) return;
+    if (validSets.length === 0) {
+      toast.show("Add at least one set with weight and reps", "error");
+      return;
+    }
     onSaveWorkout(activeExercise, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
     setActiveExercise(null);
     setSets([{ weight: "", reps: "" }]);
+    toast.show("Exercise saved", "success");
     // Stay in custom mode so user can add more exercises
   }
 
@@ -281,13 +329,22 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const current = aiPlan[aiExerciseIndex];
     if (!current) return;
     const validSets = aiSets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
-    if (validSets.length === 0) return;
+    if (validSets.length === 0) {
+      toast.show("Add at least one set with weight and reps", "error");
+      return;
+    }
     onSaveWorkout(current.exerciseId, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
+    setAiCompletedIdx((prev) => { const next = new Set(prev); next.add(aiExerciseIndex); return next; });
     if (aiExerciseIndex < aiPlan.length - 1) {
       setAiExerciseIndex(aiExerciseIndex + 1);
       setAiSets([{ weight: "", reps: "" }]);
     } else {
-      resetWorkout();
+      // Final exercise — show recap before exiting
+      setShowWorkoutRecap({
+        title: "AI Workout Plan",
+        completedCount: aiPlan.length,
+        plan: aiPlan,
+      });
     }
   }
 
@@ -298,11 +355,16 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     const validSets = templateSets.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
     if (validSets.length === 0) return;
     onSaveWorkout(current.exerciseId, validSets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })));
+    setTemplateCompletedIdx((prev) => { const next = new Set(prev); next.add(templateExIndex); return next; });
     if (templateExIndex < activeTemplate.exercises.length - 1) {
       setTemplateExIndex(templateExIndex + 1);
       setTemplateSets([{ weight: "", reps: "" }]);
     } else {
-      resetWorkout();
+      setShowWorkoutRecap({
+        title: activeTemplate.name,
+        completedCount: activeTemplate.exercises.length,
+        plan: activeTemplate.exercises,
+      });
     }
   }
 
@@ -315,8 +377,10 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
     setSearchQuery("");
     setAiExerciseIndex(0);
     setAiSets([{ weight: "", reps: "" }]);
+    setAiCompletedIdx(new Set());
     setTemplateExIndex(0);
     setTemplateSets([{ weight: "", reps: "" }]);
+    setTemplateCompletedIdx(new Set());
   }
 
   // ── Edit/Delete logged exercises ──
@@ -345,6 +409,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
   }
 
   function confirmDeleteEntry(index) {
+    if (deleteConfirmIdx !== index) {
+      setDeleteConfirmIdx(index);
+      setTimeout(() => setDeleteConfirmIdx((cur) => (cur === index ? null : cur)), 4000);
+      return;
+    }
+    setDeleteConfirmIdx(null);
     onDeleteEntry(index);
     if (editingIndex === index) {
       setEditingIndex(null);
@@ -362,9 +432,35 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       )
   );
 
-  function renderSetLogger(setsList, setFn, onSave, exerciseName, hint) {
+  // Look up the last logged session for an exercise (excluding today)
+  function getLastSession(exerciseId) {
+    if (!exerciseId) return null;
+    const pastDates = Object.keys(workoutLogs)
+      .filter((d) => d !== today)
+      .sort((a, b) => b.localeCompare(a));
+    for (const d of pastDates) {
+      const entry = (workoutLogs[d] || []).find((e) => e.exercise === exerciseId);
+      if (entry?.sets?.length > 0) {
+        const maxWeight = Math.max(...entry.sets.map((s) => Number(s.weight) || 0));
+        const totalVol = entry.sets.reduce((sum, s) => sum + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+        return { sets: entry.sets, maxWeight, totalVol, date: d };
+      }
+    }
+    return null;
+  }
+
+  function renderSetLogger(setsList, setFn, onSave, exerciseName, hint, exerciseId) {
     const filledSets = setsList.filter((s) => Number(s.weight) > 0 && Number(s.reps) > 0);
     const totalVolume = filledSets.reduce((sum, s) => sum + Number(s.weight) * Number(s.reps), 0);
+    const lastSession = getLastSession(exerciseId);
+    const isBeatingVolume = lastSession && filledSets.length > 0 && totalVolume > lastSession.totalVol;
+    const isBeatingWeight = lastSession && filledSets.length > 0 &&
+      Math.max(...filledSets.map((s) => Number(s.weight) || 0)) > lastSession.maxWeight;
+    // Engagement: minimum 2 sets to commit. Single-set logs aren't a "workout."
+    const minSets = Math.min(2, setsList.length);
+    const canSave = filledSets.length >= minSets;
+    // Active set = first row not filled. Used to highlight where the user is.
+    const activeIdx = setsList.findIndex((s) => !Number(s.weight) || !Number(s.reps));
 
     return (
       <div style={ds.loggerCard}>
@@ -373,31 +469,115 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           {hint && <span style={{ fontSize: 11, opacity: 0.4 }}>{hint}</span>}
         </div>
 
-        {setsList.map((set, i) => (
-          <div key={i} style={ds.setRow}>
-            <div style={ds.setLabel}>Set {i + 1}</div>
-            <input
-              type="number"
-              placeholder="kg"
-              value={set.weight}
-              onChange={(e) => handleSetChange(setsList, setFn, i, "weight", e.target.value)}
-              style={S.setInput}
-            />
-            <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
-            <input
-              type="number"
-              placeholder="reps"
-              value={set.reps}
-              onChange={(e) => handleSetChange(setsList, setFn, i, "reps", e.target.value)}
-              style={S.setInput}
-            />
-            {setsList.length > 1 && (
-              <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
-                &times;
-              </button>
+        {/* Rest timer (between sets) */}
+        {restTimer > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 12px", borderRadius: 10, marginBottom: 10,
+            background: "rgba(124,92,252,0.08)",
+            border: "1px solid rgba(124,92,252,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: "#7C5CFC", animation: "pulse 1.2s ease-in-out infinite",
+              }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#7C5CFC" }}>
+                Rest · {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, "0")}
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.5 }}>
+                Set {activeIdx >= 0 ? activeIdx + 1 : setsList.length} up next
+              </span>
+            </div>
+            <button
+              onClick={() => setRestTimer(0)}
+              style={{
+                background: "transparent", border: "none", color: "#7C5CFC",
+                fontSize: 11, fontWeight: 700, cursor: "pointer", padding: "4px 8px",
+              }}
+            >
+              Skip
+            </button>
+          </div>
+        )}
+
+        {/* Last session reference — the key progressive overload cue */}
+        {lastSession && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 10px",
+            borderRadius: 8,
+            background: isBeatingVolume ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
+            border: `1px solid ${isBeatingVolume ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)"}`,
+            marginBottom: 10,
+            fontSize: 11,
+          }}>
+            {isBeatingVolume
+              ? <TrendingUp size={12} color="#22C55E" strokeWidth={2.5} />
+              : <History size={12} style={{ opacity: 0.4 }} strokeWidth={2} />
+            }
+            <span style={{ opacity: isBeatingVolume ? 1 : 0.5, color: isBeatingVolume ? "#22C55E" : "inherit" }}>
+              {isBeatingVolume
+                ? `New PR! Last: ${lastSession.maxWeight}kg × ${lastSession.sets[0]?.reps || "?"} — you're beating it`
+                : `Last session: ${lastSession.maxWeight}kg × ${lastSession.sets[0]?.reps || "?"} reps (${lastSession.sets.length} sets · ${lastSession.totalVol.toLocaleString()} kg vol)`
+              }
+            </span>
+            {isBeatingWeight && !isBeatingVolume && (
+              <span style={{ color: "#F97316", fontWeight: 700, marginLeft: 2 }}>↑ weight PR</span>
             )}
           </div>
-        ))}
+        )}
+
+        {setsList.map((set, i) => {
+          const prevSet = lastSession?.sets[i];
+          const isFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+          const isActive = i === activeIdx;
+          return (
+            <div
+              key={i}
+              style={{
+                ...ds.setRow,
+                ...(isActive && !isFilled ? { borderLeft: "2px solid #7C5CFC", paddingLeft: 8, background: "rgba(124,92,252,0.04)" } : {}),
+                ...(isFilled ? { opacity: 0.65 } : {}),
+              }}
+            >
+              <div style={{ ...ds.setLabel, color: isFilled ? "#22C55E" : ds.setLabel?.color }}>
+                {isFilled ? "✓" : ""} Set {i + 1}
+              </div>
+              <input
+                type="number"
+                placeholder={prevSet ? `${prevSet.weight}` : "kg"}
+                value={set.weight}
+                onChange={(e) => handleSetChange(setsList, setFn, i, "weight", e.target.value)}
+                onBlur={() => {
+                  // When this set just got fully filled, kick off the rest timer.
+                  const justFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+                  if (justFilled && i < setsList.length - 1 && restTimer === 0) setRestTimer(restGoal);
+                }}
+                style={S.setInput}
+              />
+              <span style={{ opacity: 0.3, fontSize: 12 }}>&times;</span>
+              <input
+                type="number"
+                placeholder={prevSet ? `${prevSet.reps}` : "reps"}
+                value={set.reps}
+                onChange={(e) => handleSetChange(setsList, setFn, i, "reps", e.target.value)}
+                onBlur={() => {
+                  const justFilled = Number(set.weight) > 0 && Number(set.reps) > 0;
+                  if (justFilled && i < setsList.length - 1 && restTimer === 0) setRestTimer(restGoal);
+                }}
+                style={S.setInput}
+              />
+              {setsList.length > 1 && (
+                <button style={ds.removeSetBtn} onClick={() => handleRemoveSet(setsList, setFn, i)}>
+                  &times;
+                </button>
+              )}
+            </div>
+          );
+        })}
 
         <button style={ds.addSetLink} onClick={() => handleAddSet(setsList, setFn)}>
           + Add Set
@@ -408,21 +588,35 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <div style={ds.saveSummary}>
             <span>{filledSets.length} set{filledSets.length !== 1 ? "s" : ""}</span>
             <span style={{ opacity: 0.3 }}>&middot;</span>
-            <span>{totalVolume.toLocaleString()} kg total volume</span>
+            <span style={{ color: isBeatingVolume ? "#22C55E" : "inherit" }}>
+              {totalVolume.toLocaleString()} kg total volume
+              {isBeatingVolume && " 🏆"}
+            </span>
           </div>
         )}
 
         <div style={ds.loggerActions}>
           <button style={S.timerBtnSec} onClick={resetWorkout}>Cancel</button>
           <button
-            style={{ ...ds.doneBtn, opacity: filledSets.length === 0 ? 0.4 : 1 }}
+            style={{ ...ds.doneBtn, opacity: canSave ? 1 : 0.4 }}
             onClick={() => {
-              if (filledSets.length === 0) return;
+              if (!canSave) {
+                toast.show(
+                  filledSets.length === 0
+                    ? "Log at least 2 sets to count as a workout"
+                    : `${minSets - filledSets.length} more set${minSets - filledSets.length === 1 ? "" : "s"} to commit this lift`,
+                  "info"
+                );
+                return;
+              }
+              setRestTimer(0);
               onSave();
             }}
-            disabled={filledSets.length === 0}
+            disabled={!canSave}
           >
-            Log {filledSets.length} Set{filledSets.length !== 1 ? "s" : ""}
+            {canSave
+              ? `Log ${filledSets.length} Set${filledSets.length !== 1 ? "s" : ""}`
+              : `Need ${minSets - filledSets.length} more`}
           </button>
         </div>
       </div>
@@ -442,24 +636,38 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
             </div>
             <div style={ds.actionButtons}>
               <button style={ds.aiButton} onClick={generateAIWorkout} disabled={aiLoading}>
-                {aiLoading ? "Generating..." : <><Bot size={14} style={{ marginRight: 4 }} /> AI Workout</>}
+                {aiLoading ? "Generating..." : <><Bot size={14} style={{ marginRight: 4 }} /> {isAIConfigured() ? "AI Workout" : "Smart Workout"}</>}
               </button>
               <button style={ds.customButton} onClick={() => setMode("custom")}>
                 <Pencil size={12} style={{ marginRight: 4 }} /> Custom
               </button>
             </div>
+            {/* D2: AI unconfigured hint */}
+            {!isAIConfigured() && (
+              <div style={{ fontSize: 10, opacity: 0.45, marginTop: 6, lineHeight: 1.5 }}>
+                Using local planner · add an AI key in Profile for personalized plans
+              </div>
+            )}
             {aiError && <div style={ds.errorText}>{aiError}</div>}
           </div>
         )}
 
-        {/* Quick Templates */}
+        {/* D1: Quick Templates — show only featured 3, with link to full Programs tab */}
         {!mode && (
           <div style={{ padding: "0 14px", marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8, opacity: 0.6 }}>
-              Quick Start Templates
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.6 }}>
+                Quick Start
+              </div>
+              <button
+                style={{ fontSize: 11, fontWeight: 600, color: "#7C5CFC", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                onClick={() => setTab("programs")}
+              >
+                Full programs →
+              </button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {WORKOUT_TEMPLATES.map((t) => (
+              {WORKOUT_TEMPLATES.slice(0, 3).map((t) => (
                 <button
                   key={t.id}
                   style={ds.templateChip}
@@ -486,13 +694,13 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         {/* AI Workout Plan */}
         {mode === "ai" && aiPlan && renderPlanView(
-          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan", setAiExerciseIndex
+          aiPlan, aiExerciseIndex, aiSets, setAiSets, saveAIExercise, "AI Workout Plan", setAiExerciseIndex, aiCompletedIdx
         )}
 
         {/* Template Workout Plan */}
         {mode === "template" && activeTemplate && renderPlanView(
           activeTemplate.exercises, templateExIndex, templateSets, setTemplateSets,
-          saveTemplateExercise, activeTemplate.name, setTemplateExIndex
+          saveTemplateExercise, activeTemplate.name, setTemplateExIndex, templateCompletedIdx
         )}
 
         {/* Custom Exercise Picker */}
@@ -539,7 +747,9 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           <div style={{ padding: "0 14px" }}>
             {renderSetLogger(
               sets, setSets, saveCustomExercise,
-              getExerciseById(activeExercise)?.name || activeExercise
+              getExerciseById(activeExercise)?.name || activeExercise,
+              undefined,
+              activeExercise
             )}
           </div>
         )}
@@ -628,9 +838,12 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
                       <Pencil size={13} />
                     </button>
                     <button
-                      style={ds.deleteBtn}
+                      style={{
+                        ...ds.deleteBtn,
+                        ...(deleteConfirmIdx === i ? { background: "rgba(239,68,68,0.15)", borderColor: "#EF4444", color: "#EF4444" } : {}),
+                      }}
                       onClick={() => confirmDeleteEntry(i)}
-                      title="Delete"
+                      title={deleteConfirmIdx === i ? "Tap again to confirm" : "Delete"}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -699,7 +912,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
   // ── Shared Plan View (AI or Template) ──
 
-  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title, setCurrentIndex) {
+  function renderPlanView(exercises, currentIndex, currentSets, setCurrentSets, onSave, title, setCurrentIndex, completedSet) {
     return (
       <div style={ds.planSection}>
         <div style={ds.planHeader}>
@@ -714,7 +927,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
 
         <div style={ds.planOverview}>
           {exercises.map((ex, i) => {
-            const done = i < currentIndex;
+            const done = completedSet ? completedSet.has(i) : false;
             const active = i === currentIndex;
             const exercise = getExerciseById(ex.exerciseId);
             return (
@@ -773,7 +986,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           const hint = current.suggestedWeight
             ? `${current.sets}×${current.reps} | ${current.suggestedWeight}`
             : `${current.sets}×${current.reps}${current.rest ? ` | Rest: ${current.rest}` : ""}`;
-          return renderSetLogger(currentSets, setCurrentSets, onSave, exerciseName, hint);
+          return renderSetLogger(currentSets, setCurrentSets, onSave, exerciseName, hint, current.exerciseId);
         })()}
       </div>
     );
@@ -853,6 +1066,78 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
           onStartTemplate={(t) => { startTemplate(t); setTab("workout"); }}
         />
       )}
+
+      {/* Workout completion recap */}
+      {showWorkoutRecap && (
+        <WorkoutRecapModal
+          recap={showWorkoutRecap}
+          todayLogs={todayLogs}
+          onClose={() => { setShowWorkoutRecap(null); resetWorkout(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function WorkoutRecapModal({ recap, todayLogs, onClose }) {
+  // Sum today's volume across all exercises
+  const totalVolume = (todayLogs || []).reduce((sum, log) => {
+    return sum + (log.sets || []).reduce((s, set) => s + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0);
+  }, 0);
+  const totalSets = (todayLogs || []).reduce((sum, log) => sum + (log.sets?.length || 0), 0);
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 9999, padding: 20,
+    }}
+    onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "linear-gradient(145deg,#1a1530,#0f0a20)",
+          borderRadius: 18, padding: 28, maxWidth: 360, width: "100%",
+          border: "1px solid rgba(124,92,252,0.25)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🏋️</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#7C5CFC", letterSpacing: 1, marginBottom: 4 }}>
+          WORKOUT COMPLETE
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>
+          {recap.title}
+        </div>
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 8, marginBottom: 20,
+        }}>
+          <div style={{ padding: "12px 6px", background: "rgba(124,92,252,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#7C5CFC" }}>{recap.completedCount}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>exercises</div>
+          </div>
+          <div style={{ padding: "12px 6px", background: "rgba(34,197,94,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#22C55E" }}>{totalSets}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>sets</div>
+          </div>
+          <div style={{ padding: "12px 6px", background: "rgba(249,115,22,0.08)", borderRadius: 10 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#F97316" }}>{totalVolume.toLocaleString()}</div>
+            <div style={{ fontSize: 9, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.5 }}>kg vol</div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "linear-gradient(135deg,#7C5CFC,#6D28D9)",
+            border: "none", color: "#fff", fontSize: 14, fontWeight: 700,
+            padding: "12px 32px", borderRadius: 10, width: "100%", cursor: "pointer",
+          }}
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }
@@ -1073,14 +1358,20 @@ const styles = {
     flexShrink: 0,
   },
   addSetLink: {
-    background: "none",
-    border: "none",
-    color: "rgba(124,92,252,0.6)",
-    fontSize: 12,
-    fontWeight: 600,
+    background: "rgba(124,92,252,0.06)",
+    border: "1px dashed rgba(124,92,252,0.35)",
+    color: "#7C5CFC",
+    fontSize: 13,
+    fontWeight: 700,
     cursor: "pointer",
-    padding: "6px 0",
+    padding: "11px 0",
     display: "block",
+    width: "100%",
+    borderRadius: 10,
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 4,
+    boxSizing: "border-box",
   },
   loggerActions: {
     display: "flex",

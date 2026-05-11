@@ -3,12 +3,41 @@ import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { SOBRIETY_DEFAULTS } from "../../data";
 import { getProgramDay } from "../../data/forgePrograms";
-import { daysBetween } from "../../utils";
+import { daysBetween, getTodayStr } from "../../utils";
 import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
 import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
-import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle } from "lucide-react";
+import { useToast } from "../Toast";
+import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign, Zap } from "lucide-react";
+
+// ── Cross-module: related quests per tracker ──
+
+const TRACKER_RELATED_QUESTS = {
+  smoking: { text: "Take a 15 min walk when a craving hits", category: "exercise", color: "#F97316" },
+  alcohol: { text: "Replace your evening drink with herbal tea and journaling", category: "mind", color: "#EC4899" },
+  vaping: { text: "Do 10 deep breaths whenever you feel the urge", category: "mind", color: "#EC4899" },
+  porn: { text: "When tempted, do 20 push-ups and take a cold shower", category: "exercise", color: "#F97316" },
+  doomscrolling: { text: "Put your phone in another room for the next hour", category: "screen", color: "#22D3EE" },
+  weed: { text: "Drink a large glass of water and go for a walk", category: "water", color: "#38BDF8" },
+  gambling: { text: "Track every impulse to gamble in your journal today", category: "mind", color: "#EC4899" },
+  junkfood: { text: "Prep healthy snacks before you get hungry", category: "nutrition", color: "#84CC16" },
+  caffeine: { text: "Go for a 10 min walk instead of reaching for coffee", category: "exercise", color: "#F97316" },
+};
+
+// ── F1: Tracker icons — emoji per habit ──
+const TRACKER_ICONS = {
+  smoking:      "🚬",
+  alcohol:      "🍺",
+  vaping:       "💨",
+  porn:         "⚡",
+  doomscrolling:"📱",
+  weed:         "🌿",
+  gambling:     "🎰",
+  junkfood:     "🍔",
+  caffeine:     "☕",
+  social_media: "📱",
+};
 
 // ── Constants ──
 
@@ -49,14 +78,18 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
       ...styles,
       tabBar: { ...styles.tabBar, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
       tab: { ...styles.tab, color: colors.textSecondary },
-      goalBtn: { ...styles.goalBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.text },
+      goalBtn: { ...styles.goalBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.text, fontWeight: 600 },
       customGoalInput: { ...styles.customGoalInput, background: colors.inputBg, color: colors.text, border: `1px solid ${colors.inputBorder}` },
+      goalPicker: { ...styles.goalPicker, background: "rgba(124,92,252,0.04)", border: "1px solid rgba(124,92,252,0.15)" },
       tipCard: { ...styles.tipCard, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
       miniJournalEntry: { ...styles.miniJournalEntry, background: colors.cardBg },
       filterBtn: { ...styles.filterBtn, border: `1px solid ${colors.cardBorder}`, background: colors.inputBg, color: colors.textSecondary },
       journalEntry: { ...styles.journalEntry, background: colors.cardBg, border: `1px solid ${colors.cardBorder}` },
+      journalInput: { ...styles.journalInput, background: colors.inputBg, color: colors.text, border: `1px solid ${colors.inputBorder}` },
     };
   }, [isDark, colors]);
+  // Light/dark-aware monochrome overlay (use in inline JSX where styles object can't reach).
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const { isPremium, checkFeatureAccess, setShowUpgrade } = usePremium();
   const hasUnlimitedForge = checkFeatureAccess(FEATURE_IDS.UNLIMITED_FORGE);
 
@@ -64,6 +97,7 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
   const [expandedGoal, setExpandedGoal] = useState(null); // trackerId being goal-picked
   const [customGoalInput, setCustomGoalInput] = useState("");
   const [journalFilter, setJournalFilter] = useState("all");
+  const toast = useToast();
 
   const forgeGoals = state.forgeGoals || {};
 
@@ -84,7 +118,14 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
 
   function handleCustomGoalSubmit(trackerId) {
     const val = parseInt(customGoalInput, 10);
-    if (!val || val < 21) return;
+    if (!val || val < 1) {
+      toast.show("Enter a number of days first.", "info");
+      return;
+    }
+    if (val < 21) {
+      toast.show("Forge goals start at 21 days — that's where habits actually shift.", "info", 4000);
+      return;
+    }
     const newGoals = { ...forgeGoals, [trackerId]: val };
     save({ ...state, forgeGoals: newGoals });
     onStart(trackerId);
@@ -98,35 +139,17 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
     save({ ...state, forgeGoals: { ...forgeGoals, [trackerId]: newGoal } });
   }
 
+  // Has any tracker ever been started?
+  const hasActiveTrackers = Object.values(state.sobrietyDates || {}).some(Boolean);
+
   // ── Render ──
   return (
     <div style={S.vc}>
       <div style={S.secTitle}>The Forge</div>
-      <div style={fs.subtitle}>
-        Track what you're breaking free from. Every day without is a victory.
-      </div>
 
-      {/* Tab Bar */}
-      <div style={fs.tabBar}>
-        {["trackers", "journal"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              ...fs.tab,
-              ...(activeTab === tab ? fs.tabActive : {}),
-            }}
-          >
-            {tab === "trackers" ? "Trackers" : "Journal"}
-            {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
-              <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "trackers" && (
-        <TrackersTab
+      {!hasActiveTrackers ? (
+        /* ── Entry / onboarding state ── */
+        <ForgeEntryState
           state={state}
           forgeGoals={forgeGoals}
           expandedGoal={expandedGoal}
@@ -135,39 +158,118 @@ export default function ForgeView({ state, save, onStart, onTriggerRelapse }) {
           setCustomGoalInput={setCustomGoalInput}
           onSelectGoal={handleSelectGoal}
           onCustomGoalSubmit={handleCustomGoalSubmit}
-          onExtendGoal={handleExtendGoal}
-          onTriggerRelapse={onTriggerRelapse}
-          canAddCustom={canAddCustom}
-          hasUnlimitedForge={hasUnlimitedForge}
-          setShowUpgrade={setShowUpgrade}
+          fs={fs}
         />
-      )}
-
-      {activeTab === "journal" && (
-        <JournalTab
-          journals={state.recoveryJournals || []}
-          filter={journalFilter}
-          setFilter={setJournalFilter}
-          state={state}
-          save={save}
-        />
-      )}
-
-      {/* Trigger Pattern Analysis */}
-      <SmartInsights triggerMap={getTriggerMap(state)} />
-
-      {/* Premium upsell for free users */}
-      {!hasUnlimitedForge && (
-        <div style={fs.upgradeBanner} onClick={() => setShowUpgrade(true)}>
-          <Crown size={16} color="#FFD700" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Custom Trackers</div>
-            <div style={{ fontSize: 10, opacity: 0.5 }}>Premium lets you add custom habits to track</div>
+      ) : (
+        /* ── Active state: full tab UI ── */
+        <>
+          <div style={fs.subtitle}>
+            Track what you're breaking free from. Every day without is a victory.
           </div>
-          <span style={{ fontSize: 11, color: "#FFD700", fontWeight: 700 }}>Upgrade</span>
-        </div>
+
+          {/* Tab Bar */}
+          <div style={fs.tabBar}>
+            {["trackers", "journal"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  ...fs.tab,
+                  ...(activeTab === tab ? fs.tabActive : {}),
+                }}
+              >
+                {tab === "trackers" ? "Trackers" : "My Log"}
+                {tab === "journal" && (state.recoveryJournals?.length || 0) > 0 && (
+                  <span style={fs.tabBadge}>{state.recoveryJournals.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "trackers" && (
+            <>
+              <TrackersTab
+                state={state}
+                forgeGoals={forgeGoals}
+                expandedGoal={expandedGoal}
+                setExpandedGoal={setExpandedGoal}
+                customGoalInput={customGoalInput}
+                setCustomGoalInput={setCustomGoalInput}
+                onSelectGoal={handleSelectGoal}
+                onCustomGoalSubmit={handleCustomGoalSubmit}
+                onExtendGoal={handleExtendGoal}
+                onTriggerRelapse={onTriggerRelapse}
+                canAddCustom={canAddCustom}
+                hasUnlimitedForge={hasUnlimitedForge}
+                setShowUpgrade={setShowUpgrade}
+                fs={fs}
+              />
+              {/* F3: SmartInsights only on Trackers tab, not Journal */}
+              <SmartInsights triggerMap={getTriggerMap(state)} />
+            </>
+          )}
+
+          {activeTab === "journal" && (
+            <JournalTab
+              journals={state.recoveryJournals || []}
+              filter={journalFilter}
+              setFilter={setJournalFilter}
+              state={state}
+              save={save}
+            />
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+// ── Forge Entry / Onboarding State ──
+
+function ForgeEntryState({
+  state, forgeGoals, expandedGoal, setExpandedGoal,
+  customGoalInput, setCustomGoalInput,
+  onSelectGoal, onCustomGoalSubmit, fs,
+}) {
+  return (
+    <>
+      {/* Hero explanation */}
+      <div style={styles.entryHero}>
+        <div style={styles.entryHeroIcon}>⚒️</div>
+        <div style={styles.entryHeroTitle}>Break free from what holds you back</div>
+        <div style={styles.entryHeroBody}>
+          The Forge tracks habits you want to quit — smoking, doomscrolling, whatever drains you.
+          Start a tracker, set a goal, and watch your streak grow day by day.
+        </div>
+      </div>
+
+      {/* Social proof nudge */}
+      <div style={styles.entryNudge}>
+        🔥 Most users see the hardest urges fade by Day 7. Can you make it there?
+      </div>
+
+      {/* "Pick your battle" prompt */}
+      <div style={styles.entryPickLabel}>What are you working to quit?</div>
+
+      {/* Tracker picker cards */}
+      {SOBRIETY_DEFAULTS.map((tracker) => (
+        <TrackerCard
+          key={tracker.id}
+          tracker={tracker}
+          state={state}
+          forgeGoals={forgeGoals}
+          isExpanded={expandedGoal === tracker.id}
+          onExpandGoal={() => setExpandedGoal(expandedGoal === tracker.id ? null : tracker.id)}
+          customGoalInput={customGoalInput}
+          setCustomGoalInput={setCustomGoalInput}
+          onSelectGoal={onSelectGoal}
+          onCustomGoalSubmit={onCustomGoalSubmit}
+          onExtendGoal={() => {}}
+          onTriggerRelapse={() => {}}
+          fs={fs}
+        />
+      ))}
+    </>
   );
 }
 
@@ -177,7 +279,7 @@ function TrackersTab({
   state, forgeGoals, expandedGoal, setExpandedGoal,
   customGoalInput, setCustomGoalInput,
   onSelectGoal, onCustomGoalSubmit, onExtendGoal,
-  onTriggerRelapse, canAddCustom, hasUnlimitedForge, setShowUpgrade,
+  onTriggerRelapse, canAddCustom, hasUnlimitedForge, setShowUpgrade, fs,
 }) {
   return (
     <>
@@ -195,6 +297,7 @@ function TrackersTab({
           onCustomGoalSubmit={onCustomGoalSubmit}
           onExtendGoal={onExtendGoal}
           onTriggerRelapse={onTriggerRelapse}
+          fs={fs}
         />
       ))}
 
@@ -234,13 +337,105 @@ function TrackersTab({
   );
 }
 
+// ── Impact Stats (money/time saved — inspired by I Am Sober) ──
+
+const IMPACT_CONFIG = {
+  smoking: {
+    label: "cigarettes skipped",
+    perDay: 20,
+    moneyPerUnit: 0.50, // ~$10/pack of 20
+    moneyLabel: "saved",
+    icon: "🚬",
+  },
+  alcohol: {
+    label: "drinks skipped",
+    perDay: 3,
+    moneyPerUnit: 7,
+    moneyLabel: "saved",
+    icon: "🍺",
+  },
+  porn: {
+    label: "hours reclaimed",
+    perDay: 1.5,
+    moneyPerUnit: null,
+    moneyLabel: null,
+    icon: "⏱️",
+  },
+  doomscrolling: {
+    label: "hours reclaimed",
+    perDay: 2,
+    moneyPerUnit: null,
+    moneyLabel: null,
+    icon: "📱",
+  },
+  weed: {
+    label: "sessions skipped",
+    perDay: 2,
+    moneyPerUnit: 5,
+    moneyLabel: "saved",
+    icon: "🌿",
+  },
+  gambling: {
+    label: "bets avoided",
+    perDay: 3,
+    moneyPerUnit: 20,
+    moneyLabel: "protected",
+    icon: "🎰",
+  },
+  junkfood: {
+    label: "bad meals skipped",
+    perDay: 1,
+    moneyPerUnit: 8,
+    moneyLabel: "saved",
+    icon: "🍔",
+  },
+};
+
+function ImpactStats({ trackerId, daysClean, color }) {
+  const cfg = IMPACT_CONFIG[trackerId];
+  if (!cfg) return null;
+
+  const units = Math.round(daysClean * cfg.perDay);
+  const money = cfg.moneyPerUnit ? Math.round(daysClean * cfg.perDay * cfg.moneyPerUnit) : null;
+
+  return (
+    <div style={{
+      display: "flex",
+      gap: 8,
+      marginTop: 10,
+      padding: "10px 12px",
+      borderRadius: 10,
+      background: `${color}0A`,
+      border: `1px solid ${color}20`,
+    }}>
+      <div style={{ flex: 1, textAlign: "center", borderRight: money ? `1px solid ${color}15` : "none", paddingRight: money ? 8 : 0 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color }}>{units.toLocaleString()}</div>
+        <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3 }}>
+          {cfg.icon} {cfg.label}
+        </div>
+      </div>
+      {money && (
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#22C55E" }}>${money.toLocaleString()}</div>
+          <div style={{ fontSize: 10, opacity: 0.45, marginTop: 1, lineHeight: 1.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+            <DollarSign size={10} strokeWidth={2} /> {cfg.moneyLabel}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Single Tracker Card ──
 
 function TrackerCard({
   tracker, state, forgeGoals, isExpanded,
   onExpandGoal, customGoalInput, setCustomGoalInput,
-  onSelectGoal, onCustomGoalSubmit, onExtendGoal, onTriggerRelapse,
+  onSelectGoal, onCustomGoalSubmit, onExtendGoal, onTriggerRelapse, fs,
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
   const startDate = state.sobrietyDates?.[tracker.id];
   const daysClean = startDate ? daysBetween(startDate) : 0;
   const isActive = !!startDate;
@@ -250,21 +445,22 @@ function TrackerCard({
   const phase = getPhase(daysClean);
   const streakIconData = getStreakIcon(daysClean);
   const [showCustom, setShowCustom] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div style={{ ...S.forgeCard, borderLeft: `3px solid ${tracker.color}` }}>
       {/* Header Row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* F1: emoji icon instead of 2-letter code */}
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 40, height: 40, borderRadius: 12,
             background: `${tracker.color}18`,
-            border: `1.5px solid ${tracker.color}50`,
+            border: `1.5px solid ${tracker.color}40`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 800, color: tracker.color,
-            flexShrink: 0, letterSpacing: -0.5,
+            fontSize: 20, flexShrink: 0,
           }}>
-            {tracker.label.substring(0, 2).toUpperCase()}
+            {TRACKER_ICONS[tracker.id] || "🔥"}
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{tracker.label}</div>
@@ -284,12 +480,34 @@ function TrackerCard({
           </div>
         </div>
         {isActive ? (
-          <button
-            style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.3)", color: "#EF4444" }}
-            onClick={() => onTriggerRelapse(tracker.id)}
-          >
-            Reset
-          </button>
+          confirmReset ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <div style={{ fontSize: 11, color: "#EF4444", fontWeight: 600 }}>
+                Erase {daysClean} day{daysClean !== 1 ? "s" : ""}?
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.5)", color: "#EF4444", fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => { onTriggerRelapse(tracker.id); setConfirmReset(false); }}
+                >
+                  Yes, reset
+                </button>
+                <button
+                  style={{ ...S.forgeBtn, fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => setConfirmReset(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              style={{ ...S.forgeBtn, borderColor: "rgba(239,68,68,0.3)", color: "#EF4444" }}
+              onClick={() => setConfirmReset(true)}
+            >
+              Reset
+            </button>
+          )
         ) : (
           <button
             style={{ ...S.forgeBtn, borderColor: `${tracker.color}44`, color: tracker.color }}
@@ -302,8 +520,8 @@ function TrackerCard({
 
       {/* Goal Selection (inline expand) */}
       {!isActive && isExpanded && (
-        <div style={styles.goalPicker}>
-          <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.5, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div style={(fs || styles).goalPicker}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5, color: tracker.color, opacity: 0.8 }}>
             Choose your goal
           </div>
           <div style={styles.goalOptions}>
@@ -311,8 +529,8 @@ function TrackerCard({
               <button
                 key={opt.days}
                 style={{
-                  ...styles.goalBtn,
-                  ...(opt.days === 0 && showCustom ? { borderColor: "#7C5CFC", color: "#7C5CFC" } : {}),
+                  ...(fs || styles).goalBtn,
+                  ...(opt.days === 0 && showCustom ? { borderColor: "#7C5CFC", color: "#7C5CFC", background: "rgba(124,92,252,0.08)" } : {}),
                 }}
                 onClick={() => {
                   if (opt.days === 0) {
@@ -328,21 +546,29 @@ function TrackerCard({
             ))}
           </div>
           {showCustom && (
-            <div style={styles.customGoalRow}>
-              <input
-                type="number"
-                min={21}
-                placeholder="Min 21 days"
-                value={customGoalInput}
-                onChange={(e) => setCustomGoalInput(e.target.value)}
-                style={styles.customGoalInput}
-              />
-              <button
-                style={styles.customGoalSubmit}
-                onClick={() => onCustomGoalSubmit(tracker.id)}
-              >
-                Go
-              </button>
+            <div>
+              <div style={styles.customGoalRow}>
+                <input
+                  type="number"
+                  min={21}
+                  placeholder="e.g. 30"
+                  value={customGoalInput}
+                  onChange={(e) => setCustomGoalInput(e.target.value)}
+                  style={(fs || styles).customGoalInput}
+                />
+                <button
+                  style={styles.customGoalSubmit}
+                  onClick={() => onCustomGoalSubmit(tracker.id)}
+                >
+                  Set
+                </button>
+              </div>
+              {/* F2: inline hint about minimum */}
+              {customGoalInput && parseInt(customGoalInput, 10) < 21 && (
+                <div style={{ fontSize: 10, color: "#F59E0B", marginTop: 4, paddingLeft: 2 }}>
+                  ⚠ Minimum 21 days for meaningful habit change
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -392,9 +618,9 @@ function TrackerCard({
               }}
             />
           </div>
-          {/* Milestone markers */}
+          {/* F6: Milestone markers — only show if they don't crowd (≤ 4 markers per bar) */}
           <div style={styles.milestoneRow}>
-            {MILESTONE_DAYS.filter((m) => m <= goal).map((m) => {
+            {MILESTONE_DAYS.filter((m) => m <= goal).slice(0, 4).map((m) => {
               const pos = (m / goal) * 100;
               const reached = daysClean >= m;
               return (
@@ -408,13 +634,13 @@ function TrackerCard({
                   <div
                     style={{
                       ...styles.milestoneDot,
-                      background: reached ? tracker.color : "rgba(255,255,255,0.1)",
-                      borderColor: reached ? tracker.color : "rgba(255,255,255,0.15)",
+                      background: reached ? tracker.color : sub(0.1),
+                      borderColor: reached ? tracker.color : sub(0.15),
                     }}
                   />
                   <span style={{
                     ...styles.milestoneLabel,
-                    color: reached ? tracker.color : "rgba(255,255,255,0.2)",
+                    color: reached ? tracker.color : sub(0.2),
                   }}>
                     {m}
                   </span>
@@ -423,6 +649,11 @@ function TrackerCard({
             })}
           </div>
         </div>
+      )}
+
+      {/* Impact Stats — money/time saved */}
+      {isActive && daysClean >= 1 && (
+        <ImpactStats trackerId={tracker.id} daysClean={daysClean} color={tracker.color} />
       )}
 
       {/* Day-specific tip */}
@@ -441,11 +672,36 @@ function TrackerCard({
           </div>
         );
       })()}
+
+      {/* Cross-module: related quest suggestion */}
+      {isActive && TRACKER_RELATED_QUESTS[tracker.id] && (() => {
+        const rq = TRACKER_RELATED_QUESTS[tracker.id];
+        return (
+          <div style={{
+            marginTop: 8,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: `${rq.color}08`,
+            border: `1px solid ${rq.color}18`,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+          }}>
+            <Zap size={13} color={rq.color} strokeWidth={2} style={{ marginTop: 2, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: rq.color, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>
+                Complementary Quest
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.4 }}>{rq.text}</div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
-// ── Journal Tab ──
+// ── Recovery Log Tab ──
 
 function JournalTab({ journals, filter, setFilter, state, save }) {
   const [newEntry, setNewEntry] = useState("");
@@ -457,7 +713,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
     const entry = {
       text: newEntry.trim(),
       tracker: entryTracker === "all" ? (activeTrackers[0] || "general") : entryTracker,
-      date: new Date().toISOString().split("T")[0],
+      date: getTodayStr(),
     };
     save({ ...state, recoveryJournals: [...(state.recoveryJournals || []), entry] });
     setNewEntry("");
@@ -481,7 +737,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <textarea
             value={newEntry}
             onChange={(e) => setNewEntry(e.target.value)}
-            placeholder="Write a recovery journal entry..."
+            placeholder="Log how you're feeling, what triggered you, what helped..."
             style={styles.journalInput}
             rows={3}
           />
@@ -543,7 +799,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <div style={{ marginBottom: 8, opacity: 0.3 }}><BookOpen size={28} color="currentColor" /></div>
           <div style={{ fontSize: 12, opacity: 0.3 }}>No journal entries yet</div>
           <div style={{ fontSize: 11, opacity: 0.2, marginTop: 4 }}>
-            Entries are added when you reset a tracker
+            Write above to log a trigger, craving, or win
           </div>
         </div>
       )}
@@ -591,6 +847,50 @@ const styles = {
     marginBottom: 12,
     fontSize: 12,
     opacity: 0.4,
+  },
+  // ── Entry / onboarding state ──
+  entryHero: {
+    margin: "4px 14px 16px",
+    padding: "20px 18px",
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(124,92,252,0.08), rgba(109,40,217,0.04))",
+    border: "1px solid rgba(124,92,252,0.18)",
+    textAlign: "center",
+  },
+  entryHeroIcon: {
+    fontSize: 36,
+    marginBottom: 10,
+    lineHeight: 1,
+  },
+  entryHeroTitle: {
+    fontSize: 17,
+    fontWeight: 800,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  entryHeroBody: {
+    fontSize: 13,
+    lineHeight: 1.6,
+    opacity: 0.55,
+  },
+  entryNudge: {
+    margin: "0 14px 16px",
+    padding: "10px 14px",
+    borderRadius: 10,
+    background: "rgba(249,115,22,0.07)",
+    border: "1px solid rgba(249,115,22,0.18)",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#F97316",
+    lineHeight: 1.4,
+  },
+  entryPickLabel: {
+    margin: "0 14px 8px",
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    opacity: 0.35,
   },
   tabBar: {
     display: "flex",

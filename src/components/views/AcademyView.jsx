@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { LEVELS, BOOKS } from "../../data";
+import { LEVELS, BOOKS, BOOK_CATEGORIES, COURSE_QUEST_SUGGESTIONS, CATEGORIES } from "../../data";
 import { getLevelIndex } from "../../utils";
 import { usePremium } from "../../hooks/usePremium";
 import { FEATURE_IDS } from "../../data/premium";
+import {
+  GraduationCap, BookOpen, ChevronDown, Check, Lock, Crown,
+  Target, Clock, Award, Trophy,
+} from "lucide-react";
 
 const SWIPE_THRESHOLD = 60;
-const RATE_LIMIT_MS = 0; // No cooldown — self-paced learning
 const MAX_FOCUS_SLOTS = 3;
 
-export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight }) {
+export default function AcademyView({ state, save, onCheckStep, onUncheckStep, allCourses, onCheckInsight, onUncheckInsight, openCourse }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
@@ -23,12 +26,21 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   const academyFocus = state.academyFocus || [];
   const stepCompletedAt = state.stepCompletedAt || {};
 
-  const [expandedCourse, setExpandedCourse] = useState(null);
+  const [expandedCourse, setExpandedCourse] = useState(openCourse || null);
   const [expandedStep, setExpandedStep] = useState(null);
-  const [filter, setFilter] = useState("focused");
+  const [filter, setFilter] = useState(openCourse ? "all" : "focused");
+
+  // C: auto-expand course when navigated from a quest "Learn why" link
+  useEffect(() => {
+    if (openCourse) {
+      setExpandedCourse(openCourse);
+      setFilter("all");
+    }
+  }, [openCourse]);
   const [now, setNow] = useState(Date.now());
   const [expandedBook, setExpandedBook] = useState(null);
   const [mode, setMode] = useState("courses"); // "courses" | "books"
+  const [bookCategory, setBookCategory] = useState("all");
 
   // Swipe state
   const touchStartX = useRef(0);
@@ -58,26 +70,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   }
 
   // Rate-limiting helper: check if a step is locked
-  function getStepLockInfo(courseId, stepIdx) {
-    // First step is always available
-    if (stepIdx === 0) return { locked: false, remaining: 0 };
-
-    const courseTimestamps = stepCompletedAt[courseId] || {};
-    // Find the previous step's completion time
-    const prevStepIdx = stepIdx - 1;
-    const prevCompletedTime = courseTimestamps[prevStepIdx];
-
-    if (!prevCompletedTime) {
-      // Previous step wasn't completed — this step is available if previous step is checked
-      return { locked: false, remaining: 0 };
-    }
-
-    const elapsed = now - prevCompletedTime;
-    if (elapsed >= RATE_LIMIT_MS) {
-      return { locked: false, remaining: 0 };
-    }
-
-    return { locked: true, remaining: RATE_LIMIT_MS - elapsed };
+  // Self-paced learning — steps unlock immediately (no cooldown)
+  function getStepLockInfo() {
+    return { locked: false, remaining: 0 };
   }
 
   function formatCountdown(ms) {
@@ -94,7 +89,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     const levelLocked = levelIdx < course.levelReq;
     const tierLocked = isTier2 && !bossClears[21];
     const premiumLocked = isTier2 && !hasAllCourses;
-    const locked = levelLocked || tierLocked || premiumLocked;
+    const dayLocked = (course.dayUnlock || 1) > 1 && (state.currentDay || 1) < (course.dayUnlock || 1);
+    const locked = levelLocked || tierLocked || premiumLocked || dayLocked;
 
     const progress = state.courseProgress?.[course.id];
     const completedSteps = progress?.steps || [];
@@ -114,9 +110,10 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
     let lockReason = "";
     if (premiumLocked) lockReason = "Premium -- Upgrade to unlock";
     else if (tierLocked) lockReason = "Complete Day 21 to unlock";
-    else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1} ${LEVELS[course.levelReq]?.name}`;
+    else if (levelLocked) lockReason = `Unlocks at Lv.${course.levelReq + 1}${LEVELS[course.levelReq]?.name ? ` ${LEVELS[course.levelReq].name}` : ""}`;
+    else if (dayLocked) lockReason = `Unlocks Day ${course.dayUnlock}`;
 
-    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, isFocused };
+    return { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, isRecommended, premiumLocked, dayLocked, dayUnlock: course.dayUnlock || 1, isFocused };
   });
 
   const focused = courseStates.filter((c) => c.isFocused && !c.isCompleted && !c.locked);
@@ -126,7 +123,17 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
 
   let filteredCourses;
   if (filter === "focused") {
-    filteredCourses = [...focused, ...available, ...lockedCourses];
+    const items = [];
+    if (focused.length > 0) {
+      items.push({ __divider: true, label: "In Focus" });
+      items.push(...focused);
+    }
+    if (available.length > 0) {
+      items.push({ __divider: true, label: "Available to Add" });
+      items.push(...available);
+    }
+    if (lockedCourses.length > 0) items.push(...lockedCourses);
+    filteredCourses = items;
   } else if (filter === "mastered") {
     filteredCourses = mastered;
   } else {
@@ -173,6 +180,14 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
   });
   const booksRead = bookStates.filter((b) => b.isFinished).length;
   const booksInProgress = bookStates.filter((b) => b.readInsights.length > 0 && !b.isFinished).length;
+  // A4: Sort books — in-progress first, unread second, finished last
+  const filteredBookStates = (bookCategory === "all" ? bookStates : bookStates.filter((b) => b.book.category === bookCategory))
+    .slice()
+    .sort((a, b) => {
+      // in-progress > unread > finished
+      const score = (x) => x.isFinished ? 2 : x.readInsights.length > 0 ? 0 : 1;
+      return score(a) - score(b);
+    });
 
   return (
     <div style={S.vc}>
@@ -181,22 +196,26 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
       {/* Mode toggle: Courses / Books */}
       <div style={modeToggleRow}>
         {[
-          { id: "courses", label: "Courses", icon: "\uD83C\uDF93" },
-          { id: "books", label: "Books", icon: "\uD83D\uDCDA" },
-        ].map((m) => (
-          <button
-            key={m.id}
-            style={{
-              ...modeToggleBtn,
-              background: mode === m.id ? "rgba(124,92,252,0.12)" : "transparent",
-              color: mode === m.id ? "#7C5CFC" : sub(0.4),
-              borderColor: mode === m.id ? "rgba(124,92,252,0.25)" : sub(0.06),
-            }}
-            onClick={() => setMode(m.id)}
-          >
-            <span>{m.icon}</span> {m.label}
-          </button>
-        ))}
+          { id: "courses", label: "Courses", Icon: GraduationCap },
+          { id: "books", label: "Books", Icon: BookOpen },
+        ].map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              style={{
+                ...modeToggleBtn,
+                background: active ? "rgba(124,92,252,0.12)" : "transparent",
+                color: active ? "#7C5CFC" : sub(0.4),
+                borderColor: active ? "rgba(124,92,252,0.25)" : sub(0.06),
+              }}
+              onClick={() => setMode(m.id)}
+            >
+              <m.Icon size={15} strokeWidth={active ? 2.2 : 1.6} />
+              {m.label}
+            </button>
+          );
+        })}
       </div>
 
       {mode === "books" && (
@@ -221,7 +240,55 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
             </div>
           </div>
 
-          {bookStates.map(({ book, readInsights, isFinished, pct }) => {
+          {/* Category filter chips */}
+          <div style={{ display: "flex", gap: 6, padding: "0 14px", marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+            {BOOK_CATEGORIES.map((cat) => {
+              const isActive = bookCategory === cat.id;
+              const count = cat.id === "all" ? BOOKS.length : BOOKS.filter((b) => b.category === cat.id).length;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setBookCategory(cat.id); setExpandedBook(null); }}
+                  style={{
+                    flexShrink: 0,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${isActive ? "rgba(124,92,252,0.35)" : sub(0.06)}`,
+                    background: isActive ? "rgba(124,92,252,0.12)" : "transparent",
+                    color: isActive ? "#7C5CFC" : sub(0.45),
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                  {count > 0 && (
+                    <span style={{
+                      fontSize: 10,
+                      background: isActive ? "#7C5CFC" : sub(0.1),
+                      color: isActive ? "#fff" : sub(0.5),
+                      padding: "1px 5px",
+                      borderRadius: 5,
+                      fontWeight: 800,
+                    }}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {filteredBookStates.length === 0 && (
+            <div style={{ textAlign: "center", padding: "30px 20px", opacity: 0.4, fontSize: 13 }}>
+              No books in this category yet
+            </div>
+          )}
+
+          {filteredBookStates.map(({ book, readInsights, isFinished, pct }) => {
             const isExpanded = expandedBook === book.id;
             return (
               <div
@@ -285,9 +352,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     {!isFinished && pct > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: book.coverColor }}>{pct}%</span>
                     )}
-                    <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                      &#x25BC;
-                    </span>
+                    <ChevronDown size={14} style={{ opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }} />
                   </div>
                 </div>
 
@@ -329,7 +394,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                                 else onCheckInsight(book.id, idx);
                               }}
                             >
-                              {isRead && <span style={{ fontSize: 10, color: "#fff" }}>&#x2713;</span>}
+                              {isRead && <Check size={10} color="#fff" strokeWidth={3} />}
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{
@@ -350,7 +415,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                     })}
                     {isFinished && (
                       <div style={completionBox}>
-                        <span style={{ fontSize: 24 }}>{book.icon}</span>
+                        <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Book Complete!</div>
                           <div style={{ fontSize: 11, opacity: 0.4 }}>
@@ -433,11 +498,11 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         ))}
       </div>
 
-      {/* Premium upsell banner for free users */}
-      {!hasAllCourses && filter !== "mastered" && (
-        <div style={premiumCourseBanner} onClick={() => setShowUpgrade(true)}>
+      {/* A2: Collapsible premium banner — only shown on first visit or when looking at locked courses */}
+      {!hasAllCourses && filter === "all" && (
+        <div style={{ ...premiumCourseBanner, cursor: "pointer" }} onClick={() => setShowUpgrade(true)}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>&#x1F451;</span>
+            <Crown size={16} color="#FFD700" strokeWidth={1.75} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#FFD700" }}>Unlock Advanced Courses</div>
               <div style={{ fontSize: 10, opacity: 0.5 }}>Premium includes Tier 2 deep-dive courses</div>
@@ -447,25 +512,52 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
         </div>
       )}
 
-      {/* Empty state for focused tab */}
+      {/* A1: Fix In Focus empty state — show a small inline tip instead of large empty state that overlaps with content */}
       {filter === "focused" && focused.length === 0 && available.length > 0 && (
-        <div style={emptyState}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F3AF;</div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Choose courses to focus on below</div>
-          <div style={{ fontSize: 11, opacity: 0.4 }}>Pick 2-3 courses to actively work through. Focus beats overwhelm.</div>
+        <div style={{
+          margin: "0 14px 10px",
+          padding: "10px 14px",
+          borderRadius: 10,
+          background: "rgba(124,92,252,0.05)",
+          border: "1px dashed rgba(124,92,252,0.15)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Target size={16} color="#7C5CFC" strokeWidth={1.5} style={{ opacity: 0.6, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#7C5CFC" }}>No courses in focus yet</div>
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>Tap "Add to Focus" below any course to start learning it.</div>
+          </div>
         </div>
       )}
 
       {/* Empty state for mastered tab */}
       {filteredCourses.length === 0 && filter === "mastered" && (
         <div style={emptyState}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F4DA;</div>
+          <Trophy size={32} color="#10B981" strokeWidth={1.25} style={{ marginBottom: 8, opacity: 0.5 }} />
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No mastered courses yet</div>
           <div style={{ fontSize: 11, opacity: 0.4 }}>Complete all steps in a focused course to master it and earn +50 XP</div>
         </div>
       )}
 
-      {filteredCourses.map(({ course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, isFocused }) => {
+      {filteredCourses.map((item) => {
+        if (item.__divider) {
+          return (
+            <div key={item.label} style={{
+              padding: "2px 14px 6px",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              color: colors.textSecondary,
+              opacity: 0.6,
+            }}>
+              {item.label}
+            </div>
+          );
+        }
+        const { course, locked, isCompleted, xpAwarded, completedSteps, pct, lockReason, premiumLocked, dayLocked, dayUnlock, isFocused } = item;
         const isExpanded = expandedCourse === course.id;
         const skillBadge = course.skillLevel || "beginner";
         const canExpand = isFocused || isCompleted;
@@ -475,8 +567,8 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
             key={course.id}
             style={{
               ...S.courseCard,
-              opacity: locked ? 0.4 : 1,
-              cursor: locked && premiumLocked ? "pointer" : "default",
+              opacity: locked ? 0.55 : 1,
+              cursor: locked && !premiumLocked ? "not-allowed" : (locked && premiumLocked ? "pointer" : "default"),
               border: isCompleted
                 ? "1px solid rgba(16,185,129,0.15)"
                 : isFocused
@@ -506,7 +598,12 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{course.title}</span>
-                    {premiumLocked && <span style={{ fontSize: 12 }}>&#x1F512;</span>}
+                    {premiumLocked && <Lock size={12} color="#FFD700" strokeWidth={2} />}
+                    {dayLocked && (
+                      <span style={{ fontSize: 11, opacity: 0.5, color: "#FBBF24", fontWeight: 600 }}>
+                        📅 Unlocks Day {dayUnlock}
+                      </span>
+                    )}
                     {isFocused && !isCompleted && (
                       <span style={focusBadge}>IN FOCUS</span>
                     )}
@@ -535,14 +632,12 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {xpAwarded && <span style={{ color: "#10B981", fontSize: 12, fontWeight: 700 }}>+50 XP</span>}
-                {isCompleted && <span style={{ fontSize: 18 }}>&#x1F393;</span>}
+                {isCompleted && <Award size={18} color="#10B981" strokeWidth={1.75} />}
                 {!locked && !isCompleted && pct > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC" }}>{pct}%</span>
                 )}
                 {!locked && canExpand && (
-                  <span style={{ fontSize: 12, opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                    &#x25BC;
-                  </span>
+                  <ChevronDown size={14} style={{ opacity: 0.3, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)", flexShrink: 0 }} />
                 )}
               </div>
             </div>
@@ -645,9 +740,9 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                             handleStepClick(course.id, idx, checked, false);
                           }}
                         >
-                          {checked && <span style={{ fontSize: 10 }}>&#x2713;</span>}
+                          {checked && <Check size={10} color="#fff" strokeWidth={3} />}
                           {isRateLocked && !checked && (
-                            <span style={{ fontSize: 11, color: "rgba(255,165,0,0.7)" }}>&#x1F512;</span>
+                            <Lock size={10} color="rgba(255,165,0,0.8)" strokeWidth={2.5} />
                           )}
                         </div>
 
@@ -668,7 +763,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                           {/* Rate-limit countdown */}
                           {isRateLocked && !checked && (
                             <div style={countdownStyle}>
-                              &#x23F3; Unlocks in {formatCountdown(remaining)}
+                              <Clock size={10} /> Unlocks in {formatCountdown(remaining)}
                             </div>
                           )}
 
@@ -697,9 +792,7 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
                         </div>
 
                         {/* Expand indicator */}
-                        <span style={{ fontSize: 10, opacity: 0.3, flexShrink: 0, transition: "transform 0.2s", transform: isStepExpanded ? "rotate(180deg)" : "rotate(0)" }}>
-                          &#x25BC;
-                        </span>
+                        <ChevronDown size={12} style={{ opacity: 0.3, flexShrink: 0, transition: "transform 0.2s", transform: isStepExpanded ? "rotate(180deg)" : "rotate(0)" }} />
                       </div>
                     </div>
                   );
@@ -707,15 +800,50 @@ export default function AcademyView({ state, save, onCheckStep, onUncheckStep, a
 
                 {/* Completion celebration */}
                 {isCompleted && (
-                  <div style={completionBox}>
-                    <span style={{ fontSize: 24 }}>&#x1F393;</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
-                      <div style={{ fontSize: 11, opacity: 0.4 }}>
-                        You've completed all steps. This knowledge is now part of your foundation.
+                  <>
+                    <div style={completionBox}>
+                      <Award size={24} color="#10B981" strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#10B981" }}>Course Mastered!</div>
+                        <div style={{ fontSize: 11, opacity: 0.4 }}>
+                          You've completed all steps. This knowledge is now part of your foundation.
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    {/* C: Quest nudge after course completion */}
+                    {COURSE_QUEST_SUGGESTIONS[course.id] && (() => {
+                      const suggestion = COURSE_QUEST_SUGGESTIONS[course.id];
+                      const cats = suggestion.categories.map(id => CATEGORIES.find(c => c.id === id)).filter(Boolean);
+                      return (
+                        <div style={{
+                          margin: "8px 0 4px",
+                          padding: "12px 14px",
+                          borderRadius: 10,
+                          background: "rgba(124,92,252,0.06)",
+                          border: "1px solid rgba(124,92,252,0.15)",
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#7C5CFC", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                            <Target size={11} color="#7C5CFC" />
+                            Now put it into practice
+                          </div>
+                          <div style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7, marginBottom: 8, lineHeight: 1.5 }}>
+                            {suggestion.tip}
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {cats.map(cat => (
+                              <span key={cat.id} style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                color: cat.color, background: `${cat.color}12`, border: `1px solid ${cat.color}25`,
+                              }}>
+                                {cat.icon} {cat.label} quest
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             )}

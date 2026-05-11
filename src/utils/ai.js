@@ -1,6 +1,8 @@
 // AI Service Layer — uses Gemini API via environment variable
 // Key is loaded from VITE_GEMINI_API_KEY in .env (never hardcoded)
 
+import { getTodayStr } from "./helpers";
+
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL = GEMINI_API_KEY
@@ -175,7 +177,7 @@ export async function getAICoachMessage(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("coach", {
     day: state?.currentDay, streak: state?.streak,
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayStr(),
   });
 
   return callAI(
@@ -188,7 +190,7 @@ export async function getAICoachMessage(state) {
 export async function getAIJournalPrompt(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("jprompt", {
-    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
+    day: state?.currentDay, date: getTodayStr(),
   });
 
   return callAI(
@@ -223,7 +225,7 @@ export async function analyzeJournalEntryAI(entry, state) {
 export async function getAIQuestSuggestions(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("quests", {
-    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
+    day: state?.currentDay, date: getTodayStr(),
   });
 
   const raw = await callAI(
@@ -245,7 +247,7 @@ export async function getAIRelapseSupport(trackerId, state) {
   const label = trackerLabels[trackerId] || trackerId;
   const startDate = state?.sobrietyDates?.[trackerId];
   const daysClean = startDate ? Math.floor((Date.now() - new Date(startDate).getTime()) / 86400000) : 0;
-  const cacheKey = hashInput("relapse", { tracker: trackerId, days: daysClean, date: new Date().toISOString().split("T")[0] });
+  const cacheKey = hashInput("relapse", { tracker: trackerId, days: daysClean, date: getTodayStr() });
 
   return callAI(
     `${SYSTEM_BASE}\n\nThe user is tracking their recovery from ${label} in The Forge. They have been clean for ${daysClean} days. Generate a supportive, encouraging message that:\n1. Acknowledges their progress (${daysClean} days is significant)\n2. Offers a specific coping strategy\n3. Reminds them why they started\n\nKeep it warm and personal, 3-4 sentences. Don't be preachy.`,
@@ -320,7 +322,7 @@ ${summary}`;
 export async function getJournalStarter(state) {
   const summary = buildStateSummary(state);
   const cacheKey = hashInput("jstart", {
-    day: state?.currentDay, date: new Date().toISOString().split("T")[0],
+    day: state?.currentDay, date: getTodayStr(),
   });
 
   return callAI(

@@ -240,12 +240,19 @@ export default function CustomQuestModal({ unlockedCategories, onAdd, onClose, c
                 ...S.primaryBtn,
                 margin: "4px 0 0",
                 width: "100%",
-                opacity: questText.trim() && !showSuggestion ? 1 : 0.35,
+                opacity: questText.trim() ? 1 : 0.35,
               }}
-              onClick={handleAdd}
-              disabled={!questText.trim() || showSuggestion}
+              onClick={() => {
+                // If a suggestion banner is showing, treat the primary CTA as
+                // an explicit "add anyway" — dismissing the suggestion in the
+                // process. Previously the button was disabled here, which made
+                // the action look broken.
+                if (showSuggestion) setDismissedSuggestion(true);
+                handleAdd();
+              }}
+              disabled={!questText.trim()}
             >
-              Add Quest
+              {showSuggestion ? "Add anyway" : "Add Quest"}
             </button>
           </>
         )}

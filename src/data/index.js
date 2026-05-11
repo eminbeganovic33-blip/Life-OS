@@ -1,5 +1,5 @@
 export { CATEGORIES } from "./categories";
-export { QUESTS_TEMPLATE } from "./quests";
+export { QUESTS_TEMPLATE, QUEST_TIME_OF_DAY, getQuestTimeOfDay } from "./quests";
 export { EXERCISES, EXERCISES_TIER2 } from "./exercises";
 export { COURSES } from "./courses";
 export { TROPHIES } from "./trophies";
@@ -10,4 +10,5 @@ export { EXERCISE_PROGRAMS } from "./exercisePrograms";
 export { FORGE_PROGRAMS, getProgramDay } from "./forgePrograms";
 export { PREMIUM_FEATURES, PREMIUM_PLANS, FREE_LIMITS, isPremiumFeature, FEATURE_IDS } from "./premium";
 export { EXERCISE_LIBRARY, MUSCLE_GROUPS, WORKOUT_TEMPLATES, getExerciseById, getExercisesByMuscle } from "./exerciseLibrary";
-export { BOOKS, getBooksByCategory, getBookById } from "./bookLibrary";
+export { BOOKS, BOOK_CATEGORIES, getBooksByCategory, getBookById } from "./bookLibrary";
+export { CATEGORY_COURSE_MAP, getCourseForQuest, COURSE_QUEST_SUGGESTIONS } from "./questAcademyMap";

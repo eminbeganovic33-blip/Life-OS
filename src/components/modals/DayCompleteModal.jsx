@@ -1,15 +1,24 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { S } from "../../styles/theme";
 import { CATEGORIES } from "../../data";
 import { getDayQuests, getLevel, getLevelIndex } from "../../utils";
 import { CategoryIcon } from "../Icon";
-import { Trophy, Flame, Star, Zap, ChevronRight } from "lucide-react";
+import { Trophy, Flame, Star, Zap, ChevronRight, X } from "lucide-react";
 
 /**
  * Day completion celebration screen.
  * Shows a recap of the completed day with stats, streaks, and category breakdown.
  */
-export default function DayCompleteModal({ state, completedDay, onDismiss }) {
+export default function DayCompleteModal({ state, completedDay, onDismiss, onNavigate }) {
+  // Escape key dismisses (must run on every render so the latest onDismiss closure is captured)
+  useEffect(() => {
+    if (!state || !completedDay) return;
+    const onKey = (e) => { if (e.key === "Escape") onDismiss?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, completedDay, onDismiss]);
+
   if (!state || !completedDay) return null;
 
   const quests = getDayQuests(completedDay, state.customQuests, state);
@@ -47,6 +56,21 @@ export default function DayCompleteModal({ state, completedDay, onDismiss }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 280, damping: 22, delay: 0.1 }}
       >
+        {/* Close button (top-right) */}
+        <button
+          onClick={onDismiss}
+          aria-label="Close"
+          style={{
+            position: "absolute", top: 12, right: 12, zIndex: 10,
+            width: 32, height: 32, borderRadius: 16,
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <X size={16} />
+        </button>
+
         {/* Glow background */}
         <div style={glowBg} />
 
@@ -132,13 +156,40 @@ export default function DayCompleteModal({ state, completedDay, onDismiss }) {
           </motion.div>
         )}
 
-        {/* CTA */}
+        {/* H1: Navigation CTAs */}
+        <motion.div
+          style={{ display: "flex", gap: 8, marginBottom: 10 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+        >
+          <button
+            style={secondaryBtn}
+            onClick={(e) => { e.stopPropagation(); onDismiss(); onNavigate?.("dojo"); }}
+          >
+            🥊 Train
+          </button>
+          <button
+            style={secondaryBtn}
+            onClick={(e) => { e.stopPropagation(); onDismiss(); onNavigate?.("academy"); }}
+          >
+            📚 Learn
+          </button>
+          <button
+            style={secondaryBtn}
+            onClick={(e) => { e.stopPropagation(); onDismiss(); onNavigate?.("journal"); }}
+          >
+            ✍️ Reflect
+          </button>
+        </motion.div>
+
+        {/* Primary CTA */}
         <motion.button
           style={ctaBtn}
           onClick={(e) => { e.stopPropagation(); onDismiss(); }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.65 }}
           whileTap={{ scale: 0.97 }}
         >
           <span>Continue to Day {completedDay + 1}</span>
@@ -315,6 +366,21 @@ const streakMsg = {
   padding: "8px 12px",
   borderRadius: 10,
   background: "rgba(255,255,255,0.03)",
+};
+
+const secondaryBtn = {
+  flex: 1,
+  padding: "10px 8px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.04)",
+  color: "rgba(255,255,255,0.65)",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  textAlign: "center",
+  position: "relative",
+  zIndex: 10,
 };
 
 const ctaBtn = {

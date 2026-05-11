@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { useTheme } from "../../hooks";
 import { LEVELS } from "../../data";
+import { getArc } from "../../utils/arcs";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { Sparkles, ChevronRight } from "lucide-react";
 
 // Floating star particles
@@ -23,10 +25,12 @@ const LEVEL_PERKS = {
   7: { text: "Transcended. The ultimate transformation complete.", icon: "👑" },
 };
 
-export default function LevelUpModal({ levelIndex, onDismiss }) {
+export default function LevelUpModal({ levelIndex, onDismiss, currentDay }) {
+  useEscapeKey(onDismiss);
   const { colors } = useTheme();
   const level = LEVELS[levelIndex];
   if (!level) return null;
+  const arc = currentDay ? getArc(currentDay) : null;
 
   const perk = LEVEL_PERKS[levelIndex];
   const isElite = levelIndex >= 5;
@@ -190,6 +194,28 @@ export default function LevelUpModal({ levelIndex, onDismiss }) {
             <div style={{ fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.7)" }}>
               {perk.text}
             </div>
+          </motion.div>
+        )}
+        {/* Arc subtitle (when currentDay is provided) */}
+        {arc && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55, duration: 0.4 }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: `${arc.color}10`,
+              border: `1px solid ${arc.color}25`,
+              marginBottom: 14,
+              position: "relative",
+              zIndex: 2,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{arc.icon}</span>
+            <div style={{ fontSize: 11, fontWeight: 700, color: arc.color, marginTop: 4 }}>{arc.name} Arc</div>
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2, lineHeight: 1.4 }}>{arc.subtitle}</div>
           </motion.div>
         )}
 

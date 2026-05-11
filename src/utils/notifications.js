@@ -45,9 +45,12 @@ export function getDefaultNotificationSettings() {
 export function computeWeeklySummary(state) {
   const { completedQuests = {}, currentDay = 0, moods = {}, xp = 0 } = state;
 
+  // Walk back up to 7 days, but never below day 1 (early users on day 1-3 would
+  // otherwise look up day 0, -1, etc., yielding empty queries forever).
   const weekDays = [];
   for (let i = 0; i < DAYS_IN_WEEK; i++) {
-    weekDays.push(currentDay - i);
+    const d = currentDay - i;
+    if (d >= 1) weekDays.push(d);
   }
 
   let totalQuests = 0;
@@ -64,14 +67,17 @@ export function computeWeeklySummary(state) {
     }
 
     if (moods[day] !== undefined) {
+      // Storage uses 0-indexed mood values (matches MOODS array index).
+      // Display uses 1-indexed Likert (1=worst, 5=best). The +1 normalizes.
       moodValues.push(moods[day] + 1);
     }
   }
 
-  const totalPossible = QUESTS_PER_DAY * DAYS_IN_WEEK;
+  // Possible scales with actual days walked (not always 7 — early users have fewer).
+  const totalPossible = QUESTS_PER_DAY * weekDays.length;
   const completionRate =
     totalPossible > 0
-      ? Math.round((totalQuests / totalPossible) * 100)
+      ? Math.min(100, Math.round((totalQuests / totalPossible) * 100))
       : 0;
 
   let bestCategory = null;

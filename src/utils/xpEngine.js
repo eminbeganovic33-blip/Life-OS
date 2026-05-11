@@ -1,6 +1,8 @@
 // Feature Set 4: Intelligent XP Weighting
 // Parses quest text and assigns XP dynamically based on difficulty tier
 
+import { dateToLocalDayKey } from "./helpers";
+
 const TIER_3_KEYWORDS = [
   "workout", "gym", "cold shower", "run", "push-ups", "push ups",
   "steps", "10,000", "10000", "lifting", "squat", "deadlift",
@@ -28,6 +30,9 @@ const TIER_1_KEYWORDS = [
  */
 export function calculateQuestXP(text, day = 1) {
   const lower = text.toLowerCase();
+  // Cumulative tier bonus (NOT a one-shot milestone). Every 10 days deeper into
+  // the journey adds +2 to the daily floor: days 1-9 → +0, 10-19 → +2, 20-29 → +4, etc.
+  // Reads as "the deeper into the journey, the bigger the daily bonus."
   const dayBonus = Math.floor(day / 10) * 2;
 
   // Check highest tier first
@@ -186,7 +191,7 @@ export function getDailyBonusQuest(state) {
   });
 
   // Rotate through weakest categories by day
-  const pick = sorted[(state.currentDay - 1) % Math.min(sorted.length, 3)];
+  const pick = sorted[(state.currentDay - 1) % sorted.length];
   const text = BONUS_QUEST_TEMPLATES[pick];
   const baseXp = calculateQuestXP(text, state.currentDay);
 
@@ -250,11 +255,11 @@ function getWeeklyChallengeProgress(state, challenge) {
       break;
     }
     case "dojo": {
-      const today = new Date();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().split("T")[0];
+      const startDate = state.startDate ? new Date(state.startDate) : new Date();
+      for (let d = weekStart; d <= weekEnd; d++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + d - 1);
+        const key = dateToLocalDayKey(date);
         if (state.workoutLogs?.[key]?.length > 0) current++;
       }
       break;
@@ -295,11 +300,11 @@ function getWeeklyChallengeProgress(state, challenge) {
       break;
     }
     case "dojo_volume": {
-      const today = new Date();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().split("T")[0];
+      const startDate = state.startDate ? new Date(state.startDate) : new Date();
+      for (let d = weekStart; d <= weekEnd; d++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + d - 1);
+        const key = dateToLocalDayKey(date);
         (state.workoutLogs?.[key] || []).forEach((entry) => {
           entry.sets.forEach((s) => { current += s.weight * s.reps; });
         });
