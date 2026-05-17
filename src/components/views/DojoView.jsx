@@ -20,10 +20,27 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+const WEIGHT_LABEL_MAP = {
+  "moderate": "moderate — RPE 7",
+  "light": "light — RPE 6",
+  "heavy": "heavy — RPE 8-9",
+  "bodyweight": "bodyweight, 2 RIR",
+  "body weight": "bodyweight, 2 RIR",
+};
+
+function normalizeWeight(w) {
+  if (!w) return w;
+  return WEIGHT_LABEL_MAP[w.toLowerCase().trim()] ?? w;
+}
+
 function parseAIPlan(raw) {
   try {
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    return JSON.parse(cleaned);
+    const plan = JSON.parse(cleaned);
+    if (Array.isArray(plan)) {
+      return plan.map((ex) => ({ ...ex, suggestedWeight: normalizeWeight(ex.suggestedWeight) }));
+    }
+    return plan;
   } catch {
     return null;
   }
@@ -230,7 +247,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       name: e.name,
       sets: e.difficulty === "advanced" ? 4 : 3,
       reps: e.muscle === "core" ? "30s" : e.difficulty === "advanced" ? "6-8" : "8-12",
-      suggestedWeight: e.equipment.includes("none") ? "bodyweight" : "moderate",
+      suggestedWeight: e.equipment.includes("none") ? "bodyweight, 2 RIR" : "moderate — RPE 7",
     }));
   }
 
@@ -252,7 +269,7 @@ export default function DojoView({ state, onSaveWorkout, onUpdateEntry, onDelete
       .filter(Boolean)
       .join("; ");
 
-    const prompt = `Generate a gym workout for today. Available exercises: ${exerciseIds}. Recent workouts: ${recentExercises || "none"}. Pick 5-6 exercises with good muscle balance, avoiding recently worked muscles. Return a JSON array of objects with: exerciseId, name, sets (number), reps (number or string like "30s"), suggestedWeight (string like "moderate" or "bodyweight"). Return ONLY valid JSON array, no markdown.`;
+    const prompt = `Generate a gym workout for today. Available exercises: ${exerciseIds}. Recent workouts: ${recentExercises || "none"}. Pick 5-6 exercises with good muscle balance, avoiding recently worked muscles. Return a JSON array of objects with: exerciseId, name, sets (number), reps (number or string like "30s"), suggestedWeight (string using RPE/RIR language, e.g. "bodyweight, 2 RIR", "moderate — RPE 7", "60% 1RM", "light — RPE 6"). Return ONLY valid JSON array, no markdown.`;
 
     try {
       const raw = await chatWithCoach(prompt, state);

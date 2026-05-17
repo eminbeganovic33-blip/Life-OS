@@ -7,9 +7,9 @@ import { daysBetween, getTodayStr } from "../../utils";
 import { getTriggerMap } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import { usePremium } from "../../hooks/usePremium";
-import { FREE_LIMITS, FEATURE_IDS } from "../../data/premium";
+import { FEATURE_IDS } from "../../data/premium";
 import { useToast } from "../Toast";
-import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, PenLine, AlertTriangle, DollarSign, Zap } from "lucide-react";
+import { Flame, Crown, Diamond, Star, CircleDot, PartyPopper, BookOpen, DollarSign, Zap } from "lucide-react";
 
 // ── Cross-module: related quests per tracker ──
 

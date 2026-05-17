@@ -13,7 +13,7 @@ import SmartInsights from "../SmartInsights";
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar, Heart } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Heart } from "lucide-react";
 
 function formatDate() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -71,10 +71,21 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
   );
 }
 
+const REST_REASONS = [
+  { id: "sick", label: "Sick day" },
+  { id: "travel", label: "Traveling" },
+  { id: "recovery", label: "Recovery" },
+  { id: "rest", label: "Planned rest" },
+];
+
+function isRestDay(restDays, dayNum) {
+  return (restDays || []).some((r) => (typeof r === "number" ? r : r.day) === dayNum);
+}
+
 export default function HomeView({
   state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate, onMarkRestDay, onOpenHelp,
+  unlockedCustomCategories, onNavigate, onMarkRestDay, onSetVacationUntil, onOpenHelp,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -101,7 +112,11 @@ export default function HomeView({
       }),
     [state.sobrietyDates]
   );
-  const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
+  const topNudge = useMemo(
+    () => getProactiveNudges(state)[0] || null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.currentDay, state.streak, state.moods, state.journal, state.completedQuests, state.sobrietyDates, state.liftingStreak, state.focusCategories]
+  );
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   // Dojo: today's logged workouts
@@ -131,6 +146,9 @@ export default function HomeView({
   const [activeGuide, setActiveGuide] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
   const [swipeHint, setSwipeHint] = useState(null);
+  const [showRestPicker, setShowRestPicker] = useState(false);
+  const [showVacationPicker, setShowVacationPicker] = useState(false);
+  const [vacationDate, setVacationDate] = useState("");
   const swipeHintTimer = useRef(null);
   const touchStartX = useRef(0);
   const touchStartId = useRef(null);
@@ -581,27 +599,100 @@ export default function HomeView({
       </button>
 
       {/* ── Rest Day option ── shown only when day not yet completed and not all done */}
-      {!allDone && canCompleteDay && !(state.restDays || []).includes(day) && (
+      {!allDone && canCompleteDay && !isRestDay(state.restDays, day) && !state.vacationUntil && (
         <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 11,
-              color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
-              padding: "6px 12px",
-              letterSpacing: 0.3,
-            }}
-            onClick={() => onMarkRestDay?.(day)}
-          >
-            Mark as rest day — streak preserved
-          </button>
+          {showRestPicker ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "4px 12px" }}>
+              {REST_REASONS.map((r) => (
+                <button
+                  key={r.id}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 8,
+                    border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)",
+                    color: "#3B82F6", cursor: "pointer",
+                  }}
+                  onClick={() => { onMarkRestDay?.(day, r.id); setShowRestPicker(false); }}
+                >
+                  {r.label}
+                </button>
+              ))}
+              <button
+                style={{ fontSize: 11, padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)", cursor: "pointer" }}
+                onClick={() => setShowRestPicker(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)", padding: "6px 12px", letterSpacing: 0.3 }}
+                onClick={() => setShowRestPicker(true)}
+              >
+                Mark as rest day — streak preserved
+              </button>
+              {onSetVacationUntil && (
+                <button
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)", padding: "6px 8px" }}
+                  onClick={() => setShowVacationPicker(true)}
+                >
+                  Going away?
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
-      {(state.restDays || []).includes(day) && (
+
+      {showVacationPicker && (
+        <div style={{ margin: "4px 16px 8px", padding: "12px 14px", borderRadius: 12, background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: "#3B82F6" }}>Pause streak until…</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="date"
+              value={vacationDate}
+              min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+              onChange={(e) => setVacationDate(e.target.value)}
+              style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.3)", background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", color: "inherit", fontSize: 12, fontFamily: "inherit" }}
+            />
+            <button
+              disabled={!vacationDate}
+              onClick={() => { onSetVacationUntil?.(vacationDate); setShowVacationPicker(false); setVacationDate(""); }}
+              style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: vacationDate ? "pointer" : "not-allowed", opacity: vacationDate ? 1 : 0.4 }}
+            >
+              Set
+            </button>
+            <button
+              onClick={() => { setShowVacationPicker(false); setVacationDate(""); }}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", fontSize: 12, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isRestDay(state.restDays, day) && (
         <div style={{ textAlign: "center", marginTop: 4, fontSize: 11, color: "#3B82F6", opacity: 0.7 }}>
-          Rest day — your streak is safe
+          {(() => {
+            const entry = (state.restDays || []).find((r) => (typeof r === "number" ? r : r.day) === day);
+            const reason = entry?.reason;
+            const label = REST_REASONS.find((r) => r.id === reason)?.label;
+            return label ? `${label} · streak is safe` : "Rest day — your streak is safe";
+          })()}
+        </div>
+      )}
+
+      {state.vacationUntil && (
+        <div style={{ margin: "4px 16px 4px", padding: "8px 12px", borderRadius: 10, background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 600 }}>
+            ✈ Streak paused until {state.vacationUntil}
+          </span>
+          {onSetVacationUntil && (
+            <button onClick={() => onSetVacationUntil(null)} style={{ fontSize: 10, background: "none", border: "none", color: "#3B82F6", cursor: "pointer", opacity: 0.6 }}>
+              Clear
+            </button>
+          )}
         </div>
       )}
 
@@ -1028,7 +1119,7 @@ function JourneyStrip({ state, day, colors, isDark, onNavigate }) {
       }
       const isToday = dateStr === todayStr;
       const completed = !!(state.completedDays || {})[dotDay];
-      const isRest = (state.restDays || []).includes(dotDay);
+      const isRest = isRestDay(state.restDays, dotDay);
       const type = isToday ? "today" : completed ? "done" : isRest ? "rest" : dotDay < day ? "missed" : "future";
       return { key: i, type, dotDay };
     });

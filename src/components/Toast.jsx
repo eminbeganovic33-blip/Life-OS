@@ -23,9 +23,9 @@ let toastIdCounter = 0;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const show = useCallback((message, type = "success", duration = 3000) => {
+  const show = useCallback((message, type = "success", duration = 3000, action = null) => {
     const id = ++toastIdCounter;
-    setToasts((prev) => [...prev.slice(-4), { id, message, type, duration }]);
+    setToasts((prev) => [...prev.slice(-4), { id, message, type, duration, action }]);
     return id;
   }, []);
 
@@ -65,7 +65,7 @@ function ToastContainer({ toasts, onDismiss }) {
 }
 
 function ToastItem({ toast, onDismiss }) {
-  const { id, message, type, duration } = toast;
+  const { id, message, type, duration, action } = toast;
   const config = TOAST_TYPES[type] || TOAST_TYPES.info;
   const IconComp = config.icon;
 
@@ -90,6 +90,14 @@ function ToastItem({ toast, onDismiss }) {
     >
       <IconComp size={16} color={config.color} strokeWidth={2} style={{ flexShrink: 0 }} />
       <span style={{ ...toastText, color: config.color }}>{message}</span>
+      {action && (
+        <button
+          onClick={() => { action.fn(); onDismiss(id); }}
+          style={{ ...actionBtn, color: config.color, borderColor: config.border }}
+        >
+          {action.label}
+        </button>
+      )}
       <button
         onClick={() => onDismiss(id)}
         style={dismissBtn}
@@ -151,4 +159,16 @@ const dismissBtn = {
   justifyContent: "center",
   flexShrink: 0,
   opacity: 0.6,
+};
+
+const actionBtn = {
+  background: "none",
+  border: "1px solid",
+  borderRadius: 7,
+  cursor: "pointer",
+  padding: "3px 9px",
+  fontSize: 11,
+  fontWeight: 700,
+  flexShrink: 0,
+  fontFamily: "'Inter','SF Pro Display',system-ui,sans-serif",
 };

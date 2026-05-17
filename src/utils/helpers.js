@@ -182,11 +182,20 @@ export function getCategoryStreak(completedQuests, category, currentDay) {
   return streak;
 }
 
+/** Returns true if dayNum is marked as a rest day.
+ *  Handles both old number[] format and new { day, reason }[] format. */
+export function isRestDay(restDays, dayNum) {
+  return (restDays || []).some((r) => (typeof r === "number" ? r : r.day) === dayNum);
+}
+
 /** Reconcile streaks after a gap in activity. Shared by useAppState and useCloudSync. */
 export function reconcileStreaks(s) {
   const today = getTodayStr();
   const lastActive = s.lastActiveDate;
   if (!lastActive || lastActive === today) return s;
+
+  // Vacation mode: if user paused until a future date, treat all missed days as rest
+  if (s.vacationUntil && today <= s.vacationUntil) return s;
 
   // Check if any missed day was an intentional rest day. Walk forward
   // from the day AFTER lastActive up to the day BEFORE today, in journey-day
@@ -199,7 +208,7 @@ export function reconcileStreaks(s) {
   let allMissedWereRest = true;
   for (let i = 1; i <= missedDays; i++) {
     const checkDay = lastActiveDayNum + i;
-    if (!restDays.includes(checkDay)) { allMissedWereRest = false; break; }
+    if (!isRestDay(restDays, checkDay)) { allMissedWereRest = false; break; }
   }
 
   // ANY miss should consume a freeze or break the streak. The previous code
