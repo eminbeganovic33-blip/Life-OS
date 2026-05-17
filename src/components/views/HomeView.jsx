@@ -5,6 +5,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween, getTodayStr } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
+import { getVoice } from "../../utils/voice";
+import { getArc } from "../../utils/arcs";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import SmartInsights from "../SmartInsights";
@@ -70,9 +72,9 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
 }
 
 export default function HomeView({
-  state, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
+  state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate, onMarkRestDay,
+  unlockedCustomCategories, onNavigate, onMarkRestDay, onOpenHelp,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -133,6 +135,15 @@ export default function HomeView({
   const touchStartX = useRef(0);
   const touchStartId = useRef(null);
 
+  // Arc + voice integration
+  const arc = useMemo(() => getArc(day), [day]);
+  const [postQuestVoice, setPostQuestVoice] = useState(null);
+  const postQuestTimerRef = useRef(null);
+  // Desktop detection — tap-to-uncheck on non-touch devices
+  const isTouchDevice = typeof window !== "undefined" && (
+    "ontouchstart" in window || (navigator?.maxTouchPoints || 0) > 0
+  );
+
   const showSwipeHint = useCallback((questId) => {
     if (swipeHintTimer.current) clearTimeout(swipeHintTimer.current);
     setSwipeHint(questId);
@@ -175,9 +186,30 @@ export default function HomeView({
   // ── Handlers ──
   function handleQuestClick(q) {
     if (completed.includes(q.id)) {
-      showSwipeHint(q.id);
+      // Touch: show swipe hint (swipe to uncheck). Desktop: tap unchecks directly.
+      if (isTouchDevice) {
+        showSwipeHint(q.id);
+      } else {
+        onUncheckQuest(q.id, q.xp);
+      }
     } else {
       onCheckQuest(q.id, q.xp);
+      // Post-quest voice — project the next state and ask the voice for a line
+      const projected = {
+        ...state,
+        completedQuests: {
+          ...(state.completedQuests || {}),
+          [day]: [...(state.completedQuests?.[day] || []), q.id],
+        },
+      };
+      const catId = String(q.id).split("-")[0];
+      const catStreak = getCategoryStreak(projected.completedQuests, catId, day);
+      const v = getVoice("post_quest", projected, { questId: q.id, categoryStreak: catStreak });
+      if (v) {
+        setPostQuestVoice(v);
+        if (postQuestTimerRef.current) clearTimeout(postQuestTimerRef.current);
+        postQuestTimerRef.current = setTimeout(() => setPostQuestVoice(null), 3600);
+      }
     }
   }
 
@@ -389,6 +421,39 @@ export default function HomeView({
         </div>
       )}
 
+      {/* ── Stake proof check-in (Boss Days only, once per day) ── */}
+      <ProofCheckIn state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
+
+      {/* ── Voice Banner (ambient, adaptive) — or post-quest flash ── */}
+      <AnimatePresence mode="wait">
+        {postQuestVoice ? (
+          <motion.div
+            key="post-quest-voice"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.35 }}
+            style={{
+              margin: "0 14px 10px",
+              padding: "10px 14px",
+              borderLeft: "2px solid #22C55E",
+              borderRadius: 4,
+              fontSize: 13,
+              lineHeight: 1.45,
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: colors.text,
+              opacity: 0.85,
+              letterSpacing: 0.1,
+            }}
+          >
+            {postQuestVoice.line}
+          </motion.div>
+        ) : (
+          <VoiceBanner key="voice-banner" state={state} colors={colors} arcColor={arc.color} onOpenHelp={onOpenHelp} />
+        )}
+      </AnimatePresence>
+
       {/* ── Year in Pixels mini-strip ── */}
       <JourneyStrip state={state} day={day} colors={colors} isDark={isDark} onNavigate={onNavigate} />
 
@@ -488,6 +553,11 @@ export default function HomeView({
             All quests complete! Come back tomorrow for Day {day + 1}.
           </span>
         </div>
+      )}
+
+      {/* ── Pre-seal reflection (only when all done + time-locked) ── */}
+      {allDone && !canCompleteDay && (
+        <PreSealReflection state={state} save={save} day={day} colors={colors} arcColor={arc.color} />
       )}
 
       {/* ── Complete Day Button ── */}
@@ -618,6 +688,213 @@ export default function HomeView({
 }
 
 // ── Extracted JSX helpers (avoid IIFE-in-JSX which breaks rolldown/SWC) ──
+
+// ── Voice Banner: ambient, adaptive narrator line above the quest list ──
+function VoiceBanner({ state, colors, arcColor, onOpenHelp }) {
+  const voice = getVoice("home_banner", state);
+  if (!voice) return null;
+  const toneColor = {
+    recovery: "#F97316",
+    boss: "#FBBF24",
+    milestone: "#FBBF24",
+    seal: "#22C55E",
+    morning: arcColor || "#7C5CFC",
+    nudge: "#F97316",
+    close: "#7C5CFC",
+  }[voice.tone] || arcColor || "#7C5CFC";
+
+  const showHelp = (voice.tone === "boss" || voice.tone === "milestone") && onOpenHelp;
+  return (
+    <motion.div
+      key={voice.line}
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      style={{
+        margin: "0 14px 10px",
+        padding: "10px 14px",
+        borderLeft: `2px solid ${toneColor}`,
+        borderRadius: 4,
+        background: "transparent",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+      }}
+    >
+      <span style={{
+        fontSize: 13, lineHeight: 1.45, fontWeight: 500,
+        fontStyle: "italic", color: colors.text, opacity: 0.78, letterSpacing: 0.1,
+        flex: 1,
+      }}>
+        {voice.line}
+      </span>
+      {showHelp && (
+        <button
+          onClick={() => onOpenHelp("boss")}
+          style={{
+            background: "transparent", border: "none",
+            color: toneColor, fontSize: 10, fontWeight: 700,
+            cursor: "pointer", padding: "4px 8px", borderRadius: 6,
+            letterSpacing: 0.4, textTransform: "uppercase", opacity: 0.7,
+          }}
+        >
+          What?
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Stake proof check-in — surfaces on Boss Days (every 21st), once per day ──
+function ProofCheckIn({ state, save, day, colors, arcColor }) {
+  const stake = state.stake;
+  const isBossDay = day > 0 && day % 21 === 0;
+  const checkIns = stake?.proofCheckIns || [];
+  const alreadyAnswered = checkIns.some((c) => c.day === day);
+
+  if (!stake?.proof || !isBossDay || alreadyAnswered || !save) return null;
+
+  const respond = (response) => {
+    save({
+      ...state,
+      stake: {
+        ...stake,
+        proofCheckIns: [...(stake.proofCheckIns || []), { day, response, at: new Date().toISOString() }],
+      },
+    });
+  };
+
+  return (
+    <div style={{
+      margin: "0 14px 12px", padding: "14px 16px",
+      borderRadius: 12,
+      background: `linear-gradient(135deg, ${arcColor}15, ${arcColor}05)`,
+      border: `1px solid ${arcColor}30`,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: arcColor, letterSpacing: 0.8, marginBottom: 6, textTransform: "uppercase" }}>
+        Day {day} · Proof Check-in
+      </div>
+      <div style={{ fontSize: 12, fontStyle: "italic", color: colors.text, opacity: 0.85, marginBottom: 10, lineHeight: 1.5 }}>
+        You wrote: <span style={{ fontWeight: 600 }}>&quot;{stake.proof}&quot;</span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, marginBottom: 10 }}>
+        Have you seen the proof?
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[
+          { id: "yes", label: "Yes", emoji: "✓", color: "#22C55E" },
+          { id: "partially", label: "Partially", emoji: "·", color: "#F59E0B" },
+          { id: "not_yet", label: "Not yet", emoji: "✗", color: "#94A3B8" },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => respond(opt.id)}
+            style={{
+              flex: 1, padding: "8px 6px", borderRadius: 8,
+              background: "transparent",
+              border: `1px solid ${opt.color}40`,
+              color: opt.color,
+              fontSize: 11, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            <span style={{ marginRight: 4 }}>{opt.emoji}</span>{opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Pre-seal reflection — one optional question before sealing the day ──
+function PreSealReflection({ state, save, day, colors, arcColor }) {
+  const existing = state.sealReflections?.[day];
+  const [answer, setAnswer] = useState("");
+  const [dismissed, setDismissed] = useState(false);
+  const prompt = useMemo(
+    () => getVoice("pre_seal", state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.currentDay, state.stake?.why, state.stake?.cost]
+  );
+
+  if (!prompt || !save || dismissed) return null;
+
+  if (existing) {
+    return (
+      <div style={{
+        margin: "8px 14px 0", paddingTop: 12,
+        fontSize: 11, opacity: 0.55,
+      }}>
+        <div style={{ fontStyle: "italic", marginBottom: 4, color: arcColor }}>{existing.prompt}</div>
+        <div style={{ color: colors.text, opacity: 0.75 }}>{existing.answer}</div>
+      </div>
+    );
+  }
+
+  const handleSave = () => {
+    if (!answer.trim()) return;
+    save({
+      ...state,
+      sealReflections: {
+        ...(state.sealReflections || {}),
+        [day]: { prompt: prompt.line, answer: answer.trim(), date: new Date().toISOString() },
+      },
+    });
+    setAnswer("");
+  };
+
+  return (
+    <div style={{
+      margin: "10px 14px 0", padding: 12, borderRadius: 10,
+      background: `${arcColor}08`, border: `1px solid ${arcColor}20`,
+    }}>
+      <div style={{
+        fontSize: 12, fontStyle: "italic", color: arcColor, marginBottom: 8,
+        opacity: 0.9, fontWeight: 500,
+      }}>
+        {prompt.line}
+      </div>
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder="A sentence is enough. Or skip."
+        rows={2}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: "rgba(255,255,255,0.03)",
+          border: `1px solid rgba(255,255,255,0.08)`,
+          borderRadius: 8, padding: "8px 10px",
+          fontSize: 12, color: colors.text, resize: "none",
+          fontFamily: "inherit", outline: "none",
+        }}
+      />
+      <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{
+            background: "transparent", border: "none",
+            color: colors.textSecondary, opacity: 0.5,
+            fontSize: 11, cursor: "pointer", padding: "4px 8px",
+          }}
+        >
+          Skip
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!answer.trim()}
+          style={{
+            background: answer.trim() ? arcColor : "transparent",
+            border: `1px solid ${arcColor}`,
+            color: answer.trim() ? "#fff" : arcColor,
+            fontSize: 11, fontWeight: 700,
+            padding: "4px 12px", borderRadius: 6,
+            cursor: answer.trim() ? "pointer" : "default",
+            opacity: answer.trim() ? 1 : 0.5,
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function WeeklyChallengeBanner({ state, ts }) {
   const wc = getWeeklyChallenge(state);

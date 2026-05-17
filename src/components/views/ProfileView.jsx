@@ -13,7 +13,7 @@ import { Flame, Calendar, CheckCircle, Pencil, Swords, Users, Star, ChevronLeft,
 
 const T = TOKENS;
 
-export default function ProfileView({ state, save, user, onReset, onOpenNotifications, onOpenStake, onNavigate }) {
+export default function ProfileView({ state, save, user, onReset, onOpenNotifications, onOpenStake, onOpenHelp, onNavigate }) {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   // H5: Collapse all trophy sections on Day 1–7 (user has earned very few trophies)
   const [expandedTrophySections, setExpandedTrophySections] = useState(
@@ -424,6 +424,25 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
             <span style={settingsChevron}>›</span>
           </div>
         </div>
+
+        {/* How it works — opens HelpModal */}
+        {onOpenHelp && (
+          <div style={{ ...settingsSection, marginTop: 8 }}>
+            <div
+              style={{ ...settingsRow, cursor: "pointer", borderBottom: "none" }}
+              onClick={() => onOpenHelp("xp")}
+            >
+              <div style={settingsRowLeft}>
+                <span style={{ display: "flex", alignItems: "center", fontSize: 20 }}>📖</span>
+                <div>
+                  <div style={settingsRowTitle}>How it works</div>
+                  <div style={settingsRowSub}>XP · Boss Days · Streaks · The Stake</div>
+                </div>
+              </div>
+              <span style={settingsChevron}>›</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Premium / Subscription ── */}
