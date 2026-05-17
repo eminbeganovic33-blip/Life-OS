@@ -30,6 +30,11 @@ import ForgeSuccessModal from "./components/modals/ForgeSuccessModal";
 import CustomQuestModal from "./components/modals/CustomQuestModal";
 import NotificationSettingsModal from "./components/modals/NotificationSettingsModal";
 import ComebackModal from "./components/modals/ComebackModal";
+import StakeSetupModal from "./components/modals/StakeSetupModal";
+import HelpModal from "./components/modals/HelpModal";
+import WeeklyReviewModal, { getIsoWeek } from "./components/modals/WeeklyReviewModal";
+import { getArc } from "./utils/arcs";
+import { scheduleVoiceNotifications } from "./utils/voice";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateToast from "./components/UpdateToast";
 // DashboardView removed — merged into HomeView (Wave 1)
@@ -107,6 +112,16 @@ function LifeOS() {
   // Comeback modal
   const [comebackInfo, setComebackInfo] = useState(null);
 
+  // Stake setup modal (Phase 5G feature) — triggers on first run if no stake set
+  const [showStake, setShowStake] = useState(false);
+  const [stakeEditMode, setStakeEditMode] = useState(false);
+
+  // Help modal — XP / Boss Days / Streaks / Stake explainers
+  const [showHelp, setShowHelp] = useState(null); // null | "xp" | "boss" | "streaks" | "stake"
+
+  // Weekly review modal — auto-trigger on Sundays
+  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
+
   // Notification scheduler
   const notifIntervalRef = useRef(null);
 
@@ -131,6 +146,59 @@ function LifeOS() {
       toast.show("Streak freeze used — streak preserved!", "info", 4000);
     }
   }, [state?.streakFreezeUsedDate]);
+
+  // Streak freeze EARNED notification (every 7 streak days)
+  useEffect(() => {
+    if (!state) return;
+    const today = getTodayStr();
+    if (state.streakFreezeEarnedDate === today) {
+      const count = state.streakFreezes || 0;
+      toast.show(
+        `Streak freeze earned. You now have ${count} — they protect your streak when life happens.`,
+        "trophy",
+        5000
+      );
+    }
+  }, [state?.streakFreezeEarnedDate]);
+
+  // Stake modal trigger — first run, if no stake and not deferred and onboarded
+  useEffect(() => {
+    if (!state || comebackInfo || bossDay || levelUpIndex) return;
+    if (stakeEditMode) return;
+    if (state.stake || state.stakeDeferred) return;
+    if (!state.onboarded) return;
+    const t = setTimeout(() => setShowStake(true), 800);
+    return () => clearTimeout(t);
+  }, [state?.stake, state?.stakeDeferred, state?.onboarded, comebackInfo, bossDay, levelUpIndex, stakeEditMode]);
+
+  // Weekly review — Sunday auto-trigger if not reviewed this ISO week
+  useEffect(() => {
+    if (!state || state.currentDay < 7) return;
+    const today = new Date();
+    if (today.getDay() !== 0) return; // Sunday only
+    const isoWeek = getIsoWeek(today);
+    if (state.weeklyReviews?.[isoWeek]) return;
+    const t = setTimeout(() => setShowWeeklyReview(true), 1500);
+    return () => clearTimeout(t);
+  }, [state?.currentDay, state?.weeklyReviews]);
+
+  // Voice notification scheduler — fires adaptive OS notifications at 4 slots/day
+  const stateRefForVoice = useRef(state);
+  useEffect(() => { stateRefForVoice.current = state; }, [state]);
+  useEffect(() => {
+    if (!state) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const id = scheduleVoiceNotifications(
+      () => stateRefForVoice.current,
+      (title, body) => {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          try { new Notification(title, { body, icon: "⚡" }); } catch { /* */ }
+        }
+      }
+    );
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.voiceEnabled]);
 
   // Comeback detection — show modal if returning after 2+ days
   useEffect(() => {
@@ -325,6 +393,52 @@ function LifeOS() {
 
   // ── Quest Actions ──
   // Check a quest (one-way click — unchecking uses uncheckQuest via swipe)
+  // Stake handlers — used by StakeSetupModal + ProfileView edit affordance
+  const handleStakeSave = (stakeValues) => {
+    const now = new Date().toISOString();
+    const prev = state.stake;
+    const revisions = prev
+      ? [
+          ...(prev.revisions || []),
+          {
+            why: prev.why,
+            cost: prev.cost,
+            proof: prev.proof,
+            at: prev.updatedAt ?? prev.setAt ?? now,
+          },
+        ]
+      : [];
+    save({
+      ...state,
+      stake: {
+        ...stakeValues,
+        setAt: prev?.setAt || now,
+        updatedAt: now,
+        revisions,
+      },
+      stakeDeferred: false,
+    });
+    setShowStake(false);
+    setStakeEditMode(false);
+  };
+
+  const handleStakeDefer = () => {
+    save({ ...state, stakeDeferred: true });
+    setShowStake(false);
+  };
+
+  const handleStakeClose = () => {
+    setShowStake(false);
+    setStakeEditMode(false);
+  };
+
+  const openStakeEditor = () => {
+    setStakeEditMode(true);
+    setShowStake(true);
+  };
+
+  const openHelp = (tab) => setShowHelp(tab || "xp");
+
   function checkQuest(questId, xpVal) {
     const dc = [...completed];
     if (dc.includes(questId)) return; // already done
@@ -769,6 +883,16 @@ function LifeOS() {
           setShowWeeklySummary={setShowWeeklySummary}
           comebackInfo={comebackInfo}
           onDismissComeback={() => setComebackInfo(null)}
+          stake={{
+            showStake,
+            stakeEditMode,
+            onStakeSave: handleStakeSave,
+            onStakeDefer: handleStakeDefer,
+            onStakeClose: handleStakeClose,
+            openStakeEditor,
+            arcColor: getArc(state?.currentDay || 1)?.color,
+          }}
+          help={{ showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview }}
         />
       </LifeOSProvider>
       </PomodoroProvider>
@@ -776,10 +900,13 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback }) {
+function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, stake, help }) {
+  const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor, arcColor: stakeArcColor } = stake || {};
+  const { showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview } = help || {};
+  const openHelp = (tab) => setShowHelp?.(tab || "xp");
   const {
     state, save, view, setView, xpPopup,
-    checkQuest, uncheckQuest, completeDay, canCompleteDay, calendarDay,
+    checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
@@ -821,6 +948,20 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
         streak={comebackInfo?.streak || 0}
         onClose={onDismissComeback}
       />
+      <StakeSetupModal
+        show={!!showStake}
+        existing={stakeEditMode ? state?.stake : null}
+        onSave={onStakeSave}
+        onDefer={onStakeDefer}
+        onClose={onStakeClose}
+        arcColor={stakeArcColor}
+      />
+      {showHelp && (
+        <HelpModal initialTab={showHelp} onClose={() => setShowHelp?.(null)} />
+      )}
+      {showWeeklyReview && state && (
+        <WeeklyReviewModal state={state} save={save} onClose={() => setShowWeeklyReview?.(false)} />
+      )}
       {showUpgrade && <UpgradeScreen onClose={() => setShowUpgrade(false)} />}
       {showTrialBanner && (
         <button
@@ -870,6 +1011,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
               <ErrorBoundary name="Quests" key="eb-home">
                 <HomeView
                   state={state}
+                  save={save}
                   user={user}
                   xpPopup={xpPopup}
                   onCheckQuest={checkQuest}
@@ -884,6 +1026,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   unlockedCustomCategories={unlockedCustomCategories}
                   onNavigate={handleViewChange}
                   onMarkRestDay={markRestDay}
+                  onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
             )}
@@ -925,6 +1068,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   user={user}
                   onReset={resetApp}
                   onOpenNotifications={() => setModal("notifications")}
+                  onOpenStake={openStakeEditor}
+                  onOpenHelp={openHelp}
                   onNavigate={handleViewChange}
                 />
               </ErrorBoundary>
