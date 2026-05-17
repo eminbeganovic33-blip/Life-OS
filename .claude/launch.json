@@ -6,6 +6,12 @@
       "runtimeExecutable": "/Users/eminbeganovic/.nvm/versions/node/v22.14.0/bin/node",
       "runtimeArgs": ["node_modules/.bin/vite", "--host"],
       "port": 5173
+    },
+    {
+      "name": "life-os-preview",
+      "runtimeExecutable": "/Users/eminbeganovic/.nvm/versions/node/v22.14.0/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "preview", "--host", "--port", "4173"],
+      "port": 4173
     }
   ]
 }
