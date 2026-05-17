@@ -7,7 +7,7 @@ import { analyzeJournalSentiment } from "../../utils/intelligence";
 import SmartInsights from "../SmartInsights";
 import AIJournalInsight from "../AIJournalInsight";
 import ChatJournal from "../ChatJournal";
-import { MessageCircle, PenLine, Clock, BookOpen, Search, Calendar, Save } from "lucide-react";
+import { MessageCircle, PenLine, Clock, BookOpen, Search, Calendar, Save, MoreHorizontal, Trash2, Check, X } from "lucide-react";
 
 // Strip raw JSON chat format → readable plain text
 function sanitizeJournalText(raw) {
@@ -21,7 +21,7 @@ function sanitizeJournalText(raw) {
   return raw;
 }
 
-export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw }) {
+export default function JournalView({ state, journalText, setJournalText, selectedMood, setSelectedMood, onSave, onSaveRaw, onEditEntry, onDeleteEntry }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
   const sub = (o) => isDark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
@@ -30,6 +30,9 @@ export default function JournalView({ state, journalText, setJournalText, select
   const [viewMode, setViewMode] = useState("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedFeedback, setSavedFeedback] = useState(false);
+  const [menuOpenDay, setMenuOpenDay] = useState(null);
+  const [editingDay, setEditingDay] = useState(null);
+  const [editText, setEditText] = useState("");
 
   // Parse all journal entries for history
   const journalEntries = useMemo(() => {
@@ -244,50 +247,110 @@ export default function JournalView({ state, journalText, setJournalText, select
                   )}
                 </div>
               ) : (
-                filteredEntries.slice(0, 20).map((entry, i) => (
-                  <motion.div
-                    key={entry.day}
-                    style={entryCard}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
-                    <div style={entryHeader}>
-                      <div style={entryDayBadge}>
-                        <Calendar size={10} color="#7C5CFC" />
-                        <span>Day {entry.day}</span>
+                filteredEntries.slice(0, 20).map((entry, i) => {
+                  const isEditing = editingDay === entry.day;
+                  const menuOpen = menuOpenDay === entry.day;
+                  return (
+                    <motion.div
+                      key={entry.day}
+                      style={entryCard}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                    >
+                      <div style={entryHeader}>
+                        <div style={entryDayBadge}>
+                          <Calendar size={10} color="#7C5CFC" />
+                          <span>Day {entry.day}</span>
+                        </div>
+                        <div style={entryMeta}>
+                          {entry.isChat && (
+                            <span style={chatBadge}>
+                              <MessageCircle size={9} />
+                              Chat
+                            </span>
+                          )}
+                          {entry.mood != null && MOODS[entry.mood] && (
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: MOODS[entry.mood].color,
+                              background: `${MOODS[entry.mood].color}18`,
+                              border: `1px solid ${MOODS[entry.mood].color}40`,
+                              borderRadius: 6,
+                              padding: "2px 6px",
+                            }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: MOODS[entry.mood].color, display: "inline-block" }} />
+                              {MOODS[entry.mood].label}
+                            </span>
+                          )}
+                          {(onEditEntry || onDeleteEntry) && !entry.isChat && (
+                            <button
+                              onClick={() => setMenuOpenDay(menuOpen ? null : entry.day)}
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", color: sub(0.3), display: "flex", alignItems: "center" }}
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div style={entryMeta}>
-                        {entry.isChat && (
-                          <span style={chatBadge}>
-                            <MessageCircle size={9} />
-                            Chat
-                          </span>
-                        )}
-                        {entry.mood != null && MOODS[entry.mood] && (
-                          <span style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: MOODS[entry.mood].color,
-                            background: `${MOODS[entry.mood].color}18`,
-                            border: `1px solid ${MOODS[entry.mood].color}40`,
-                            borderRadius: 6,
-                            padding: "2px 6px",
-                          }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: MOODS[entry.mood].color, display: "inline-block" }} />
-                            {MOODS[entry.mood].label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div style={entryText}>
-                      {entry.text.length > 200 ? entry.text.slice(0, 200) + "..." : entry.text || "No text recorded"}
-                    </div>
-                  </motion.div>
-                ))
+
+                      {menuOpen && !isEditing && (
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                          {onEditEntry && (
+                            <button
+                              onClick={() => { setEditingDay(entry.day); setEditText(entry.text); setMenuOpenDay(null); }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(124,92,252,0.3)", background: "rgba(124,92,252,0.08)", color: "#7C5CFC", cursor: "pointer" }}
+                            >
+                              <PenLine size={11} /> Edit
+                            </button>
+                          )}
+                          {onDeleteEntry && (
+                            <button
+                              onClick={() => { onDeleteEntry(entry.day); setMenuOpenDay(null); }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", cursor: "pointer" }}
+                            >
+                              <Trash2 size={11} /> Delete
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {isEditing ? (
+                        <div>
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            style={{ ...textArea, minHeight: 100, marginBottom: 8 }}
+                            rows={4}
+                            autoFocus
+                          />
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              onClick={() => { onEditEntry(entry.day, editText); setEditingDay(null); }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #7C5CFC, #6D28D9)", color: "#fff", cursor: "pointer" }}
+                            >
+                              <Check size={11} /> Save
+                            </button>
+                            <button
+                              onClick={() => setEditingDay(null)}
+                              style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: sub(0.4), cursor: "pointer" }}
+                            >
+                              <X size={11} /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={entryText}>
+                          {entry.text.length > 200 ? entry.text.slice(0, 200) + "..." : entry.text || "No text recorded"}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })
               )}
 
               {filteredEntries.length > 20 && (

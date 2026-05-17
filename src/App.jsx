@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "./styles/theme";
 import { MOTIVATION_CARDS, COURSES, FORGE_SUCCESS_STORIES, FORGE_MILESTONES, BOOKS as BOOKS_DATA } from "./data";
@@ -8,7 +8,7 @@ import {
   getTodayStr, getDayQuests, getLevelIndex, daysBetween,
   getCalendarDay, getCategoryStreak, defaultState,
 } from "./utils";
-import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider, usePomodoroContext } from "./hooks";
+import { useTrophies, useAuth, useCloudSync, PremiumProvider, usePremium, ThemeProvider, useTheme, LifeOSProvider, useLifeOS, PomodoroProvider } from "./hooks";
 import { firebaseConfigured } from "./firebase";
 import { injectGlobalStyles } from "./styles/global";
 
@@ -37,6 +37,8 @@ import { getArc } from "./utils/arcs";
 import { scheduleVoiceNotifications } from "./utils/voice";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateToast from "./components/UpdateToast";
+import WitnessView from "./components/WitnessView";
+import AnniversaryModal, { ANNIVERSARY_DAYS } from "./components/modals/AnniversaryModal";
 // DashboardView removed — merged into HomeView (Wave 1)
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
@@ -58,6 +60,8 @@ injectGlobalStyles();
 const ALL_COURSES = COURSES;
 
 export default function LifeOSRoot() {
+  const witnessUid = new URLSearchParams(window.location.search).get("witness");
+  if (witnessUid) return <WitnessView uid={witnessUid} />;
   return (
     <ThemeProvider>
       <ToastProvider>
@@ -102,12 +106,16 @@ function LifeOS() {
 
   // Day completion celebration
   const [dayCompleteDay, setDayCompleteDay] = useState(null);
+  const preDayCompleteStateRef = useRef(null);
 
   // Forge success story
   const [forgeStory, setForgeStory] = useState(null);
 
   // Weekly summary
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+
+  // Anniversary recaps
+  const [anniversaryDay, setAnniversaryDay] = useState(null);
 
   // Comeback modal
   const [comebackInfo, setComebackInfo] = useState(null);
@@ -124,6 +132,45 @@ function LifeOS() {
 
   // Notification scheduler
   const notifIntervalRef = useRef(null);
+
+  const showXp = useCallback((val) => {
+    setXpPopup({ xp: val, id: Date.now() });
+    setTimeout(() => setXpPopup(null), 1200);
+  }, []);
+
+  const checkForgeMilestones = useCallback(() => {
+    const seen = state?.forgeStoriesSeen || {};
+    const pending = [];
+    for (const [trackerId, startDate] of Object.entries(state?.sobrietyDates || {})) {
+      if (!startDate) continue;
+      const daysClean = daysBetween(startDate);
+      const stories = FORGE_SUCCESS_STORIES[trackerId];
+      if (!stories) continue;
+      for (const milestone of FORGE_MILESTONES) {
+        const key = `${trackerId}-${milestone}`;
+        if (daysClean >= milestone && !seen[key]) {
+          const story = stories.find((s) => s.day === milestone);
+          if (story) {
+            const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
+            pending.push({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
+          }
+        }
+      }
+    }
+    if (pending.length > 0) {
+      forgeMilestoneQueueRef.current = pending;
+      setForgeStory(pending[0]);
+      setModal("forge_success");
+    }
+  }, [state, save]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Anniversary recap trigger — fires once at days 30, 100, 365
+  useEffect(() => {
+    if (!state) return;
+    const seen = state.anniversaryRecapsSeen || {};
+    const hit = ANNIVERSARY_DAYS.find((d) => state.currentDay >= d && !seen[d]);
+    if (hit && !modal && !anniversaryDay) setAnniversaryDay(hit);
+  }, [state?.currentDay]);
 
   // Track level changes to trigger level-up modal
   useEffect(() => {
@@ -279,9 +326,10 @@ function LifeOS() {
     }
   }, [state?.currentDay]);
 
-  // Sync public profile to Firestore for leaderboard/social
+  // Sync public profile to Firestore for leaderboard/social/witness
   useEffect(() => {
     if (!user || !state) return;
+    const todayDone = !!(state.completedDays || {})[state.currentDay - 1];
     updatePublicProfile(user.uid, {
       displayName: user.displayName || state.userName || "Warrior",
       photoURL: state.avatar?.type === "photo" ? state.avatar.value : (user.photoURL || null),
@@ -290,8 +338,10 @@ function LifeOS() {
       streak: state.streak,
       level: getLevelIndex(state.xp),
       currentDay: state.currentDay,
+      stakeWhy: state.stake?.why || null,
+      completedToday: todayDone,
     });
-  }, [user?.uid, state?.xp, state?.streak, state?.currentDay, state?.avatar]);
+  }, [user?.uid, state?.xp, state?.streak, state?.currentDay, state?.avatar, state?.stake?.why, state?.completedDays]);
 
   const [skipAuth, setSkipAuth] = useState(false);
 
@@ -343,40 +393,6 @@ function LifeOS() {
   const quests = getDayQuests(day, state.customQuests, state);
   const completed = state.completedQuests[day] || [];
   const allDone = completed.length === quests.length && quests.length > 0;
-
-  // ── Helpers ──
-  function showXp(val) {
-    setXpPopup({ xp: val, id: Date.now() });
-    setTimeout(() => setXpPopup(null), 1200);
-  }
-
-  // ── Feature Set 2: Check Forge Milestones ──
-
-  function checkForgeMilestones() {
-    const seen = state.forgeStoriesSeen || {};
-    const pending = [];
-    for (const [trackerId, startDate] of Object.entries(state.sobrietyDates || {})) {
-      if (!startDate) continue;
-      const daysClean = daysBetween(startDate);
-      const stories = FORGE_SUCCESS_STORIES[trackerId];
-      if (!stories) continue;
-      for (const milestone of FORGE_MILESTONES) {
-        const key = `${trackerId}-${milestone}`;
-        if (daysClean >= milestone && !seen[key]) {
-          const story = stories.find((s) => s.day === milestone);
-          if (story) {
-            const labels = { smoking: "Smoking", alcohol: "Alcohol", junkfood: "Junk Food", social_media: "Doomscrolling" };
-            pending.push({ story, trackerLabel: labels[trackerId] || trackerId, daysClean: milestone, key });
-          }
-        }
-      }
-    }
-    if (pending.length > 0) {
-      forgeMilestoneQueueRef.current = pending;
-      setForgeStory(pending[0]);
-      setModal("forge_success");
-    }
-  }
 
   function dismissForgeSuccess() {
     // Mark all milestones as seen at once
@@ -475,17 +491,28 @@ function LifeOS() {
     save(ns);
   }
 
-  function markRestDay(dayNum) {
+  function markRestDay(dayNum, reason = "rest") {
     const existing = state.restDays || [];
-    if (existing.includes(dayNum)) return;
-    save({ ...state, restDays: [...existing, dayNum] });
+    const alreadyMarked = existing.some((r) => (typeof r === "number" ? r : r.day) === dayNum);
+    if (alreadyMarked) return;
+    save({ ...state, restDays: [...existing, { day: dayNum, reason }] });
     toast.show("Rest day marked — your streak is safe.", "success", 3000);
+  }
+
+  function setVacationUntil(dateStr) {
+    save({ ...state, vacationUntil: dateStr || null });
+    if (dateStr) {
+      toast.show(`Streak paused until ${dateStr}. Enjoy the break!`, "info", 4000);
+    } else {
+      toast.show("Vacation mode cleared.", "success", 2500);
+    }
   }
 
   function completeDay() {
     if (!allDone) return;
     // Feature Set 1: Temporal lock
     if (!canCompleteDay) return;
+    preDayCompleteStateRef.current = state;
     const newStreak = state.streak + 1;
     const newDay = Math.min(day + 1, maxAllowedDay);
     const ns = {
@@ -567,6 +594,18 @@ function LifeOS() {
       journal: { ...state.journal, [day]: rawContent },
       moods: { ...state.moods, [day]: selectedMood ?? state.moods[day] },
     });
+  }
+
+  function editJournalEntry(entryDay, newText) {
+    save({ ...state, journal: { ...state.journal, [entryDay]: newText } });
+  }
+
+  function deleteJournalEntry(entryDay) {
+    const j = { ...state.journal };
+    delete j[entryDay];
+    const m = { ...state.moods };
+    delete m[entryDay];
+    save({ ...state, journal: j, moods: m });
   }
 
   // ── Dojo ──
@@ -838,7 +877,19 @@ function LifeOS() {
         <DayCompleteModal
           state={state}
           completedDay={dayCompleteDay}
-          onDismiss={() => { setModal(null); setDayCompleteDay(null); }}
+          onDismiss={() => {
+            setModal(null);
+            setDayCompleteDay(null);
+            const snapshot = preDayCompleteStateRef.current;
+            if (snapshot) {
+              toast.show(
+                `Day ${snapshot.currentDay} sealed`,
+                "info",
+                30000,
+                { label: "Undo", fn: () => { save(snapshot); preDayCompleteStateRef.current = null; } }
+              );
+            }
+          }}
         />
       );
     }
@@ -854,6 +905,22 @@ function LifeOS() {
     return null;
   }
 
+  // Anniversary recap rendered outside the modal stack so it doesn't conflict
+  function renderAnniversary() {
+    if (!anniversaryDay) return null;
+    return (
+      <AnniversaryModal
+        state={state}
+        day={anniversaryDay}
+        onDismiss={() => {
+          const seen = { ...(state.anniversaryRecapsSeen || {}), [anniversaryDay]: true };
+          save({ ...state, anniversaryRecapsSeen: seen });
+          setAnniversaryDay(null);
+        }}
+      />
+    );
+  }
+
   function openDojo() {
     setWorkoutExercise(null);
     setWorkoutSets([{ weight: "", reps: "" }]);
@@ -865,6 +932,8 @@ function LifeOS() {
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    editJournalEntry, deleteJournalEntry,
+    setVacationUntil,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
@@ -875,10 +944,11 @@ function LifeOS() {
 
   return (
     <PremiumProvider state={state} save={save}>
-      <PomodoroProvider minutes={state?.pomodoroMinutes || 25} state={state} save={save}>
+      <PomodoroProvider minutes={state?.pomodoroMinutes || 25} state={state} save={save} onWorkComplete={(xp) => { showXp(xp); toast.show(`Focus session complete! +${xp} XP`, "trophy", 3500); }}>
       <LifeOSProvider value={lifeOSValue}>
         <LifeOSInner
           renderModal={renderModal}
+          renderAnniversary={renderAnniversary}
           showWeeklySummary={showWeeklySummary}
           setShowWeeklySummary={setShowWeeklySummary}
           comebackInfo={comebackInfo}
@@ -900,7 +970,7 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, stake, help }) {
+function LifeOSInner({ renderModal, renderAnniversary, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, stake, help }) {
   const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor, arcColor: stakeArcColor } = stake || {};
   const { showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview } = help || {};
   const openHelp = (tab) => setShowHelp?.(tab || "xp");
@@ -909,6 +979,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    editJournalEntry, deleteJournalEntry,
+    setVacationUntil,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
@@ -942,6 +1014,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}
+      {renderAnniversary?.()}
       <ComebackModal
         show={!!comebackInfo}
         daysAway={comebackInfo?.daysAway || 0}
@@ -1026,6 +1099,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   unlockedCustomCategories={unlockedCustomCategories}
                   onNavigate={handleViewChange}
                   onMarkRestDay={markRestDay}
+                  onSetVacationUntil={setVacationUntil}
                   onOpenHelp={openHelp}
                 />
               </ErrorBoundary>
@@ -1040,6 +1114,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
                   setSelectedMood={setSelectedMood}
                   onSave={saveJournal}
                   onSaveRaw={saveJournalRaw}
+                  onEditEntry={editJournalEntry}
+                  onDeleteEntry={deleteJournalEntry}
                 />
               </ErrorBoundary>
             )}

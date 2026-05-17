@@ -27,6 +27,15 @@ function getContext(state = {}) {
   const todayQuests = completedQuests[day] || [];
   const yesterdayQuests = completedQuests[day - 1] || [];
 
+  // Mood: count consecutive recent days with mood ≤ 2
+  const moods = state.moods || {};
+  let lowMoodStreak = 0;
+  for (let d = day - 1; d >= Math.max(1, day - 5); d--) {
+    const m = moods[d];
+    if (m != null && m <= 2) lowMoodStreak++;
+    else break;
+  }
+
   // Pull total quests from today's quest list if exposed on state,
   // else fall back to a conservative 5.
   const totalToday =
@@ -75,6 +84,7 @@ function getContext(state = {}) {
     isBossDayEve,
     isBossDay,
     isArcTransitionEve,
+    lowMoodStreak,
   };
 }
 
@@ -119,7 +129,17 @@ function hash(s) {
 function homeBanner(ctx) {
   const { day, streak, arc, missedYesterday, noneDoneToday, allDoneToday,
     isMorning, isAfternoon, isEvening, isBossDay, isBossDayEve,
-    isArcTransitionEve, completedToday, totalToday } = ctx;
+    isArcTransitionEve, completedToday, totalToday, lowMoodStreak } = ctx;
+
+  // Low mood — softer, human voice before anything else
+  if (lowMoodStreak >= 2) {
+    return pick([
+      { line: "Rough patch. You don't have to do everything. Just one thing.", tone: "gentle" },
+      { line: "Low days happen. Show up small. That still counts.", tone: "gentle" },
+      { line: "Not every day is a peak. Being here at all is the work.", tone: "gentle" },
+      { line: "The streak isn't the point right now. You are.", tone: "gentle" },
+    ], `lowmood-${day}`);
+  }
 
   // Recovery — highest priority. When a stake exists, surface the user's own words.
   if (missedYesterday) {
@@ -506,5 +526,19 @@ export function scheduleVoiceNotifications(getState, sendNotification) {
   // Fire once immediately to catch startup near a slot
   tick();
   return id;
+}
+
+// Returns true if the user has logged mood ≤ 2 for 2+ consecutive recent days.
+// Used by HomeView to offer a lighter day mode.
+export function isLowMoodPeriod(state) {
+  const day = state?.currentDay || 1;
+  const moods = state?.moods || {};
+  let count = 0;
+  for (let d = day - 1; d >= Math.max(1, day - 5); d--) {
+    const m = moods[d];
+    if (m != null && m <= 2) count++;
+    else break;
+  }
+  return count >= 2;
 }
 

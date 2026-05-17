@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
+import { usePomodoroContext } from "../../hooks";
 import { CATEGORIES, SOBRIETY_DEFAULTS, MOTIVATION_CARDS } from "../../data";
 import { getDayQuests, getLevel, getNextLevel, getLevelIndex, getCategoryStreak, daysBetween, getTodayStr } from "../../utils";
 import { getQuestSuggestions, getProactiveNudges, getPersonalizedQuote } from "../../utils/intelligence";
-import { getVoice } from "../../utils/voice";
+import { getVoice, isLowMoodPeriod } from "../../utils/voice";
 import { getArc } from "../../utils/arcs";
 import { getAIQuestSuggestions, isAIConfigured } from "../../utils/ai";
 import { getStreakMultiplier, getCategoryMastery, getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
@@ -13,7 +14,7 @@ import SmartInsights from "../SmartInsights";
 import NudgeBanner from "../NudgeBanner";
 import { CategoryIcon } from "../Icon";
 import TimeBlockSection from "./home/TimeBlockSection";
-import { Flame, Target, Dumbbell, Check, ChevronDown, Plus, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Calendar, Heart } from "lucide-react";
+import { Flame, Target, Dumbbell, Check, Sparkles, Sunrise, Zap, Moon, CircleCheck, Trophy, Star, Swords, Shield, Quote, Heart, Timer } from "lucide-react";
 
 function formatDate() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -71,10 +72,21 @@ function ProgressRing({ progress, size = 64, stroke = 5, color = "#7C5CFC", trac
   );
 }
 
+const REST_REASONS = [
+  { id: "sick", label: "Sick day" },
+  { id: "travel", label: "Traveling" },
+  { id: "recovery", label: "Recovery" },
+  { id: "rest", label: "Planned rest" },
+];
+
+function isRestDay(restDays, dayNum) {
+  return (restDays || []).some((r) => (typeof r === "number" ? r : r.day) === dayNum);
+}
+
 export default function HomeView({
   state, save, user, xpPopup, onCheckQuest, onUncheckQuest, onCompleteDay, onOpenDojo,
   canCompleteDay, calendarDay, onOpenCustomQuest, onAddSuggestedQuest, onRemoveCustomQuest,
-  unlockedCustomCategories, onNavigate, onMarkRestDay, onOpenHelp,
+  unlockedCustomCategories, onNavigate, onMarkRestDay, onSetVacationUntil, onOpenHelp,
 }) {
   const { theme, colors } = useTheme();
   const isDark = theme === "dark";
@@ -90,6 +102,12 @@ export default function HomeView({
   const xpProgress = nextLevel ? (state.xp - level.xpReq) / (nextLevel.xpReq - level.xpReq) : 1;
   const dayProgress = quests.length > 0 ? completed.length / quests.length : 0;
 
+  // Pomodoro context for Focus Quest timer chip
+  const pomodoro = usePomodoroContext();
+  const pomMins = pomodoro ? Math.floor(pomodoro.pomodoroTime / 60) : 0;
+  const pomSecs = pomodoro ? pomodoro.pomodoroTime % 60 : 0;
+  const pomLabel = `${String(pomMins).padStart(2, "0")}:${String(pomSecs).padStart(2, "0")}`;
+
   // Dashboard-layer data
   const userName = user?.displayName?.split(" ")[0] || state.userName || null;
   const activeTrackers = useMemo(() =>
@@ -101,7 +119,11 @@ export default function HomeView({
       }),
     [state.sobrietyDates]
   );
-  const topNudge = useMemo(() => getProactiveNudges(state)[0] || null, [state]);
+  const topNudge = useMemo(
+    () => getProactiveNudges(state)[0] || null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.currentDay, state.streak, state.moods, state.journal, state.completedQuests, state.sobrietyDates, state.liftingStreak, state.focusCategories]
+  );
   const dailyQuote = useMemo(() => getPersonalizedQuote(state, MOTIVATION_CARDS), [state.currentDay]);
 
   // Dojo: today's logged workouts
@@ -131,9 +153,16 @@ export default function HomeView({
   const [activeGuide, setActiveGuide] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
   const [swipeHint, setSwipeHint] = useState(null);
+  const [showRestPicker, setShowRestPicker] = useState(false);
+  const [showVacationPicker, setShowVacationPicker] = useState(false);
+  const [vacationDate, setVacationDate] = useState("");
   const swipeHintTimer = useRef(null);
   const touchStartX = useRef(0);
   const touchStartId = useRef(null);
+
+  // Mood-aware lighter day
+  const lowMood = useMemo(() => isLowMoodPeriod(state), [state.moods, state.currentDay]);
+  const [lighterDayActive, setLighterDayActive] = useState(false);
 
   // Arc + voice integration
   const arc = useMemo(() => getArc(day), [day]);
@@ -151,14 +180,26 @@ export default function HomeView({
   }, []);
 
   // ── Quest grouping by time block ──
+  // In lighter-day mode show only the 2 most essential incomplete quests
+  const essentialCategories = ["sleep", "water", "nutrition", "mind"];
+  const lighterQuests = useMemo(() => {
+    if (!lighterDayActive) return quests;
+    const incomplete = quests.filter((q) => !completed.includes(q.id));
+    const essential = incomplete.filter((q) => essentialCategories.includes(q.category));
+    const picks = essential.length >= 2 ? essential.slice(0, 2) : incomplete.slice(0, 2);
+    // Also keep any already-completed quests so progress isn't hidden
+    const done = quests.filter((q) => completed.includes(q.id));
+    return [...picks, ...done];
+  }, [lighterDayActive, quests, completed]);
+
   const groupedQuests = useMemo(() => {
     const groups = { morning: [], afternoon: [], evening: [] };
-    quests.forEach((q) => {
+    lighterQuests.forEach((q) => {
       const block = getTimeBlock(q.category);
       groups[block].push(q);
     });
     return groups;
-  }, [quests]);
+  }, [lighterQuests]);
 
   // ── Category streaks ──
   const categoryStreaks = useMemo(() => {
@@ -484,27 +525,73 @@ export default function HomeView({
 
       {/* ── Section Header ── */}
       <div style={ts.sectionHeader}>
-        <div style={{ ...ts.sectionTitle, color: colors.text }}>Today's Quests</div>
-        <button style={ts.addBtn} onClick={onOpenCustomQuest}>+ Add</button>
+        <div style={{ ...ts.sectionTitle, color: colors.text }}>
+          {lighterDayActive ? "Lighter Day" : "Today's Quests"}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {lighterDayActive && (
+            <button
+              onClick={() => setLighterDayActive(false)}
+              style={{ fontSize: 10, fontWeight: 700, color: colors.textSecondary, background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            >
+              Show all
+            </button>
+          )}
+          <button style={ts.addBtn} onClick={onOpenCustomQuest}>+ Add</button>
+        </div>
       </div>
+
+      {/* ── Lighter Day Offer (low mood detected) ── */}
+      {lowMood && !lighterDayActive && (
+        <div style={{ margin: "0 14px 10px", padding: "10px 14px", borderRadius: 12, background: isDark ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.4 }}>
+            <span style={{ fontWeight: 700, color: "#A78BFA" }}>Rough few days.</span> Just do the essentials today.
+          </div>
+          <button
+            onClick={() => setLighterDayActive(true)}
+            style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 8, border: "none", background: "rgba(139,92,246,0.18)", color: "#A78BFA", cursor: "pointer", letterSpacing: 0.2 }}
+          >
+            Lighter day
+          </button>
+        </div>
+      )}
 
       {/* ── Focus Quest Highlight ── */}
       {focusQuest && !completed.includes(focusQuest.id) && (
-        <div
-          style={ts.focusCard}
-          onClick={() => handleQuestClick(focusQuest)}
-        >
+        <div style={ts.focusCard} onClick={() => handleQuestClick(focusQuest)}>
           <div style={ts.focusHeader}>
             <Target size={11} strokeWidth={2.5} />
             <span style={ts.focusLabel}>Priority Quest</span>
           </div>
           <div style={{ ...ts.focusText, color: colors.text }}>{focusQuest.text}</div>
-          <div style={ts.focusFooter}>
+          <div style={{ ...ts.focusFooter, flexWrap: "wrap", gap: 8 }}>
             <span style={{ color: CATEGORIES.find((c) => c.id === focusQuest.category)?.color, fontSize: 11 }}>
               {CATEGORIES.find((c) => c.id === focusQuest.category)?.icon}{" "}
               {CATEGORIES.find((c) => c.id === focusQuest.category)?.label}
             </span>
-            <span style={ts.focusXp}>+{focusQuest.xp} XP</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+              {pomodoro && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); pomodoro.toggle(); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    fontSize: 11, fontWeight: 700,
+                    padding: "3px 9px", borderRadius: 7,
+                    border: pomodoro.pomodoroActive && pomodoro.phase === "work"
+                      ? "1px solid rgba(124,92,252,0.5)"
+                      : "1px solid rgba(124,92,252,0.25)",
+                    background: pomodoro.pomodoroActive && pomodoro.phase === "work"
+                      ? "rgba(124,92,252,0.15)"
+                      : "rgba(124,92,252,0.06)",
+                    color: "#7C5CFC", cursor: "pointer",
+                  }}
+                >
+                  <Timer size={10} />
+                  {pomodoro.pomodoroActive && pomodoro.phase === "work" ? pomLabel : "Focus"}
+                </button>
+              )}
+              <span style={ts.focusXp}>+{focusQuest.xp} XP</span>
+            </div>
           </div>
         </div>
       )}
@@ -581,27 +668,100 @@ export default function HomeView({
       </button>
 
       {/* ── Rest Day option ── shown only when day not yet completed and not all done */}
-      {!allDone && canCompleteDay && !(state.restDays || []).includes(day) && (
+      {!allDone && canCompleteDay && !isRestDay(state.restDays, day) && !state.vacationUntil && (
         <div style={{ textAlign: "center", marginTop: 4, marginBottom: 4 }}>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 11,
-              color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
-              padding: "6px 12px",
-              letterSpacing: 0.3,
-            }}
-            onClick={() => onMarkRestDay?.(day)}
-          >
-            Mark as rest day — streak preserved
-          </button>
+          {showRestPicker ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "4px 12px" }}>
+              {REST_REASONS.map((r) => (
+                <button
+                  key={r.id}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 8,
+                    border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)",
+                    color: "#3B82F6", cursor: "pointer",
+                  }}
+                  onClick={() => { onMarkRestDay?.(day, r.id); setShowRestPicker(false); }}
+                >
+                  {r.label}
+                </button>
+              ))}
+              <button
+                style={{ fontSize: 11, padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)", cursor: "pointer" }}
+                onClick={() => setShowRestPicker(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)", padding: "6px 12px", letterSpacing: 0.3 }}
+                onClick={() => setShowRestPicker(true)}
+              >
+                Mark as rest day — streak preserved
+              </button>
+              {onSetVacationUntil && (
+                <button
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)", padding: "6px 8px" }}
+                  onClick={() => setShowVacationPicker(true)}
+                >
+                  Going away?
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
-      {(state.restDays || []).includes(day) && (
+
+      {showVacationPicker && (
+        <div style={{ margin: "4px 16px 8px", padding: "12px 14px", borderRadius: 12, background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: "#3B82F6" }}>Pause streak until…</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="date"
+              value={vacationDate}
+              min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+              onChange={(e) => setVacationDate(e.target.value)}
+              style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.3)", background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", color: "inherit", fontSize: 12, fontFamily: "inherit" }}
+            />
+            <button
+              disabled={!vacationDate}
+              onClick={() => { onSetVacationUntil?.(vacationDate); setShowVacationPicker(false); setVacationDate(""); }}
+              style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: vacationDate ? "pointer" : "not-allowed", opacity: vacationDate ? 1 : 0.4 }}
+            >
+              Set
+            </button>
+            <button
+              onClick={() => { setShowVacationPicker(false); setVacationDate(""); }}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", fontSize: 12, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isRestDay(state.restDays, day) && (
         <div style={{ textAlign: "center", marginTop: 4, fontSize: 11, color: "#3B82F6", opacity: 0.7 }}>
-          Rest day — your streak is safe
+          {(() => {
+            const entry = (state.restDays || []).find((r) => (typeof r === "number" ? r : r.day) === day);
+            const reason = entry?.reason;
+            const label = REST_REASONS.find((r) => r.id === reason)?.label;
+            return label ? `${label} · streak is safe` : "Rest day — your streak is safe";
+          })()}
+        </div>
+      )}
+
+      {state.vacationUntil && (
+        <div style={{ margin: "4px 16px 4px", padding: "8px 12px", borderRadius: 10, background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 600 }}>
+            ✈ Streak paused until {state.vacationUntil}
+          </span>
+          {onSetVacationUntil && (
+            <button onClick={() => onSetVacationUntil(null)} style={{ fontSize: 10, background: "none", border: "none", color: "#3B82F6", cursor: "pointer", opacity: 0.6 }}>
+              Clear
+            </button>
+          )}
         </div>
       )}
 
@@ -1028,7 +1188,7 @@ function JourneyStrip({ state, day, colors, isDark, onNavigate }) {
       }
       const isToday = dateStr === todayStr;
       const completed = !!(state.completedDays || {})[dotDay];
-      const isRest = (state.restDays || []).includes(dotDay);
+      const isRest = isRestDay(state.restDays, dotDay);
       const type = isToday ? "today" : completed ? "done" : isRest ? "rest" : dotDay < day ? "missed" : "future";
       return { key: i, type, dotDay };
     });

@@ -4,25 +4,28 @@ import { playSound } from "../utils/audio";
 
 const PomodoroContext = createContext(null);
 
-export function PomodoroProvider({ minutes = 25, state, save, children }) {
+const XP_PER_SESSION = 15;
+
+export function PomodoroProvider({ minutes = 25, state, save, onWorkComplete, children }) {
   const handlePhaseComplete = useCallback(
     ({ phase, sessions }) => {
-      // Sound feedback
       playSound(phase === "work" ? "workComplete" : "breakComplete");
 
-      // Persist session history if a work phase just finished
       if (phase === "work" && state && save) {
         const today = new Date().toISOString().slice(0, 10);
         const history = state.pomodoroHistory || {};
         const todayCount = (history[today] || 0) + 1;
-        save({
+        const newState = {
           ...state,
           pomodoroHistory: { ...history, [today]: todayCount },
           totalPomodoros: (state.totalPomodoros || 0) + 1,
-        });
+          xp: (state.xp || 0) + XP_PER_SESSION,
+        };
+        save(newState);
+        onWorkComplete?.(XP_PER_SESSION);
       }
     },
-    [state, save]
+    [state, save, onWorkComplete]
   );
 
   const pomodoro = usePomodoro(minutes, handlePhaseComplete);

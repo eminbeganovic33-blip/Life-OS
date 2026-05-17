@@ -9,7 +9,7 @@ import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import AvatarPicker from "../AvatarPicker";
 import { renderAnimalAvatar } from "../AnimalAvatars";
-import { Flame, Calendar, CheckCircle, Pencil, Swords, Users, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles } from "lucide-react";
+import { Flame, Calendar, CheckCircle, Pencil, Swords, Users, Star, ChevronLeft, ChevronRight, Flag, Zap, Trophy, Target, Crown, Sparkles, Share2 } from "lucide-react";
 
 const T = TOKENS;
 
@@ -377,7 +377,7 @@ export default function ProfileView({ state, save, user, onReset, onOpenNotifica
       })}
 
       {/* ── The Stake ── */}
-      <StakeCard state={state} onEdit={onOpenStake} isDark={isDark} colors={colors} />
+      <StakeCard state={state} user={user} onEdit={onOpenStake} isDark={isDark} colors={colors} />
 
       {/* ── Journey Calendar (merged journey map + streak calendar) ── */}
       <SectionHeader
@@ -555,9 +555,19 @@ function hexToRgb(hex) {
 }
 
 // ── The Stake Card — surfaces the user's articulated why/cost/proof ──
-function StakeCard({ state, onEdit, isDark, colors }) {
+function StakeCard({ state, user, onEdit, isDark, colors }) {
+  const [copied, setCopied] = useState(false);
   const stake = state.stake;
   const deferred = state.stakeDeferred;
+
+  function shareWitnessLink() {
+    if (!user?.uid) return;
+    const url = `${window.location.origin}?witness=${user.uid}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
 
   // Empty state — prompt to set it
   if (!stake) {
@@ -637,6 +647,32 @@ function StakeCard({ state, onEdit, isDark, colors }) {
         }}>
           Revised {stake.revisions.length} time{stake.revisions.length === 1 ? "" : "s"}.
         </div>
+      )}
+
+      {user?.uid && (
+        <button
+          onClick={shareWitnessLink}
+          style={{
+            marginTop: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "7px 14px",
+            borderRadius: 9,
+            border: "1px solid rgba(124,92,252,0.25)",
+            background: copied ? "rgba(124,92,252,0.12)" : "transparent",
+            color: "#7C5CFC",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            width: "100%",
+            justifyContent: "center",
+          }}
+        >
+          <Share2 size={11} />
+          {copied ? "Link copied!" : "Share with a witness"}
+        </button>
       )}
     </div>
   );

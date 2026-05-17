@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { S } from "../../styles/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { LEVELS, BOOKS, BOOK_CATEGORIES, COURSE_QUEST_SUGGESTIONS, CATEGORIES } from "../../data";
