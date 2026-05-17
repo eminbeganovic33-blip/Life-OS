@@ -37,6 +37,8 @@ import { getArc } from "./utils/arcs";
 import { scheduleVoiceNotifications } from "./utils/voice";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateToast from "./components/UpdateToast";
+import WitnessView from "./components/WitnessView";
+import AnniversaryModal, { ANNIVERSARY_DAYS } from "./components/modals/AnniversaryModal";
 // DashboardView removed — merged into HomeView (Wave 1)
 const HomeView = lazy(() => import("./components/views/HomeView"));
 const JournalView = lazy(() => import("./components/views/JournalView"));
@@ -58,6 +60,8 @@ injectGlobalStyles();
 const ALL_COURSES = COURSES;
 
 export default function LifeOSRoot() {
+  const witnessUid = new URLSearchParams(window.location.search).get("witness");
+  if (witnessUid) return <WitnessView uid={witnessUid} />;
   return (
     <ThemeProvider>
       <ToastProvider>
@@ -110,6 +114,9 @@ function LifeOS() {
   // Weekly summary
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
 
+  // Anniversary recaps
+  const [anniversaryDay, setAnniversaryDay] = useState(null);
+
   // Comeback modal
   const [comebackInfo, setComebackInfo] = useState(null);
 
@@ -156,6 +163,14 @@ function LifeOS() {
       setModal("forge_success");
     }
   }, [state, save]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Anniversary recap trigger — fires once at days 30, 100, 365
+  useEffect(() => {
+    if (!state) return;
+    const seen = state.anniversaryRecapsSeen || {};
+    const hit = ANNIVERSARY_DAYS.find((d) => state.currentDay >= d && !seen[d]);
+    if (hit && !modal && !anniversaryDay) setAnniversaryDay(hit);
+  }, [state?.currentDay]);
 
   // Track level changes to trigger level-up modal
   useEffect(() => {
@@ -311,9 +326,10 @@ function LifeOS() {
     }
   }, [state?.currentDay]);
 
-  // Sync public profile to Firestore for leaderboard/social
+  // Sync public profile to Firestore for leaderboard/social/witness
   useEffect(() => {
     if (!user || !state) return;
+    const todayDone = !!(state.completedDays || {})[state.currentDay - 1];
     updatePublicProfile(user.uid, {
       displayName: user.displayName || state.userName || "Warrior",
       photoURL: state.avatar?.type === "photo" ? state.avatar.value : (user.photoURL || null),
@@ -322,8 +338,10 @@ function LifeOS() {
       streak: state.streak,
       level: getLevelIndex(state.xp),
       currentDay: state.currentDay,
+      stakeWhy: state.stake?.why || null,
+      completedToday: todayDone,
     });
-  }, [user?.uid, state?.xp, state?.streak, state?.currentDay, state?.avatar]);
+  }, [user?.uid, state?.xp, state?.streak, state?.currentDay, state?.avatar, state?.stake?.why, state?.completedDays]);
 
   const [skipAuth, setSkipAuth] = useState(false);
 
@@ -887,6 +905,22 @@ function LifeOS() {
     return null;
   }
 
+  // Anniversary recap rendered outside the modal stack so it doesn't conflict
+  function renderAnniversary() {
+    if (!anniversaryDay) return null;
+    return (
+      <AnniversaryModal
+        state={state}
+        day={anniversaryDay}
+        onDismiss={() => {
+          const seen = { ...(state.anniversaryRecapsSeen || {}), [anniversaryDay]: true };
+          save({ ...state, anniversaryRecapsSeen: seen });
+          setAnniversaryDay(null);
+        }}
+      />
+    );
+  }
+
   function openDojo() {
     setWorkoutExercise(null);
     setWorkoutSets([{ weight: "", reps: "" }]);
@@ -898,6 +932,8 @@ function LifeOS() {
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    editJournalEntry, deleteJournalEntry,
+    setVacationUntil,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
@@ -908,10 +944,11 @@ function LifeOS() {
 
   return (
     <PremiumProvider state={state} save={save}>
-      <PomodoroProvider minutes={state?.pomodoroMinutes || 25} state={state} save={save}>
+      <PomodoroProvider minutes={state?.pomodoroMinutes || 25} state={state} save={save} onWorkComplete={(xp) => { showXp(xp); toast.show(`Focus session complete! +${xp} XP`, "trophy", 3500); }}>
       <LifeOSProvider value={lifeOSValue}>
         <LifeOSInner
           renderModal={renderModal}
+          renderAnniversary={renderAnniversary}
           showWeeklySummary={showWeeklySummary}
           setShowWeeklySummary={setShowWeeklySummary}
           comebackInfo={comebackInfo}
@@ -933,7 +970,7 @@ function LifeOS() {
   );
 }
 
-function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, stake, help }) {
+function LifeOSInner({ renderModal, renderAnniversary, showWeeklySummary, setShowWeeklySummary, comebackInfo, onDismissComeback, stake, help }) {
   const { showStake, stakeEditMode, onStakeSave, onStakeDefer, onStakeClose, openStakeEditor, arcColor: stakeArcColor } = stake || {};
   const { showHelp, setShowHelp, showWeeklyReview, setShowWeeklyReview } = help || {};
   const openHelp = (tab) => setShowHelp?.(tab || "xp");
@@ -942,6 +979,8 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
     checkQuest, uncheckQuest, completeDay, markRestDay, canCompleteDay, calendarDay,
     openDojo, setModal, addCustomQuest, removeCustomQuest, unlockedCustomCategories,
     journalText, setJournalText, selectedMood, setSelectedMood, saveJournal, saveJournalRaw,
+    editJournalEntry, deleteJournalEntry,
+    setVacationUntil,
     checkCourseStep, uncheckCourseStep, checkBookInsight, uncheckBookInsight, ALL_COURSES,
     startSobriety, triggerRelapse,
     user, resetApp,
@@ -975,6 +1014,7 @@ function LifeOSInner({ renderModal, showWeeklySummary, setShowWeeklySummary, com
       <Confetti trigger={confettiBurst} type="burst" />
       <Confetti trigger={confettiPop} type="pop" originY={0.4} />
       {renderModal()}
+      {renderAnniversary?.()}
       <ComebackModal
         show={!!comebackInfo}
         daysAway={comebackInfo?.daysAway || 0}
