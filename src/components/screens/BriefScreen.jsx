@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { BookOpen, Shield, Dumbbell, TrendingUp, Sparkles } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween } from "../../utils";
 import { CATEGORIES } from "../../data/categories";
@@ -28,6 +29,8 @@ export default function BriefScreen({ state, save, onOpenPanel }) {
       todayQuests.some((q) => q.category === cat.id)
     );
   }, [todayQuests]);
+
+  const hasForgeDates = Object.keys(state.sobrietyDates || {}).length > 0;
 
   return (
     <div style={styles.screen}>
@@ -65,6 +68,18 @@ export default function BriefScreen({ state, save, onOpenPanel }) {
         </div>
       </motion.section>
 
+      {/* All done celebration */}
+      {allDone && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={styles.celebration}
+        >
+          <Sparkles size={20} color={TOKENS.color.success} />
+          <span style={styles.celebrationText}>Day complete — you showed up.</span>
+        </motion.div>
+      )}
+
       {/* Domain cards */}
       <section style={styles.domains}>
         <div style={styles.sectionLabel}>Today's domains</div>
@@ -90,7 +105,29 @@ export default function BriefScreen({ state, save, onOpenPanel }) {
           })}
         </div>
       </section>
+
+      {/* Quick actions */}
+      <section style={styles.actions}>
+        <div style={styles.sectionLabel}>Quick actions</div>
+        <div style={styles.actionGrid}>
+          <ActionBtn icon={<BookOpen size={18} />} label="Journal" onClick={() => onOpenPanel("journal")} />
+          <ActionBtn icon={<Dumbbell size={18} />} label="Dojo" onClick={() => onOpenPanel("dojo")} />
+          {hasForgeDates && (
+            <ActionBtn icon={<Shield size={18} />} label="Forge" onClick={() => onOpenPanel("forge")} />
+          )}
+          <ActionBtn icon={<TrendingUp size={18} />} label="Progress" onClick={() => onOpenPanel("progress")} />
+        </div>
+      </section>
     </div>
+  );
+}
+
+function ActionBtn({ icon, label, onClick }) {
+  return (
+    <button onClick={onClick} style={styles.actionBtn}>
+      <div style={styles.actionIcon}>{icon}</div>
+      <span style={styles.actionLabel}>{label}</span>
+    </button>
   );
 }
 
@@ -126,7 +163,7 @@ const styles = {
     padding: TOKENS.space[5],
     background: TOKENS.color.surface,
     borderRadius: TOKENS.radius.lg,
-    marginBottom: TOKENS.space[7],
+    marginBottom: TOKENS.space[5],
   },
   progressText: {
     flex: 1,
@@ -141,7 +178,23 @@ const styles = {
     color: TOKENS.color.textSecondary,
     marginTop: 2,
   },
-  domains: {},
+  celebration: {
+    display: "flex",
+    alignItems: "center",
+    gap: TOKENS.space[3],
+    padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
+    background: "rgba(34, 197, 94, 0.06)",
+    borderRadius: TOKENS.radius.lg,
+    marginBottom: TOKENS.space[7],
+  },
+  celebrationText: {
+    fontSize: TOKENS.font.size.sm,
+    fontWeight: TOKENS.font.weight.semibold,
+    color: TOKENS.color.success,
+  },
+  domains: {
+    marginBottom: TOKENS.space[7],
+  },
   sectionLabel: {
     fontSize: TOKENS.font.size.xs,
     fontWeight: TOKENS.font.weight.semibold,
@@ -154,5 +207,33 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: TOKENS.space[3],
+  },
+  actions: {
+    marginBottom: TOKENS.space[7],
+  },
+  actionGrid: {
+    display: "flex",
+    gap: TOKENS.space[3],
+  },
+  actionBtn: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+    padding: `${TOKENS.space[4]}px ${TOKENS.space[3]}px`,
+    background: TOKENS.color.surface,
+    borderRadius: TOKENS.radius.lg,
+    border: "none",
+    cursor: "pointer",
+    transition: TOKENS.transition.fast,
+  },
+  actionIcon: {
+    color: TOKENS.color.text,
+  },
+  actionLabel: {
+    fontSize: TOKENS.font.size.xs,
+    fontWeight: TOKENS.font.weight.medium,
+    color: TOKENS.color.textSecondary,
   },
 };

@@ -1,8 +1,8 @@
 import { TOKENS } from "../../styles/tokens";
-import { Briefcase, User } from "lucide-react";
+import { LayoutDashboard, User, TrendingUp, BookOpen } from "lucide-react";
 
 const TABS = [
-  { id: "brief", label: "Brief", icon: Briefcase },
+  { id: "brief", label: "Brief", icon: LayoutDashboard },
   { id: "profile", label: "Profile", icon: User },
 ];
 
