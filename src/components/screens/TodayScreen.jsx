@@ -89,7 +89,9 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         style={styles.header}
       >
         <div>
-          <div style={styles.greeting}>{greeting}</div>
+          <div style={styles.greeting}>
+            {greeting}{state.userName ? `, ${state.userName}` : ""}
+          </div>
           <div style={styles.dayLabel}>Day {dayNumber}</div>
         </div>
         <div style={styles.headerRight}>
@@ -100,10 +102,11 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
 
       {/* Progress ring (only when roster is non-empty) */}
       {todayQuests.length > 0 && (
-        <motion.section
+        <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.4 }}
+          onClick={() => onOpenPanel("progress")}
           style={{
             ...styles.progressSection,
             background: allDone
@@ -121,7 +124,8 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
               {allDone ? "All protocols complete" : "protocols done"}
             </div>
           </div>
-        </motion.section>
+          <ChevronDown size={16} color={TOKENS.color.textTertiary} style={{ transform: "rotate(-90deg)", flexShrink: 0 }} />
+        </motion.button>
       )}
 
       {/* Empty roster state — invite the user to build one */}
@@ -349,6 +353,45 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         })}
       </section>
 
+      {/* Domain tiles — one per active category, taps into DomainPanel */}
+      {todayQuests.length > 0 && (() => {
+        const domainIds = [...new Set(todayQuests.map((q) => q.category).filter(Boolean))];
+        if (domainIds.length < 2) return null;
+        return (
+          <div style={styles.domainRow}>
+            {domainIds.map((catId) => {
+              const cat = CATEGORIES.find((c) => c.id === catId);
+              if (!cat) return null;
+              const catQuests = todayQuests.filter((q) => q.category === catId);
+              const done = catQuests.filter((q) => completedIds.includes(q.id)).length;
+              const allCatDone = done === catQuests.length;
+              const color = DOMAIN_COLORS[catId] || TOKENS.color.text;
+              return (
+                <button
+                  key={catId}
+                  onClick={() => onOpenPanel(catId)}
+                  style={{
+                    ...styles.domainTile,
+                    background: allCatDone ? `${color}14` : TOKENS.color.surface,
+                    borderColor: allCatDone ? `${color}30` : TOKENS.color.border,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{cat.icon}</span>
+                  <div style={styles.domainTileText}>
+                    <div style={{ ...styles.domainTileLabel, color: allCatDone ? color : TOKENS.color.text }}>
+                      {cat.label}
+                    </div>
+                    <div style={{ ...styles.domainTileMeta, color: allCatDone ? color : TOKENS.color.textTertiary }}>
+                      {done}/{catQuests.length}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Browse quests CTA */}
       <button onClick={() => onOpenPanel("quest-library")} style={styles.addQuestBtn}>
         <Plus size={14} color={TOKENS.color.brand} />
@@ -413,6 +456,21 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
 
 const styles = {
   screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px` },
+  domainRow: {
+    display: "flex", gap: TOKENS.space[2], overflowX: "auto",
+    marginBottom: TOKENS.space[4], paddingBottom: 2,
+    scrollbarWidth: "none",
+  },
+  domainTile: {
+    display: "flex", alignItems: "center", gap: TOKENS.space[2],
+    padding: `${TOKENS.space[2]}px ${TOKENS.space[3]}px`,
+    border: "1px solid", borderRadius: TOKENS.radius.full,
+    cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
+    transition: TOKENS.transition.fast,
+  },
+  domainTileText: { display: "flex", flexDirection: "column", alignItems: "flex-start" },
+  domainTileLabel: { fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold, lineHeight: 1.2 },
+  domainTileMeta: { fontSize: 10, fontWeight: TOKENS.font.weight.semibold, lineHeight: 1.2 },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: TOKENS.space[7] },
   greeting: { fontSize: TOKENS.font.size.md, color: TOKENS.color.textSecondary, fontWeight: TOKENS.font.weight.medium },
   dayLabel: { fontSize: TOKENS.font.size.hero, fontWeight: TOKENS.font.weight.heavy, color: TOKENS.color.text, letterSpacing: -1, marginTop: 2 },
@@ -425,10 +483,11 @@ const styles = {
   },
   progressSection: {
     display: "flex", alignItems: "center", gap: TOKENS.space[5],
-    padding: TOKENS.space[5],
+    padding: TOKENS.space[5], width: "100%",
     background: "linear-gradient(135deg, rgba(124,92,252,0.06) 0%, rgba(236,72,153,0.04) 100%)",
     border: "1px solid rgba(124,92,252,0.08)",
     borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[5],
+    cursor: "pointer",
   },
   progressText: { flex: 1 },
   progressCount: { fontSize: TOKENS.font.size.xl, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text },

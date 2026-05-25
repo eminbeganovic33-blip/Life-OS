@@ -33,6 +33,11 @@ export default function TabBar({ activeTab, onChangeTab }) {
             }}>
               {tab.label}
             </span>
+            <div style={{
+              width: 4, height: 4, borderRadius: 2, marginTop: 3,
+              background: isActive ? TOKENS.color.text : "transparent",
+              transition: TOKENS.transition.fast,
+            }} />
           </button>
         );
       })}

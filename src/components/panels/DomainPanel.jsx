@@ -75,6 +75,20 @@ export default function DomainPanel({ domainId, state, save, onClose, onOpenPane
 
       {/* Quest list */}
       <div style={styles.questList}>
+        {quests.length === 0 && (
+          <div style={styles.emptyState}>
+            <span style={{ fontSize: 36 }}>{domain?.icon}</span>
+            <div style={styles.emptyTitle}>No quests today</div>
+            <div style={styles.emptySub}>
+              Add a custom quest to start tracking {domain?.label?.toLowerCase()} habits.
+            </div>
+            {onOpenPanel && (
+              <button onClick={() => onOpenPanel("custom-quests")} style={{ ...styles.emptyBtn, borderColor: color, color }}>
+                + Add quest
+              </button>
+            )}
+          </div>
+        )}
         {quests.map((quest) => {
           const done = completedIds.includes(quest.id);
           return (
@@ -220,6 +234,37 @@ const styles = {
     fontSize: TOKENS.font.size.xs,
     color: TOKENS.color.textTertiary,
     marginTop: 2,
+  },
+  emptyState: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: TOKENS.space[3],
+    padding: TOKENS.space[8],
+    textAlign: "center",
+  },
+  emptyTitle: {
+    fontSize: TOKENS.font.size.lg,
+    fontWeight: TOKENS.font.weight.bold,
+    color: TOKENS.color.text,
+  },
+  emptySub: {
+    fontSize: TOKENS.font.size.sm,
+    color: TOKENS.color.textSecondary,
+    maxWidth: 240,
+    lineHeight: 1.5,
+  },
+  emptyBtn: {
+    marginTop: TOKENS.space[2],
+    padding: `${TOKENS.space[3]}px ${TOKENS.space[5]}px`,
+    background: "transparent",
+    border: "1.5px solid",
+    borderRadius: TOKENS.radius.full,
+    fontSize: TOKENS.font.size.sm,
+    fontWeight: TOKENS.font.weight.bold,
+    cursor: "pointer",
   },
   doneBanner: {
     margin: TOKENS.space[5],
