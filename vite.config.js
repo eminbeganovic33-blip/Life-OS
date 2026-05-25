@@ -8,13 +8,15 @@ export default defineConfig({
   // Use stable Rollup until rolldown RC stabilises.
   builder: "rollup",
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/firebase")) return "firebase";
-          if (id.includes("node_modules/framer-motion")) return "framer-motion";
-          if (id.includes("node_modules/lucide-react")) return "lucide";
-          if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) return "react";
+        // Split large 3rd-party libs into their own chunks so the main bundle
+        // isn't a single 1.1MB blob. These deps change rarely → cache well.
+        manualChunks: {
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          motion: ['framer-motion'],
+          icons: ['lucide-react'],
         },
       },
     },

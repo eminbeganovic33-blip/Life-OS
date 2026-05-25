@@ -16,9 +16,7 @@ export const defaultState = () => ({
   streak: 0,
   bestStreak: 0,
   lastActiveDate: null,
-  motivationSeen: [],
   onboarded: false,
-  pomodoroMinutes: 25,
   // Quests
   completedDays: {},
   completedQuests: {},
@@ -52,23 +50,6 @@ export const defaultState = () => ({
   // Rest days
   restDays: [],
   // Progression
-  bossClears: {},
-  masteryMode: false,
-  seenMilestones: {},
-  // Notifications
-  notificationSettings: null,
-  weeklySummaryDismissed: null,
-  weeklyChallengeClaimed: {},
-  // Premium
-  premium: {
-    plan: null,
-    premiumUntil: null,
-    subscribedAt: null,
-    trialStartedAt: null,
-  },
-  // Prestige
-  prestige: 0,
-  prestigeHistory: [],
   // Personalization (set during onboarding)
   userName: null,
   focusCategories: null,
@@ -81,17 +62,6 @@ export const defaultState = () => ({
   questGraduations: {},
   // One-shot migration flag so we don't re-seed after a user retires everything.
   _activeQuestsMigrated: false,
-  // ── The Stake — user's articulated why, cost, and proof ──
-  // Set once during onboarding (or deferred). Edits create revision entries.
-  // Shape: { why, cost, proof, setAt, updatedAt, revisions: [{ why, cost, proof, at }] }
-  stake: null,
-  stakeDeferred: false, // user dismissed the prompt; voice is muted until stake is set
-  // ── Voice ── (ambient narrator layer)
-  voiceEnabled: true,
-  voiceNotifSettings: null, // { enabled, slots: { morning_intent, midday_check, evening_seal, late_recovery } }
-  // ── Pre-seal reflections — keyed by day number ──
-  // Shape: { [day]: { prompt, answer, date } }
-  sealReflections: {},
 });
 
 // ── Dev seed: 14 days of realistic progress for local development only ──
@@ -170,7 +140,6 @@ export const devSeedState = () => {
     streak: 13,
     bestStreak: 13,
     lastActiveDate: getTodayStr(),
-    motivationSeen: [],
     onboarded: true,
     completedDays,
     completedQuests,

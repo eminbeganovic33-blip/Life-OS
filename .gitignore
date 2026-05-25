@@ -29,3 +29,5 @@ dist-ssr
 .env.local
 .env.production
 .claude/settings.local.json
+.claude/worktrees/
+.claude/start-preview.cjs

@@ -2,6 +2,14 @@ import { useCallback } from "react";
 import { TROPHIES } from "../data";
 import { getTodayStr, getTotalVolume } from "../utils";
 
+// Extract category from any quest id shape (legacy / lib- / custom-).
+function questCategory(qid) {
+  if (!qid) return null;
+  const parts = qid.split("-");
+  if (parts[0] === "lib" || parts[0] === "custom") return parts[1] || null;
+  return parts[0] || null;
+}
+
 export function useTrophies() {
   const checkTrophies = useCallback((s) => {
     let xpBonus = 0;
@@ -10,7 +18,8 @@ export function useTrophies() {
 
     Object.entries(s.completedQuests || {}).forEach(([day, qIds]) => {
       qIds.forEach((qid) => {
-        const cat = qid.split("-")[0];
+        const cat = questCategory(qid);
+        if (!cat) return;
         if (!completedQuestsByCategory[cat]) completedQuestsByCategory[cat] = 0;
         completedQuestsByCategory[cat]++;
       });

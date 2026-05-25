@@ -12,6 +12,7 @@ export {
   isPrestigeReady,
   MAX_LEVEL_INDEX,
   reconcileStreaks,
+  migrateActiveQuests,
 } from "./helpers";
 export { defaultState, devSeedState } from "./state";
 export {
