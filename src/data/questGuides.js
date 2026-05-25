@@ -337,7 +337,7 @@ export const QUEST_GUIDES = {
     ],
     steps: [
       { label: "Choose ONE thing", detail: "Don't learn 5 topics. Pick one and go deep. Breadth comes later." },
-      { label: "25-min focus blocks", detail: "Pomodoro technique: 25 min study → 5 min break. Use the Focus Timer in this app." },
+      { label: "25-min focus blocks", detail: "Pomodoro technique: 25 min study → 5 min break. A simple kitchen timer or phone alarm works." },
       { label: "Teach someone", detail: "Explain what you learned to a friend, or write it down as if teaching. Teaching = mastery." },
     ],
   },

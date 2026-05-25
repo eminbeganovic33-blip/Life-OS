@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { defaultState, getTodayStr, daysBetween, reconcileStreaks } from "../utils";
+import { defaultState, getTodayStr, daysBetween, reconcileStreaks, migrateActiveQuests } from "../utils";
 
 // Storage adapter: tries window.storage first, falls back to localStorage
 const storage = {
@@ -39,6 +39,8 @@ export function useAppState() {
         if (res?.value) {
           let p = JSON.parse(res.value);
           p = { ...defaultState(), ...p };
+          // Migrate legacy activeQuests shape to library-based shape (idempotent)
+          p = migrateActiveQuests(p);
           // Reconcile streaks on load
           p = reconcileStreaks(p);
           setState(p);

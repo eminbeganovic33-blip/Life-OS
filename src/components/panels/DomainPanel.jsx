@@ -1,11 +1,11 @@
 import { useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { X, Check } from "lucide-react";
+import { ChevronLeft, Check, Plus } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { getTodayStr, getDayQuests, daysBetween } from "../../utils";
 
-export default function DomainPanel({ domainId, state, save, onClose }) {
+export default function DomainPanel({ domainId, state, save, onClose, onOpenPanel }) {
   const domain = CATEGORIES.find((c) => c.id === domainId);
   const color = DOMAIN_COLORS[domainId] || TOKENS.color.text;
   const today = getTodayStr();
@@ -54,20 +54,23 @@ export default function DomainPanel({ domainId, state, save, onClose }) {
     >
       {/* Header */}
       <div style={{ ...styles.header, borderBottomColor: `${color}30` }}>
-        <div style={styles.headerLeft}>
-          <div style={{ ...styles.domainIcon, background: `${color}14` }}>
-            <span style={{ fontSize: 22 }}>{domain?.icon}</span>
-          </div>
-          <div>
-            <div style={styles.domainLabel}>{domain?.label}</div>
-            <div style={styles.domainSub}>
-              {quests.filter((q) => completedIds.includes(q.id)).length} of {quests.length} complete
-            </div>
+        <button onClick={onClose} style={styles.backBtn} aria-label="Close">
+          <ChevronLeft size={20} color={TOKENS.color.text} />
+        </button>
+        <div style={{ ...styles.domainIcon, background: `${color}14` }}>
+          <span style={{ fontSize: 22 }}>{domain?.icon}</span>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={styles.domainLabel}>{domain?.label}</div>
+          <div style={styles.domainSub}>
+            {quests.filter((q) => completedIds.includes(q.id)).length} of {quests.length} complete
           </div>
         </div>
-        <button onClick={onClose} style={styles.closeBtn}>
-          <X size={20} color={TOKENS.color.textSecondary} />
-        </button>
+        {onOpenPanel && (
+          <button onClick={() => onOpenPanel("custom-quests")} style={styles.addBtn}>
+            <Plus size={16} color={TOKENS.color.textSecondary} />
+          </button>
+        )}
       </div>
 
       {/* Quest list */}
@@ -139,10 +142,20 @@ const styles = {
     borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  headerLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: TOKENS.space[3],
+  backBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: 4,
+    flexShrink: 0,
+  },
+  addBtn: {
+    background: TOKENS.color.surface,
+    border: "none",
+    cursor: "pointer",
+    padding: 8,
+    borderRadius: TOKENS.radius.sm,
+    flexShrink: 0,
   },
   domainIcon: {
     width: 44,
@@ -161,13 +174,6 @@ const styles = {
     fontSize: TOKENS.font.size.xs,
     color: TOKENS.color.textTertiary,
     marginTop: 1,
-  },
-  closeBtn: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: 8,
-    borderRadius: TOKENS.radius.sm,
   },
   questList: {
     flex: 1,

@@ -34,6 +34,20 @@ export function injectGlobalStyles() {
     @media (min-width: 768px) {
       [data-app-shell] { max-width: 480px !important; margin: 0 auto; }
     }
+
+    /* Embedded panel host: lets sliding panel components render inline as tab screens */
+    [data-embedded-panel-host] > * {
+      position: relative !important;
+      inset: auto !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-shadow: none !important;
+      z-index: 1 !important;
+      transform: none !important;
+    }
+    [data-embedded-panel-host] [data-panel-back] {
+      display: none !important;
+    }
   `;
   document.head.appendChild(s);
 }

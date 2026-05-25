@@ -1,7 +1,7 @@
 // Feature Set 4: Intelligent XP Weighting
 // Parses quest text and assigns XP dynamically based on difficulty tier
 
-import { dateToLocalDayKey } from "./helpers";
+import { dateToLocalDayKey, questIdMatchesCategory } from "./helpers";
 
 const TIER_3_KEYWORDS = [
   "workout", "gym", "cold shower", "run", "push-ups", "push ups",
@@ -116,7 +116,7 @@ export function getCategoryMastery(state, categoryId) {
   let completions = 0;
   Object.entries(state.completedQuests || {}).forEach(([, qIds]) => {
     qIds.forEach((qid) => {
-      if (qid.startsWith(categoryId + "-") || qid.startsWith(`custom-${categoryId}-`)) {
+      if (questIdMatchesCategory(qid, categoryId)) {
         completions++;
       }
     });
@@ -151,19 +151,71 @@ export function getCategoryMastery(state, categoryId) {
  * Generate a daily bonus quest based on user's weakest category.
  * Bonus quests give 2x XP and rotate daily.
  */
+// Bonus quest templates per category, sized for the user's time budget.
+// short  — quick one-shot (< 5 min)
+// medium — moderate (~10 min)
+// long   — go-deep (15+ min)
 const BONUS_QUEST_TEMPLATES = {
-  sleep: "Bonus: Wind down 30 min before bed — no screens, dim lights",
-  water: "Bonus: Drink a full glass of water before every meal today",
-  exercise: "Bonus: 20 push-ups and 30 seconds of planks right now",
-  mind: "Bonus: 10-minute meditation or deep breathing session",
-  screen: "Bonus: 2-hour digital detox — phone in another room",
-  shower: "Bonus: End your shower with 30 seconds of cold water",
-  nutrition: "Bonus: Replace one processed snack with fruit today",
-  reading: "Bonus: Read 20 pages of a non-fiction book",
-  work: "Bonus: Complete your most dreaded task in the first hour",
-  social: "Bonus: Reach out to someone you haven't talked to in a week",
-  finance: "Bonus: Review and cancel one unused subscription",
-  creative: "Bonus: Spend 15 minutes on a creative hobby",
+  sleep: {
+    short: "Bonus: Lights out 15 min earlier than usual tonight",
+    medium: "Bonus: Wind down 30 min before bed — no screens, dim lights",
+    long: "Bonus: 45-min wind-down ritual — no screens, journal, then sleep",
+  },
+  water: {
+    short: "Bonus: Drink a full glass of water right now",
+    medium: "Bonus: Drink a full glass of water before every meal today",
+    long: "Bonus: Hit 3L of water + electrolytes by end of day",
+  },
+  exercise: {
+    short: "Bonus: 20 push-ups and 30 seconds of planks right now",
+    medium: "Bonus: 15-minute bodyweight circuit (push/squat/plank)",
+    long: "Bonus: 30-minute workout or hike — get the heart rate up",
+  },
+  mind: {
+    short: "Bonus: 3 minutes of box breathing right now (4-4-4-4)",
+    medium: "Bonus: 10-minute meditation or deep breathing session",
+    long: "Bonus: 20-minute meditation + journal what came up",
+  },
+  screen: {
+    short: "Bonus: Phone in another room for the next hour",
+    medium: "Bonus: 2-hour digital detox — phone in another room",
+    long: "Bonus: 4-hour screen-free evening starting now",
+  },
+  shower: {
+    short: "Bonus: End your shower with 30 seconds of cold water",
+    medium: "Bonus: 2-minute cold shower finisher",
+    long: "Bonus: Full cold shower or ice bath (3+ minutes)",
+  },
+  nutrition: {
+    short: "Bonus: Replace one processed snack with fruit today",
+    medium: "Bonus: Hit 30g of protein at your next meal",
+    long: "Bonus: Whole-foods only today — no processed, no sugar",
+  },
+  reading: {
+    short: "Bonus: Read 5 pages of a non-fiction book",
+    medium: "Bonus: Read 20 pages of a non-fiction book",
+    long: "Bonus: 45-min deep reading session — phone off, notes on",
+  },
+  work: {
+    short: "Bonus: Spend 10 minutes on your most dreaded task",
+    medium: "Bonus: Complete your most dreaded task in the first hour",
+    long: "Bonus: 90-minute deep-work block on your hardest project",
+  },
+  social: {
+    short: "Bonus: Send a 'thinking of you' message to someone",
+    medium: "Bonus: Reach out to someone you haven't talked to in a week",
+    long: "Bonus: Have an in-person conversation with someone today",
+  },
+  finance: {
+    short: "Bonus: Check your bank balance and last 5 transactions",
+    medium: "Bonus: Review and cancel one unused subscription",
+    long: "Bonus: 30-min money review — budget, subs, one savings move",
+  },
+  creative: {
+    short: "Bonus: 5-minute free-write or sketch — no editing",
+    medium: "Bonus: Spend 15 minutes on a creative hobby",
+    long: "Bonus: 45-min uninterrupted creative session",
+  },
 };
 
 export function getDailyBonusQuest(state) {
@@ -175,10 +227,10 @@ export function getDailyBonusQuest(state) {
 
   Object.entries(state.completedQuests || {}).forEach(([, qIds]) => {
     qIds.forEach((qid) => {
-      const cat = qid.split("-")[0];
-      if (cat !== "custom") {
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
-      }
+      const parts = qid.split("-");
+      const cat = (parts[0] === "lib" || parts[0] === "custom") ? parts[1] : parts[0];
+      if (!cat || cat === "custom") return;
+      catCounts[cat] = (catCounts[cat] || 0) + 1;
     });
   });
 
@@ -192,7 +244,10 @@ export function getDailyBonusQuest(state) {
 
   // Rotate through weakest categories by day
   const pick = sorted[(state.currentDay - 1) % sorted.length];
-  const text = BONUS_QUEST_TEMPLATES[pick];
+  // Calibrate to the user's time budget from onboarding (default medium)
+  const tier = state.profile?.timeCommitment || "medium";
+  const text = BONUS_QUEST_TEMPLATES[pick]?.[tier] || BONUS_QUEST_TEMPLATES[pick]?.medium;
+  if (!text) return null;
   const baseXp = calculateQuestXP(text, state.currentDay);
 
   return {
@@ -247,33 +302,38 @@ function getWeeklyChallengeProgress(state, challenge) {
   const weekEnd = state.currentDay;
   let current = 0;
 
+  // Day-keyed state (completedDays, completedQuests, journal) is indexed by
+  // LOCAL ISO date strings, NOT day numbers. Convert via startDate.
+  const startDate = state.startDate ? new Date(state.startDate) : new Date();
+  const keyForDayNum = (d) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + d - 1);
+    return dateToLocalDayKey(date);
+  };
+
   switch (challenge.type) {
     case "consistency": {
       for (let d = weekStart; d <= weekEnd; d++) {
-        if (state.completedDays[d]) current++;
+        if (state.completedDays?.[keyForDayNum(d)]) current++;
       }
       break;
     }
     case "dojo": {
-      const startDate = state.startDate ? new Date(state.startDate) : new Date();
       for (let d = weekStart; d <= weekEnd; d++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + d - 1);
-        const key = dateToLocalDayKey(date);
-        if (state.workoutLogs?.[key]?.length > 0) current++;
+        if (state.workoutLogs?.[keyForDayNum(d)]?.length > 0) current++;
       }
       break;
     }
     case "journal": {
       for (let d = weekStart; d <= weekEnd; d++) {
-        if (state.journal?.[d]) current++;
+        if (state.journal?.[keyForDayNum(d)]) current++;
       }
       break;
     }
     case "category_streak": {
       for (let d = weekStart; d <= weekEnd; d++) {
-        const quests = state.completedQuests?.[d] || [];
-        if (quests.some((qid) => qid.startsWith(challenge.category + "-"))) current++;
+        const quests = state.completedQuests?.[keyForDayNum(d)] || [];
+        if (quests.some((qid) => questIdMatchesCategory(qid, challenge.category))) current++;
       }
       break;
     }
@@ -289,7 +349,7 @@ function getWeeklyChallengeProgress(state, challenge) {
       let consecutive = 0;
       let maxConsecutive = 0;
       for (let d = weekStart; d <= weekEnd; d++) {
-        if (state.completedDays[d]) {
+        if (state.completedDays?.[keyForDayNum(d)]) {
           consecutive++;
           maxConsecutive = Math.max(maxConsecutive, consecutive);
         } else {

@@ -1,6 +1,36 @@
 import { CATEGORIES, QUESTS_TEMPLATE, LEVELS, getQuestTimeOfDay } from "../data";
 import { calculateQuestXP } from "./xpEngine";
 import { getCategoryCompletionRates, getAdaptiveDifficulty, ADAPTIVE_QUESTS } from "./intelligence";
+import { QUEST_LIBRARY_MAP, getXpForDifficulty, getStarterForCategory } from "../data/questLibrary";
+
+/**
+ * Test whether a completed-quest ID belongs to the given category.
+ * Handles all three quest ID shapes used in the app:
+ *   - Legacy:  "{category}-{idx}-day{N}"
+ *   - Library: "lib-{libraryId}-day{N}" where libraryId starts with "{category}-…"
+ *   - Custom:  "custom-{category}-{id}-day{N}"
+ */
+export function questIdMatchesCategory(qid, category) {
+  if (!qid || !category) return false;
+  if (qid.startsWith("lib-")) return qid.startsWith(`lib-${category}-`);
+  if (qid.startsWith("custom-")) return qid.startsWith(`custom-${category}-`);
+  return qid.startsWith(`${category}-`);
+}
+
+// Frequency → today's day-of-week check (Sun=0..Sat=6).
+// MWF for "3x_week", Mon-Fri for "weekdays", Sunday for "weekly", any day for "monthly" (always due).
+function isDueToday(frequency, dayNumber) {
+  const today = new Date();
+  const dow = today.getDay();
+  switch (frequency) {
+    case "weekdays":  return dow >= 1 && dow <= 5;
+    case "3x_week":   return dow === 1 || dow === 3 || dow === 5; // Mon/Wed/Fri
+    case "weekly":    return dow === 0; // Sunday default
+    case "monthly":   return today.getDate() === 1;
+    case "daily":
+    default:          return true;
+  }
+}
 
 export function getLevel(xp) {
   let l = LEVELS[0];
@@ -62,37 +92,63 @@ export function getDayQuests(day, customQuests, state) {
   const activeQuests = state?.activeQuests;
   let coreQuests;
 
-  if (Array.isArray(activeQuests) && activeQuests.length > 0) {
-    // ── New active-quests mode (#11) ──
-    // User has opted in to a curated set of N quests; only render those.
-    coreQuests = activeQuests.map((aq) => {
-      const template = QUESTS_TEMPLATE[aq.category] || [];
-      const idx = typeof aq.questIndex === "number" ? aq.questIndex % Math.max(template.length, 1) : 0;
-      let text = template[idx] || aq.category;
-      // Adaptive text swap (keeps user on harder quests as they mature)
-      if (rates && state.currentDay > 7 && ADAPTIVE_QUESTS[aq.category]) {
-        const difficulty = getAdaptiveDifficulty(rates[aq.category] || 0);
-        text = ADAPTIVE_QUESTS[aq.category][difficulty] || text;
-      }
-      return {
-        // id must be stable per-day for completedQuests keying
-        id: `${aq.category}-${idx}-day${day}`,
-        // aqId links back to the activeQuests entry (retire needs this)
-        aqId: aq.id,
-        category: aq.category,
-        text,
-        xp: 0,
-        isCore: true,
-        timeOfDay: aq.timeOfDay || getQuestTimeOfDay(aq.category, idx),
-        difficulty: rates && state.currentDay > 7 ? getAdaptiveDifficulty(rates[aq.category] || 0) : undefined,
-      };
-    });
+  // Onboarded users with an explicitly-empty roster get an empty list —
+  // not the 12-category legacy fallback (which would show generic habits the
+  // user never opted into). Custom quests are still merged below.
+  if (state?.onboarded && Array.isArray(activeQuests) && activeQuests.length === 0) {
+    coreQuests = [];
+  } else if (Array.isArray(activeQuests) && activeQuests.length > 0) {
+    // ── Active-quests mode ── supports both legacy and new library-based shapes
+    coreQuests = activeQuests
+      .filter((aq) => !aq.paused)
+      .map((aq) => {
+        // NEW SHAPE: { id, libraryId, frequency? }
+        if (aq.libraryId) {
+          const lib = QUEST_LIBRARY_MAP[aq.libraryId];
+          if (!lib) return null;
+          const freq = aq.frequency || lib.frequency || "daily";
+          if (!isDueToday(freq, day)) return null;
+          return {
+            id: `lib-${aq.libraryId}-day${day}`,
+            aqId: aq.id,
+            libraryId: aq.libraryId,
+            category: lib.category,
+            text: lib.title,
+            icon: lib.icon,
+            why: lib.why,
+            xp: getXpForDifficulty(lib.difficulty),
+            isCore: true,
+            timeOfDay: lib.timeOfDay || "anytime",
+            difficulty: lib.difficulty,
+            frequency: freq,
+          };
+        }
+        // LEGACY SHAPE: { id, category, questIndex }
+        const template = QUESTS_TEMPLATE[aq.category] || [];
+        const idx = typeof aq.questIndex === "number" ? aq.questIndex % Math.max(template.length, 1) : 0;
+        let text = template[idx] || aq.category;
+        if (rates && day > 7 && ADAPTIVE_QUESTS[aq.category]) {
+          const difficulty = getAdaptiveDifficulty(rates[aq.category] || 0);
+          text = ADAPTIVE_QUESTS[aq.category][difficulty] || text;
+        }
+        return {
+          id: `${aq.category}-${idx}-day${day}`,
+          aqId: aq.id,
+          category: aq.category,
+          text,
+          xp: 0,
+          isCore: true,
+          timeOfDay: aq.timeOfDay || getQuestTimeOfDay(aq.category, idx),
+          difficulty: rates && day > 7 ? getAdaptiveDifficulty(rates[aq.category] || 0) : undefined,
+        };
+      })
+      .filter(Boolean);
   } else {
     // ── Legacy mode: 12-category grid (pre-migration) ──
     coreQuests = CATEGORIES.map((cat) => {
       const questIdx = (day - 1) % QUESTS_TEMPLATE[cat.id].length;
       let text = QUESTS_TEMPLATE[cat.id][questIdx];
-      if (rates && state?.currentDay > 7 && ADAPTIVE_QUESTS[cat.id]) {
+      if (rates && day > 7 && ADAPTIVE_QUESTS[cat.id]) {
         const difficulty = getAdaptiveDifficulty(rates[cat.id] || 0);
         text = ADAPTIVE_QUESTS[cat.id][difficulty] || text;
       }
@@ -103,13 +159,16 @@ export function getDayQuests(day, customQuests, state) {
         xp: 0,
         isCore: true,
         timeOfDay: getQuestTimeOfDay(cat.id, questIdx),
-        difficulty: rates && state?.currentDay > 7 ? getAdaptiveDifficulty(rates[cat.id] || 0) : undefined,
+        difficulty: rates && day > 7 ? getAdaptiveDifficulty(rates[cat.id] || 0) : undefined,
       };
     });
   }
 
   coreQuests.forEach((q) => {
-    q.xp = calculateQuestXP(q.text, day);
+    // Library quests already have correct XP from difficulty tier — don't recompute
+    if (!q.libraryId) {
+      q.xp = calculateQuestXP(q.text, day);
+    }
   });
 
   if (customQuests && Array.isArray(customQuests)) {
@@ -118,7 +177,8 @@ export function getDayQuests(day, customQuests, state) {
         id: `custom-${cq.category}-${cq.id}-${day}`,
         category: cq.category,
         text: cq.text,
-        xp: calculateQuestXP(cq.text, day),
+        // Use the user-assigned XP if present; only fall back to text-based calculation
+        xp: typeof cq.xp === "number" ? cq.xp : calculateQuestXP(cq.text, day),
         isCore: false,
         isCustom: true,
         timeOfDay: cq.timeOfDay || "anytime",
@@ -172,7 +232,7 @@ export function getCategoryStreak(completedQuests, category, currentDay) {
   let streak = 0;
   for (let d = currentDay; d >= 1; d--) {
     const dayQuests = completedQuests[d] || [];
-    const hasCategoryQuest = dayQuests.some((qid) => qid.startsWith(category + "-"));
+    const hasCategoryQuest = dayQuests.some((qid) => questIdMatchesCategory(qid, category));
     if (hasCategoryQuest) {
       streak++;
     } else {
@@ -180,6 +240,35 @@ export function getCategoryStreak(completedQuests, category, currentDay) {
     }
   }
   return streak;
+}
+
+/**
+ * Migrate legacy activeQuests shape ({category, questIndex}) to library-based shape ({id, libraryId}).
+ * Idempotent — safe to run every load.
+ * Maps each old category-based active quest to a sensible starter from the library.
+ */
+export function migrateActiveQuests(s) {
+  if (!Array.isArray(s.activeQuests) || s.activeQuests.length === 0) return s;
+  const allNew = s.activeQuests.every((aq) => aq.libraryId);
+  if (allNew) return s; // already migrated
+
+  const seen = new Set();
+  const migrated = s.activeQuests.map((aq, i) => {
+    if (aq.libraryId) return aq;
+    const starter = getStarterForCategory(aq.category);
+    if (!starter) return null;
+    // Avoid duplicates if multiple legacy entries pointed at the same category
+    if (seen.has(starter.id)) return null;
+    seen.add(starter.id);
+    return {
+      id: aq.id || `aq-${i}`,
+      libraryId: starter.id,
+      addedAt: aq.addedAt || Date.now(),
+      paused: !!aq.paused,
+    };
+  }).filter(Boolean);
+
+  return { ...s, activeQuests: migrated };
 }
 
 /** Reconcile streaks after a gap in activity. Shared by useAppState and useCloudSync. */

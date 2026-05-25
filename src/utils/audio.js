@@ -87,3 +87,25 @@ export function playSound(name) {
   const fn = SOUNDS[name];
   if (fn) fn();
 }
+
+/** Trigger a haptic vibration if supported. ms can be a number or pattern array. */
+export function haptic(ms = 8) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
+  } catch {}
+}
+
+/** Combined sound + haptic helper for common feedback patterns. */
+export function feedback(kind) {
+  switch (kind) {
+    case "tap":         playSound("click"); haptic(8); break;
+    case "questCheck":  playSound("questCheck"); haptic([10, 30, 20]); break;
+    case "questUncheck": playSound("click"); haptic(8); break;
+    case "levelUp":     playSound("levelUp"); haptic([20, 50, 30, 50, 40]); break;
+    case "dayComplete": playSound("dayComplete"); haptic([20, 40, 30, 40, 50]); break;
+    case "error":       playSound("error"); haptic([10, 80, 10]); break;
+    default: break;
+  }
+}
