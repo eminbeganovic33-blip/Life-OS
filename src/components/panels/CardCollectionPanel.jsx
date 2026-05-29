@@ -10,6 +10,12 @@ const CAT_COLORS = {
   Strength:   "#7C5CFC",
   Wisdom:     "#3B82F6",
   Confidence: "#EC4899",
+  Growth:     "#22C55E",
+  Resilience: "#F97316",
+  Courage:    "#6366F1",
+  Health:     "#E11D48",
+  Habits:     "#14B8A6",
+  Mindset:    "#8B5CF6",
 };
 
 const CAT_ICONS = {
@@ -18,6 +24,12 @@ const CAT_ICONS = {
   Strength:   "💪",
   Wisdom:     "🦉",
   Confidence: "👑",
+  Growth:     "🌱",
+  Resilience: "🛡️",
+  Courage:    "⚔️",
+  Health:     "❤️",
+  Habits:     "♻️",
+  Mindset:    "🧠",
 };
 
 export default function CardCollectionPanel({ state, onClose }) {
