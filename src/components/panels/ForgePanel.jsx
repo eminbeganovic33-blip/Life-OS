@@ -888,10 +888,10 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
+    padding: `${TOKENS.space[3]}px ${TOKENS.space[4]}px`,
     background: TOKENS.color.surface,
-    borderRadius: TOKENS.radius.lg,
-    marginBottom: TOKENS.space[3],
+    borderRadius: TOKENS.radius.md,
+    marginBottom: TOKENS.space[2],
   },
   startLeft: {
     display: "flex",

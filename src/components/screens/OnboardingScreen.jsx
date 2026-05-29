@@ -364,9 +364,9 @@ function WelcomeStep() {
         <span style={{ fontSize: 56 }}>⚡</span>
       </motion.div>
       <h1 style={styles.title}>Life OS</h1>
-      <p style={styles.tagline}>Your daily intelligence briefing</p>
+      <p style={styles.tagline}>Build the life. One habit at a time.</p>
       <p style={styles.sub}>
-        Build the habits that build the life. We'll ask a few quick questions to set you up.
+        Track quests, forge sobriety, train your body, learn from the best. We'll set you up in 2 minutes.
       </p>
     </div>
   );
@@ -374,7 +374,7 @@ function WelcomeStep() {
 
 function QuickTourStep() {
   return (
-    <div>
+    <div style={{ paddingTop: TOKENS.space[2] }}>
       <h1 style={styles.title}>What's inside</h1>
       <p style={styles.sub}>Five tools, one daily practice.</p>
       <div style={styles.tourGrid}>
@@ -670,8 +670,8 @@ const styles = {
     height: 8, width: 8, borderRadius: 4,
     transition: TOKENS.transition.normal,
   },
-  content: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" },
-  center: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" },
+  content: { flex: 1, display: "flex", flexDirection: "column", paddingTop: TOKENS.space[4] },
+  center: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingTop: "12%" },
   heroGradient: {
     width: 112, height: 112, borderRadius: 32,
     background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",

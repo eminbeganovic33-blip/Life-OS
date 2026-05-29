@@ -53,7 +53,7 @@ export default function AuthScreen({ onSkip }) {
             <div style={styles.heroEmoji}>⚡</div>
           </div>
           <div style={styles.logo}>Life OS</div>
-          <div style={styles.tagline}>Your daily intelligence briefing</div>
+          <div style={styles.tagline}>Build the life. One habit at a time.</div>
           <div style={styles.subtagline}>
             Build the habits that build the life. Track quests, forge sobriety, train your body, learn from the best.
           </div>
@@ -186,14 +186,13 @@ const styles = {
     minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
-    padding: `${TOKENS.space[8]}px ${TOKENS.space[6]}px ${TOKENS.space[8]}px`,
+    justifyContent: "space-between",
+    padding: `${TOKENS.space[10]}px ${TOKENS.space[6]}px ${TOKENS.space[8]}px`,
     background: `linear-gradient(180deg, ${TOKENS.color.bg} 0%, #FAFAFA 100%)`,
   },
   heroContent: {
-    flex: 1,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
     alignItems: "center",
     textAlign: "center",
   },

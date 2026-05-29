@@ -441,8 +441,8 @@ const styles = {
   xpRow: { display: "flex", justifyContent: "space-between", marginBottom: TOKENS.space[2] },
   xpLabel: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text },
   xpNext: { fontSize: TOKENS.font.size.xs, color: TOKENS.color.textTertiary, fontWeight: TOKENS.font.weight.semibold },
-  xpBarOuter: { height: 8, background: TOKENS.color.surface, borderRadius: 4, overflow: "hidden" },
-  xpBarInner: { height: "100%", transition: "width 0.4s ease" },
+  xpBarOuter: { height: 8, background: TOKENS.color.border, borderRadius: 4, overflow: "hidden" },
+  xpBarInner: { height: "100%", minWidth: 6, borderRadius: 4, transition: "width 0.4s ease" },
   sectionBtn: {
     width: "100%", padding: TOKENS.space[4],
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.lg,
