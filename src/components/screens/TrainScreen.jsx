@@ -49,9 +49,9 @@ export default function TrainScreen({ state, save }) {
           <div style={styles.aiIconWrap}>
             <Wand2 size={20} color="#fff" />
           </div>
-          <div style={{ flex: 1, textAlign: "left" }}>
+          <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
             <div style={styles.aiLabel}>AI WORKOUT GENERATOR</div>
-            <div style={styles.aiText}>Describe what you want — get a plan</div>
+            <div style={styles.aiText}>Describe it — AI writes your plan</div>
           </div>
           <Sparkles size={16} color="#7C5CFC" />
         </button>
@@ -125,7 +125,7 @@ const styles = {
     boxShadow: "0 6px 16px rgba(124,92,252,0.3)",
   },
   aiLabel: { fontSize: 10, fontWeight: 900, color: "#7C5CFC", letterSpacing: 0.8 },
-  aiText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: 2 },
+  aiText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   aiOpen: {
     padding: TOKENS.space[5],
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.lg,
