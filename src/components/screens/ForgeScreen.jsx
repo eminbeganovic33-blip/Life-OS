@@ -36,7 +36,7 @@ export default function ForgeScreen({ state, save }) {
           <div style={styles.hardModeSub}>
             {hardMode
               ? "Streak resets on miss. No freeze protection. Maximum accountability."
-              : "Off — streak freezes auto-protect missed days."}
+              : "Streak freezes protect missed days automatically."}
           </div>
         </div>
         <div style={{
