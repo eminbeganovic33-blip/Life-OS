@@ -610,7 +610,7 @@ const styles = {
   },
   journalCta: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
+    padding: `${TOKENS.space[4]}px 80px ${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.lg,
     border: "none", cursor: "pointer", width: "100%",
     marginBottom: TOKENS.space[5],
