@@ -37,7 +37,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
     setSoundsOn(next);
     if (next) feedback("questCheck");
   }
-  const totalCompleted = Object.keys(state.completedDays || {}).length;
+  const totalCompleted = Object.keys(state.completedQuests || {}).filter(k => (state.completedQuests[k]?.length || 0) > 0).length;
   const [expandedTrophy, setExpandedTrophy] = useState({});
   const [showAllTrophies, setShowAllTrophies] = useState(false);
   const [showYearInPixels, setShowYearInPixels] = useState(false);
@@ -180,7 +180,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
               <div key={key} style={styles.miniStatItem}>
                 <div style={styles.miniStatHead}>
                   <span style={{ fontSize: 12 }}>{meta.icon}</span>
-                  <span style={styles.miniStatLabel}>{meta.label.slice(0, 4).toUpperCase()}</span>
+                  <span style={styles.miniStatLabel}>{meta.label.slice(0, 3).toUpperCase()}</span>
                   <span style={{ ...styles.miniStatValue, color: meta.color }}>{v}</span>
                 </div>
                 <div style={styles.miniStatBar}>

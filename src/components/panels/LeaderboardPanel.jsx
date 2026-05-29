@@ -109,7 +109,7 @@ export default function LeaderboardPanel({ state, onClose }) {
     },
     {
       icon: <TrendingUp size={16} color="#EC4899" />, label: "Best Day",
-      value: `${stats.bestDayQuests} quests`,
+      value: `${stats.bestDayQuests} ${stats.bestDayQuests === 1 ? "quest" : "quests"}`,
       raw: stats.bestDayQuests,
       tier: getTier(stats.bestDayQuests, [2, 4, 6, 8, 10, 12]),
       next: getNext(stats.bestDayQuests, [2, 4, 6, 8, 10, 12]),

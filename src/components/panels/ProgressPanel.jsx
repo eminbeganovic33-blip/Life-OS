@@ -157,11 +157,11 @@ export default function ProgressPanel({ state, save, onClose }) {
           <div style={styles.statsRow}>
             <Stat label="Total XP" value={state.xp || 0} />
             <Stat label="Best streak" value={state.bestStreak || 0} />
-            <Stat label="Days active" value={Object.keys(state.completedDays || {}).length} />
+            <Stat label="Days active" value={Object.keys(state.completedQuests || {}).filter(k => (state.completedQuests[k]?.length || 0) > 0).length} />
           </div>
           <div style={{ ...styles.statsRow, marginTop: TOKENS.space[3] }}>
             <Stat label="Quests done" value={lifetimeQuests} />
-            <Stat label="Best day" value={`${bestDayQuests}q`} />
+            <Stat label="Best day" value={bestDayQuests} />
             <Stat label="Avg/day" value={avgPerDay} />
           </div>
         </div>
