@@ -320,6 +320,42 @@ _Why last: Product-market fit should be proven before investing in native develo
 
 ---
 
+## PHASE 9: Demand-Validated Features (Reddit Pain Points)
+
+_Why this exists: sourced from a scan of high-engagement Reddit "is there an app for…" threads (r/SomebodyMakeThis, r/ADHD, r/productivity, finance/health communities) and pain-point aggregators. Each item maps a recurring, high-upvote frustration onto a surface Life OS already has. The guiding rule from those threads: a feature lands when it names the **measurable cost it removes** (minutes of friction, forgotten dollars, broken streaks) — not "organize your life." Ranked by demand signal × fit × effort._
+
+### 9A. Friction-Free Quick Capture — _highest fit, do first_
+- **Reddit pain:** "Every task manager assumes I'll remember to open it and fill out a form." The #1 reason habit/ADHD users uninstall is capture friction.
+- **Feature:** An always-visible "+" that dumps a thought/quest/journal line in **one tap**, no category or XP setup required. Triage later (assign category → it becomes a custom quest, or keep as a loose note).
+- **Fits:** `TodayScreen.jsx` (FAB, paired with existing AI Coach FAB), `CustomQuestPanel.jsx` (reuses `addQuest`), new `state.inbox` array.
+- **Effort: Small–Medium.** Full spec: `docs/quick-capture-spec.md`.
+
+### 9B. Low-Effort Nutrition Wins (no calorie counting)
+- **Reddit pain:** Calorie logging is too tedious; AI photo-estimates are "confidently wrong." People want *directional*, not precise.
+- **Feature:** Lean into the existing `nutrition` category with **qualitative quick-wins** ("ate a vegetable," "no late-night snack," "hit protein") gamified with XP — deliberately skip gram-counting, which is the exact thing people complain about.
+- **Fits:** `data/categories.js`, `CustomQuestPanel.jsx` suggestions (already seeded), Forge-style milestone cards optional.
+- **Effort: Medium** (mostly content). Wins by *not* competing on accuracy/tedium.
+
+### 9C. Money-Discipline Tracker (subscription/leakage, reframed)
+- **Reddit pain:** "$200/mo in subscriptions I forgot about; cancelling is painful." (A true product needs bank integration — out of scope.)
+- **Feature:** A Forge-style **"Money" tracker** with manual streaks ("no impulse buy," "reviewed subscriptions this week") and the same biological-milestone-style story cards used for sobriety. No bank API.
+- **Fits:** Forge architecture (`forgePrograms.js`, `ForgePanel.jsx`) — reuses the strongest existing pattern.
+- **Effort: Medium** (mostly content). Quantifiable pain, slots into a built system.
+
+### 9D. Pattern Insights for Habit Misses (extends 2D)
+- **Reddit pain:** People want apps to tell them *why* they fail, not just log it.
+- **Feature:** Extend the Forge Trigger Mapping / correlation engine to habit misses: "You skip Mind quests on days you wake after 8 AM."
+- **Fits:** `utils/intelligence.js`, `PatternInsights.jsx`.
+- **Effort: Small–Medium** (engine largely exists).
+
+### 9E. Low-Shame Streak Rescue
+- **Reddit pain:** "I fall off after one bad day and never come back."
+- **Feature:** Surface a guilt-free re-entry via existing `ComebackModal` + streak-grace logic — one-tap "restart at 50% streak" or "log just one thing today."
+- **Fits:** `ComebackModal.jsx`, streak grace types.
+- **Effort: Small.** Directly attacks churn — the real failure mode in every thread.
+
+---
+
 ## Priority Matrix
 
 | Phase | Focus | Impact | Effort | Depends On |
@@ -332,6 +368,7 @@ _Why last: Product-market fit should be proven before investing in native develo
 | Phase 6 (Monetization) | Subscriptions, Marketplace | Critical | High | Phase 1 content + Phase 4 backend |
 | Phase 7 (AI) | Coach, Smart Scheduling | Medium | High | Phase 4 backend + Phase 6 funding |
 | Phase 8 (Native) | Mobile app, Health sync, i18n | Long-term | Very High | Product-market fit proven |
+| Phase 9 (Demand-Validated) | Quick capture, nutrition wins, money tracker, churn rescue | High | Low–Medium | Nothing — slots into existing surfaces |
 
 ---
 
