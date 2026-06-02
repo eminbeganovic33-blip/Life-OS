@@ -59,6 +59,7 @@ export default function AppShell({ state, save, user }) {
   const [levelUpModal, setLevelUpModal] = useState(null);
   const [weeklyReview, setWeeklyReview] = useState(false);
   const [comebackDays, setComebackDays] = useState(0);
+  const [comebackPrevStreak, setComebackPrevStreak] = useState(0);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [bossModal, setBossModal] = useState(null);
   const [forgeSuccess, setForgeSuccess] = useState(null);
@@ -114,11 +115,17 @@ export default function AppShell({ state, save, user }) {
           patch.streakFreezes = freezes - daysToCover;
           toastMsg = `Streak freeze used (${patch.streakFreezes} left). Streak preserved.`;
         } else {
+          // Stash the pre-break streak so the comeback modal can offer a
+          // guilt-free partial restore before it's zeroed out.
+          setComebackPrevStreak(state.lastBrokenStreak || state.streak || 0);
           patch.streak = 0;
           patch.streakFreezes = state.hardMode ? freezes : 0;
           setComebackDays(diff);
         }
       } else if (diff >= 2) {
+        // reconcileStreaks() may have already zeroed the streak on load —
+        // recover the pre-break value it stashed for the partial-restore offer.
+        setComebackPrevStreak(state.lastBrokenStreak || 0);
         setComebackDays(diff);
       }
     }
@@ -386,6 +393,17 @@ export default function AppShell({ state, save, user }) {
       {comebackDays > 0 && (
         <ComebackModal
           missedDays={comebackDays}
+          prevStreak={comebackPrevStreak}
+          onLogOne={() => {
+            setActivePanel(null);
+            setActiveTab("today");
+            setComebackDays(0);
+          }}
+          onRestoreHalf={() => {
+            const restored = Math.floor(comebackPrevStreak / 2);
+            save({ ...state, streak: restored, lastBrokenStreak: 0 });
+            setComebackDays(0);
+          }}
           onDismiss={() => setComebackDays(0)}
         />
       )}

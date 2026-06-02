@@ -2,8 +2,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sunrise } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 
-export default function ComebackModal({ missedDays, onDismiss }) {
+export default function ComebackModal({ missedDays, onDismiss, prevStreak = 0, onLogOne, onRestoreHalf }) {
   if (!missedDays || missedDays <= 0) return null;
+
+  const halfStreak = Math.floor(prevStreak / 2);
+  // Actionable re-entry is only offered when the caller wires the handlers.
+  const actionable = typeof onLogOne === "function";
 
   return (
     <AnimatePresence>
@@ -43,7 +47,19 @@ export default function ComebackModal({ missedDays, onDismiss }) {
           <div style={styles.quote}>
             "Fall seven times, stand up eight."
           </div>
-          <button onClick={onDismiss} style={styles.btn}>Resume Protocol</button>
+          {actionable ? (
+            <>
+              <button onClick={onLogOne} style={styles.btn}>Log just one thing today</button>
+              {prevStreak >= 4 && (
+                <button onClick={onRestoreHalf} style={styles.btnSecondary}>
+                  Restart at a {halfStreak}-day streak
+                </button>
+              )}
+              <button onClick={onDismiss} style={styles.btnText}>Just resume</button>
+            </>
+          ) : (
+            <button onClick={onDismiss} style={styles.btn}>Resume Protocol</button>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
@@ -114,6 +130,29 @@ const styles = {
     color: "#fff",
     fontSize: TOKENS.font.size.md,
     fontWeight: TOKENS.font.weight.bold,
+    cursor: "pointer",
+  },
+  btnSecondary: {
+    width: "100%",
+    padding: "12px",
+    marginTop: TOKENS.space[2],
+    borderRadius: TOKENS.radius.lg,
+    border: `1px solid ${TOKENS.color.border}`,
+    background: "transparent",
+    color: TOKENS.color.text,
+    fontSize: TOKENS.font.size.sm,
+    fontWeight: TOKENS.font.weight.bold,
+    cursor: "pointer",
+  },
+  btnText: {
+    width: "100%",
+    padding: "10px",
+    marginTop: TOKENS.space[2],
+    border: "none",
+    background: "transparent",
+    color: TOKENS.color.textTertiary,
+    fontSize: TOKENS.font.size.sm,
+    fontWeight: TOKENS.font.weight.medium,
     cursor: "pointer",
   },
 };

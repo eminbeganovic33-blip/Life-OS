@@ -304,7 +304,9 @@ export function reconcileStreaks(s) {
         streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak, missedDays }],
       };
     } else {
-      s = { ...s, streak: 0 };
+      // Preserve the broken streak so the comeback modal can offer a
+      // guilt-free partial restore (Phase 9E).
+      s = { ...s, streak: 0, lastBrokenStreak: s.streak };
     }
   }
 
