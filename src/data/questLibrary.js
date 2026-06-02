@@ -136,6 +136,20 @@ const QUESTS = [
   { id: "nutrition-meal-prep",        category: "nutrition", title: "Meal prep for tomorrow",           icon: "🥘", difficulty: "medium", timeOfDay: "evening", frequency: "weekly",
     why: "Future-you is more impulsive than current-you. Prep removes the decision when willpower is lowest." },
 
+  // ── Low-effort wins: binary yes/no, no calorie or gram counting ──
+  { id: "nutrition-ate-a-veg",        category: "nutrition", title: "Ate a vegetable today",            icon: "🥦", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Forget the macros — just one more vegetable a day beats any tracking app you'll quit in a week." },
+  { id: "nutrition-no-late-snack",    category: "nutrition", title: "No late-night snacking",           icon: "🌙", difficulty: "easy",   timeOfDay: "evening", frequency: "daily",
+    why: "The single highest-leverage eating habit. No counting — just close the kitchen after dinner." },
+  { id: "nutrition-fruit-swap",       category: "nutrition", title: "Swapped a snack for fruit",        icon: "🍌", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "One swap, no math. Fiber + water keep you full far longer than the packaged version." },
+  { id: "nutrition-home-cooked",      category: "nutrition", title: "Ate a home-cooked meal",           icon: "🍳", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Cooking once beats logging every bite. You control the ingredients without counting a thing." },
+  { id: "nutrition-protein-feel",     category: "nutrition", title: "Had protein with a meal",          icon: "🍗", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Aim for a palm-sized portion, not a number. Protein is the satiety lever that needs no scale." },
+  { id: "nutrition-stopped-full",     category: "nutrition", title: "Stopped eating when full",         icon: "🛑", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Noticing fullness retrains portion size better than any calorie target — and it's free." },
+
   // ═══ READING ═══
   { id: "reading-10-pages",           category: "reading",  title: "Read 10 pages",                     icon: "📖", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
     why: "10 pages × 365 days = ~12 books per year. Compound learning is the highest-ROI habit." },

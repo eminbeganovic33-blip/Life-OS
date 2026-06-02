@@ -43,9 +43,10 @@ const SUGGESTIONS = {
     "Floss every night", "Stretch in shower",
   ],
   nutrition: [
-    "Protein with breakfast (30g+)", "No food after 8 PM",
-    "Vegetables at every meal", "Skip processed sugar today",
-    "Log all meals", "Eat one whole-food meal",
+    "Protein with breakfast (30g+)", "No late-night snacking",
+    "Vegetables at every meal", "Ate a vegetable today",
+    "Eat one whole-food meal", "Swapped a snack for fruit",
+    "Stopped eating when full", "Ate a home-cooked meal",
   ],
   reading: [
     "Read 10 pages", "Read 20 minutes",
