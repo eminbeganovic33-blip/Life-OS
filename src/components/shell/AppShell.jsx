@@ -20,6 +20,7 @@ import LeaderboardPanel from "../panels/LeaderboardPanel";
 import CharacterPanel from "../panels/CharacterPanel";
 import CardCollectionPanel from "../panels/CardCollectionPanel";
 import QuestLibraryPanel from "../panels/QuestLibraryPanel";
+import InboxPanel from "../panels/InboxPanel";
 
 import TodayScreen from "../screens/TodayScreen";
 import TrainScreen from "../screens/TrainScreen";
@@ -37,6 +38,7 @@ import Confetti from "../shared/Confetti";
 import BossModal from "../shared/BossModal";
 import ForgeSuccessModal from "../shared/ForgeSuccessModal";
 import AnniversaryModal, { ANNIVERSARY_DAYS } from "../shared/AnniversaryModal";
+import QuickCaptureFab from "../shared/QuickCaptureFab";
 import TabBar from "./TabBar";
 import { MOTIVATION_CARDS } from "../../data/constants";
 import { feedback } from "../../utils/audio";
@@ -45,6 +47,7 @@ const SPECIAL_PANELS = [
   "journal", "forge", "dojo", "progress",
   "academy", "trophies", "knowledge", "custom-quests",
   "avatar", "books", "leaderboard", "character", "cards", "quest-library",
+  "inbox",
 ];
 
 export default function AppShell({ state, save, user }) {
@@ -292,6 +295,8 @@ export default function AppShell({ state, save, user }) {
 
       <TabBar activeTab={activeTab} onChangeTab={(tab) => { setActivePanel(null); setActiveTab(tab); }} />
 
+      <QuickCaptureFab state={state} save={save} onOpenInbox={() => openPanel("inbox")} />
+
       <AnimatePresence>
         {activePanel === "journal" && (
           <JournalPanel key="journal" state={state} save={save} onClose={closePanel} />
@@ -334,6 +339,9 @@ export default function AppShell({ state, save, user }) {
         )}
         {activePanel === "quest-library" && (
           <QuestLibraryPanel key="quest-library" state={state} save={save} onClose={closePanel} />
+        )}
+        {activePanel === "inbox" && (
+          <InboxPanel key="inbox" state={state} save={save} onClose={closePanel} />
         )}
         {activePanel && !SPECIAL_PANELS.includes(activePanel) && (
           <DomainPanel

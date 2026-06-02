@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X } from "lucide-react";
+import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X, Inbox } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
 import { getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
@@ -423,6 +423,21 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         </button>
       )}
 
+      {/* Quick-capture inbox strip — only when there are notes to triage */}
+      {(() => {
+        const openInbox = (state.inbox || []).filter((i) => i.status === "open").length;
+        if (openInbox === 0) return null;
+        return (
+          <button onClick={() => onOpenPanel("inbox")} style={styles.inboxStrip}>
+            <Inbox size={16} color="#10B981" />
+            <span style={styles.inboxStripText}>
+              Inbox · {openInbox} to triage
+            </span>
+            <ChevronDown size={14} color={TOKENS.color.textTertiary} style={{ transform: "rotate(-90deg)", marginLeft: "auto" }} />
+          </button>
+        );
+      })()}
+
       {/* Quick journal CTA — switches copy if user already journaled today */}
       {(() => {
         const journaledToday = !!(state.journal?.[today]?.text || state.moods?.[today]);
@@ -614,6 +629,18 @@ const styles = {
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.lg,
     border: "none", cursor: "pointer", width: "100%",
     marginBottom: TOKENS.space[5],
+  },
+  inboxStrip: {
+    display: "flex", alignItems: "center", gap: TOKENS.space[3],
+    padding: `${TOKENS.space[3]}px ${TOKENS.space[4]}px`,
+    background: "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(5,150,105,0.04) 100%)",
+    border: "1px solid rgba(16,185,129,0.15)",
+    borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[3],
+    cursor: "pointer", width: "100%",
+  },
+  inboxStripText: {
+    fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold,
+    color: TOKENS.color.text,
   },
   journalCtaText: { fontSize: TOKENS.font.size.sm, color: TOKENS.color.textSecondary, fontWeight: TOKENS.font.weight.medium },
   quoteCard: {

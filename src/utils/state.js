@@ -23,6 +23,8 @@ export const defaultState = () => ({
   questCompletedAt: {},
   xpByDay: {},          // real XP earned per day (keyed by ISO date string)
   customQuests: [],
+  // Quick capture inbox (Phase 9A) — { id, text, createdAt, status:"open"|"done" }
+  inbox: [],
   // Journal
   journal: {},
   moods: {},
