@@ -19,6 +19,7 @@ const DEFAULT_HABITS = [
   { id: "caffeine",      label: "Caffeine",      icon: "☕", color: "#78716C" },
   { id: "weed",          label: "Weed",          icon: "🌿", color: "#22C55E" },
   { id: "gambling",      label: "Gambling",      icon: "🎰", color: "#EAB308" },
+  { id: "impulse_spending", label: "Impulse Spending", icon: "💸", color: "#34D399" },
 ];
 
 const MILESTONES = [
@@ -101,6 +102,16 @@ const HABIT_MILESTONES = {
     21: "Sleep architecture normalized. Anxiety levels lower.",
     30: "Blood pressure dropped. Energy steady all day.",
   },
+  impulse_spending: {
+    1: "The dopamine hit of buying fades in minutes — the money stays gone for good. Day one of keeping it.",
+    3: "You're learning the pause. Most impulse buys die if you just sleep on them once.",
+    7: "One week of intentional spending. Notice the subscriptions and 'deals' that were quietly draining you.",
+    14: "Two weeks. The urge to buy-to-feel-better is weakening. Your savings are doing the opposite of a subscription.",
+    21: "Three weeks rewires the habit loop. 'Do I need it, or do I just want the hit?' is becoming automatic.",
+    30: "One month. Run the numbers — the money not spent is real freedom you can see in your balance.",
+    60: "Two months. You've broken the link between boredom/stress and the checkout button.",
+    90: "Ninety days. Intentional spending is now your default. This compounds for the rest of your life.",
+  },
 };
 
 const IMPACT_CONFIG = {
@@ -114,6 +125,7 @@ const IMPACT_CONFIG = {
   junkfood:       { label: "bad meals skipped",   perDay: 1,   moneyPerUnit: 8,    icon: "🍔" },
   vaping:         { label: "pods skipped",        perDay: 0.5, moneyPerUnit: 8,    icon: "💨" },
   caffeine:       { label: "cups skipped",        perDay: 3,   moneyPerUnit: 4,    icon: "☕" },
+  impulse_spending: { label: "impulse buys avoided", perDay: 1, moneyPerUnit: 25, icon: "💸" },
 };
 
 function getPhase(days) {
