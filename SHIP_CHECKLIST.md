@@ -10,10 +10,11 @@ Legend: 🔴 hard blocker · 🟡 quality gate (should block) · 🟢 makes laun
 
 ## 0. Pre-flight (do first — nothing ships without this)
 
-- [ ] 🔴 **Commit the working tree.** Everything from this session (Phase 9/10, Play-Store prep, audit fixes, readability pass, lazyWithRetry) is **uncommitted**. Branch, commit, open PR, merge to `main`.
-- [ ] 🔴 **Deploy current `main` to Vercel** and confirm the live URL loads the latest build.
-- [ ] ✅ Build passes (`npm run build`, exit 0, main chunk ~432 KB)
-- [ ] ✅ Lint clean (`npm run lint`, 0 errors)
+- [x] ✅ **Committed + pushed + PR opened** — branch `redesign/hybrid-calm-game`, PR #5 → `main`.
+- [ ] 🔴 **Merge PR #5 and deploy to Vercel**; confirm the live URL loads the latest build.
+- [ ] 🟡 **Add CI workflow.** `.github/workflows/ci.yml` exists locally but couldn't be pushed (the `gh` OAuth token lacks `workflow` scope). Either `gh auth refresh -s workflow` then commit it, or add it via the GitHub web UI.
+- [x] ✅ Build passes (`npm run build`, exit 0, main chunk ~434 KB)
+- [x] ✅ Lint clean (`npm run lint`, 0 errors)
 
 ## 1. Play Store hard blockers (🔴)
 
@@ -36,8 +37,8 @@ Legend: 🔴 hard blocker · 🟡 quality gate (should block) · 🟢 makes laun
 
 ## 3. Make the launch actually succeed (🟢 — the feedback's core)
 
-- [ ] 🟢 **Instrument the funnel that matters.** Add analytics events for: onboarding completed, first quest added, day-1 return, tab opened (which of the 5 pillars). Without this you're guessing which pillars to keep. Highest-leverage post-launch lever.
-- [ ] 🟢 **Tighten the first-run answer to "what is this for?"** New users land needing to grok 5 pillars at once. Make onboarding end with a sensible default quest roster (not an empty Today) and a one-line value prop. Reduces the "empty app on day 1" churn.
+- [x] ✅ **Funnel events wired** (`onboarding_complete`, `tab_view`, `quest_added`, `journal_saved`, `day_complete`). Still need a Firebase project + to verify they land in prod (§2).
+- [x] ✅ **Default roster on empty domain selection** — Today is no longer empty on day 1. (A one-line value-prop on the Ready screen is still worth a copy pass.)
 - [ ] 🟢 **Decide the 2 core pillars and let new users meet those first.** Don't delete Train/Learn/Forge — but consider sequencing so a newcomer isn't asked to engage with everything immediately. Revisit nav prominence once §3 analytics show real day-7 usage.
 - [ ] 🟢 **Decide monetization stance before submitting** (even "free for v1"). Changing billing model post-launch can mean resubmission/policy review. Pick now, document it.
 - [ ] 🟢 **Watch the gamification/“productive procrastination” risk.** Once analytics exist, check whether XP/levels correlate with *habit completion* or just app-poking. If the meta-game is replacing the behavior, simplify it.
