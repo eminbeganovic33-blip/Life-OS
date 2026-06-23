@@ -39,7 +39,6 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
   }
   const totalCompleted = Object.keys(state.completedQuests || {}).filter(k => (state.completedQuests[k]?.length || 0) > 0).length;
   const [expandedTrophy, setExpandedTrophy] = useState({});
-  const [showAllTrophies, setShowAllTrophies] = useState(false);
   const [showYearInPixels, setShowYearInPixels] = useState(false);
 
   const levelIdx = getLevelIndex(state.xp || 0);
@@ -121,8 +120,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
         animate={{ opacity: 1, y: 0 }}
         style={{
           ...styles.hero,
-          background: `linear-gradient(135deg, ${tier.color}14 0%, ${tier.color}04 100%)`,
-          borderColor: `${tier.color}30`,
+          boxShadow: `inset 0 0 0 1px ${tier.color}55, ${TOKENS.shadow.lg}`,
         }}
       >
         <button onClick={() => onOpenPanel("avatar")} style={styles.avatarBtn}>
@@ -179,7 +177,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             return (
               <div key={key} style={styles.miniStatItem}>
                 <div style={styles.miniStatHead}>
-                  <span style={{ fontSize: 12 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 13 }}>{meta.icon}</span>
                   <span style={styles.miniStatLabel}>{meta.label.slice(0, 3).toUpperCase()}</span>
                   <span style={{ ...styles.miniStatValue, color: meta.color }}>{v}</span>
                 </div>
@@ -196,7 +194,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
       <div style={styles.statsGrid}>
         <StatCard label="Streak" value={state.streak || 0} icon={<Flame size={14} color="#F97316" />} />
         <StatCard label="Best" value={state.bestStreak || 0} />
-        <StatCard label="Days" value={totalCompleted} />
+        <StatCard label="Days done" value={totalCompleted} />
         <StatCard label="Quests" value={lifetimeQuests} />
         <StatCard label="Workouts" value={totalWorkouts} />
         <StatCard label="Courses" value={coursesDone} />
@@ -373,6 +371,11 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           <span style={{ ...styles.linkLabel, color: TOKENS.color.danger }}>Reset all data</span>
           <ChevronRight size={16} color={TOKENS.color.textTertiary} />
         </button>
+        <button onClick={() => window.open("/privacy", "_blank")} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+          <Shield size={16} color={TOKENS.color.textTertiary} />
+          <span style={styles.linkLabel}>Privacy Policy</span>
+          <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+        </button>
       </div>
     </div>
   );
@@ -392,50 +395,52 @@ function StatCard({ label, value, suffix, icon }) {
 }
 
 const styles = {
-  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px ${TOKENS.space[5]}px` },
+  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px 120px` },
   hero: {
     display: "flex", alignItems: "center", gap: TOKENS.space[5],
     padding: TOKENS.space[5],
-    borderRadius: TOKENS.radius.lg,
-    border: "1px solid",
+    borderRadius: TOKENS.radius.xl,
+    background: TOKENS.game.spotlight,
+    border: "1px solid rgba(255,255,255,0.06)",
     marginBottom: TOKENS.space[4],
   },
   avatarBtn: { background: "none", border: "none", padding: 0, cursor: "pointer" },
   avatarCircle: {
     width: 88, height: 88, borderRadius: 44,
-    background: TOKENS.color.surfaceElevated,
+    background: "linear-gradient(135deg, #F3F0FF 0%, #EEF2FF 100%)",
     display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative", flexShrink: 0,
     transition: TOKENS.transition.normal,
+    border: "2px solid rgba(124,92,252,0.20)",
   },
   levelBadge: {
     position: "absolute", bottom: -4, right: -4,
-    fontSize: 10, fontWeight: 900, color: "#fff",
+    fontSize: 11, fontWeight: 900, color: "#fff",
     padding: "3px 8px", borderRadius: TOKENS.radius.full,
     boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
   },
   identity: { flex: 1, minWidth: 0 },
   displayName: {
     fontSize: TOKENS.font.size.xl, fontWeight: TOKENS.font.weight.heavy,
-    color: TOKENS.color.text, letterSpacing: -0.3,
+    color: TOKENS.game.spotlightText, letterSpacing: TOKENS.track.tight,
   },
   heroLevelRow: {
     display: "flex", alignItems: "center", gap: 6,
     marginTop: 4,
   },
   heroLevelLabel: {
-    fontSize: 10, fontWeight: 900, color: "#fff",
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    fontSize: 11, fontWeight: 900, color: "#fff",
+    background: TOKENS.game.gradient,
     padding: "2px 8px", borderRadius: TOKENS.radius.full,
     letterSpacing: 0.4,
   },
   heroLevelName: {
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
-    color: TOKENS.color.text, letterSpacing: 0.2,
+    color: TOKENS.game.spotlightTextSoft, letterSpacing: 0.2,
   },
   tierChip: {
     display: "inline-flex", alignItems: "center", gap: 4,
-    fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+    fontSize: 12, fontWeight: 700, letterSpacing: 0.2,
   },
   xpSection: { marginBottom: TOKENS.space[6] },
   xpRow: { display: "flex", justifyContent: "space-between", marginBottom: TOKENS.space[2] },
@@ -454,14 +459,14 @@ const styles = {
     marginBottom: TOKENS.space[3],
   },
   sectionBtnLabel: {
-    flex: 1, fontSize: 10, fontWeight: 900,
+    flex: 1, fontSize: 11, fontWeight: 900,
     color: TOKENS.color.textTertiary, letterSpacing: 0.8,
   },
   sectionBtnMeta: { fontSize: TOKENS.font.size.sm, fontWeight: 900 },
   miniStats: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: TOKENS.space[3] },
   miniStatItem: {},
   miniStatHead: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 },
-  miniStatLabel: { fontSize: 9, fontWeight: 900, color: TOKENS.color.textTertiary, letterSpacing: 0.4 },
+  miniStatLabel: { fontSize: 10, fontWeight: 900, color: TOKENS.color.textTertiary, letterSpacing: 0.4 },
   miniStatValue: { fontSize: TOKENS.font.size.sm, fontWeight: 900 },
   miniStatBar: { height: 3, background: TOKENS.color.border, borderRadius: 2, overflow: "hidden", marginTop: 4 },
   miniStatFill: { height: "100%" },
@@ -478,9 +483,9 @@ const styles = {
     fontSize: TOKENS.font.size.lg, fontWeight: 900,
     color: TOKENS.color.text, display: "inline-flex", alignItems: "center",
   },
-  statSuffix: { fontSize: 10, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.textTertiary, marginLeft: 2 },
+  statSuffix: { fontSize: 11, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.textTertiary, marginLeft: 2 },
   statLabel: {
-    fontSize: 10, fontWeight: TOKENS.font.weight.semibold,
+    fontSize: 11, fontWeight: TOKENS.font.weight.semibold,
     color: TOKENS.color.textTertiary, marginTop: 2, letterSpacing: 0.4,
     textTransform: "uppercase",
   },
@@ -519,8 +524,8 @@ const styles = {
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.md,
     transition: TOKENS.transition.fast, textAlign: "center",
   },
-  trophyName: { fontSize: 10, fontWeight: 900, color: TOKENS.color.text, marginTop: 2 },
-  trophyDesc: { fontSize: 9, color: TOKENS.color.textTertiary, lineHeight: 1.3 },
+  trophyName: { fontSize: 11, fontWeight: 900, color: TOKENS.color.text, marginTop: 2 },
+  trophyDesc: { fontSize: 10, color: TOKENS.color.textTertiary, lineHeight: 1.3 },
   expandRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[3]}px 0`,
@@ -541,7 +546,7 @@ const styles = {
   },
   linkLabel: { flex: 1, fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text },
   badge: {
-    fontSize: 10, fontWeight: 900, color: TOKENS.color.textTertiary,
+    fontSize: 11, fontWeight: 900, color: TOKENS.color.textTertiary,
     background: TOKENS.color.border, padding: "2px 8px",
     borderRadius: TOKENS.radius.full,
   },

@@ -115,7 +115,7 @@ const styles = {
     margin: `0 auto ${TOKENS.space[5]}px`,
   },
   day: {
-    fontSize: 11, fontWeight: 900, letterSpacing: 1.4,
+    fontSize: 12, fontWeight: 900, letterSpacing: 1.4,
   },
   title: {
     fontSize: 32, fontWeight: 900, color: TOKENS.color.text,

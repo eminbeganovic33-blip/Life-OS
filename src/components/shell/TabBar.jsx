@@ -19,25 +19,26 @@ export default function TabBar({ activeTab, onChangeTab }) {
           <button
             key={tab.id}
             onClick={() => onChangeTab(tab.id)}
+            aria-current={isActive ? "page" : undefined}
             style={{
               ...styles.tab,
-              color: isActive ? TOKENS.color.text : TOKENS.color.textTertiary,
+              color: isActive ? TOKENS.color.brand : TOKENS.color.textTertiary,
             }}
           >
-            <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
             <span style={{
-              fontSize: 10,
+              ...styles.iconWrap,
+              background: isActive ? TOKENS.color.brandSoft : "transparent",
+            }}>
+              <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
+            </span>
+            <span style={{
+              fontSize: 11,
               fontWeight: isActive ? TOKENS.font.weight.bold : TOKENS.font.weight.medium,
-              marginTop: 4,
+              marginTop: 3,
               letterSpacing: 0.2,
             }}>
               {tab.label}
             </span>
-            <div style={{
-              width: 4, height: 4, borderRadius: 2, marginTop: 3,
-              background: isActive ? TOKENS.color.text : "transparent",
-              transition: TOKENS.transition.fast,
-            }} />
           </button>
         );
       })}
@@ -52,7 +53,7 @@ const styles = {
     left: 0,
     right: 0,
     minHeight: 64,
-    background: TOKENS.color.surfaceElevated,
+    background: "rgba(255,255,255,0.82)",
     borderTop: `1px solid ${TOKENS.color.border}`,
     display: "flex",
     alignItems: "stretch",
@@ -60,6 +61,7 @@ const styles = {
     paddingBottom: "env(safe-area-inset-bottom, 0px)",
     zIndex: 100,
     backdropFilter: "saturate(180%) blur(20px)",
+    WebkitBackdropFilter: "saturate(180%) blur(20px)",
   },
   tab: {
     flex: 1,
@@ -72,6 +74,15 @@ const styles = {
     background: "none",
     border: "none",
     cursor: "pointer",
+    transition: TOKENS.transition.fast,
+  },
+  iconWrap: {
+    width: 44,
+    height: 28,
+    borderRadius: TOKENS.radius.full,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     transition: TOKENS.transition.fast,
   },
 };

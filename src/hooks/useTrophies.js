@@ -16,7 +16,7 @@ export function useTrophies() {
     const unlocked = { ...(s.unlockedTrophies || {}) };
     const completedQuestsByCategory = {};
 
-    Object.entries(s.completedQuests || {}).forEach(([day, qIds]) => {
+    Object.entries(s.completedQuests || {}).forEach(([, qIds]) => {
       qIds.forEach((qid) => {
         const cat = questCategory(qid);
         if (!cat) return;

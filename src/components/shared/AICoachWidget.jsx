@@ -49,7 +49,7 @@ export default function AICoachWidget({ state }) {
       } else {
         setHistory((h) => [...h, { from: "coach", text: "Hmm, I didn't get a response. Try rephrasing." }]);
       }
-    } catch (e) {
+    } catch {
       setHistory((h) => [...h, { from: "coach", text: "I'm offline right now. Try again in a moment." }]);
     } finally {
       setLoading(false);
@@ -192,7 +192,7 @@ const styles = {
   },
   headerTitle: { fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text },
   headerSub: { fontSize: TOKENS.font.size.xs, color: TOKENS.color.textTertiary, marginTop: 1 },
-  closeBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  closeBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   messages: {
     flex: 1, overflowY: "auto",
     padding: TOKENS.space[4],
@@ -217,7 +217,7 @@ const styles = {
     background: "rgba(124,92,252,0.08)",
     border: "1px solid rgba(124,92,252,0.18)",
     color: "#7C5CFC",
-    fontSize: 12, fontWeight: TOKENS.font.weight.semibold,
+    fontSize: 13, fontWeight: TOKENS.font.weight.semibold,
     cursor: "pointer", transition: TOKENS.transition.fast,
   },
   msg: {

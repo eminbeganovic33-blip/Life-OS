@@ -7,6 +7,7 @@ import {
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { QUEST_LIBRARY, getXpForDifficulty } from "../../data/questLibrary";
+import { track } from "../../firebase";
 
 const TIME_ICONS = {
   morning: Sun, midday: Sunset, evening: Moon, anytime: Zap,
@@ -62,6 +63,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
       paused: false,
     };
     save({ ...state, activeQuests: [...activeQuests, newAq] });
+    track("quest_added", { library_id: libraryQuest.id, category: libraryQuest.category });
   }
 
   function removeQuest(libraryId) {
@@ -327,12 +329,14 @@ const styles = {
   },
   header: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1, borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   title: { fontSize: TOKENS.font.size.lg, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text },
   tabs: {
     display: "flex", gap: TOKENS.space[2], padding: 4,
@@ -365,14 +369,14 @@ const styles = {
   },
   filterChip: {
     padding: "5px 10px", borderRadius: TOKENS.radius.full, border: "none",
-    fontSize: 11, fontWeight: TOKENS.font.weight.semibold,
+    fontSize: 12, fontWeight: TOKENS.font.weight.semibold,
     cursor: "pointer", whiteSpace: "nowrap",
   },
   diffRow: { display: "flex", gap: TOKENS.space[2], marginBottom: TOKENS.space[4] },
   diffChip: {
     flex: 1, padding: "4px 8px", borderRadius: TOKENS.radius.full,
     border: "1px solid",
-    fontSize: 11, fontWeight: TOKENS.font.weight.bold,
+    fontSize: 12, fontWeight: TOKENS.font.weight.bold,
     cursor: "pointer", transition: TOKENS.transition.fast,
   },
   list: { display: "flex", flexDirection: "column", gap: TOKENS.space[3] },
@@ -426,7 +430,7 @@ const styles = {
     color: TOKENS.color.text,
   },
   questMeta: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     display: "flex", alignItems: "center", gap: 4,
     marginTop: 3, fontWeight: TOKENS.font.weight.semibold,
     flexWrap: "wrap",
@@ -447,7 +451,7 @@ const styles = {
     display: "flex", alignItems: "center", gap: 4,
     padding: `${TOKENS.space[2]}px 0 0`,
     background: "none", border: "none", cursor: "pointer",
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.bold,
     letterSpacing: 0.4,
   },

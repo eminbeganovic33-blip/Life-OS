@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { defaultState, getTodayStr, daysBetween, reconcileStreaks, migrateActiveQuests } from "../utils";
+import { defaultState, reconcileStreaks, migrateActiveQuests } from "../utils";
 
 // Storage adapter: tries window.storage first, falls back to localStorage
 const storage = {

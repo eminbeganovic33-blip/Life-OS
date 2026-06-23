@@ -136,6 +136,20 @@ const QUESTS = [
   { id: "nutrition-meal-prep",        category: "nutrition", title: "Meal prep for tomorrow",           icon: "🥘", difficulty: "medium", timeOfDay: "evening", frequency: "weekly",
     why: "Future-you is more impulsive than current-you. Prep removes the decision when willpower is lowest." },
 
+  // ── Low-effort wins: binary yes/no, no calorie or gram counting ──
+  { id: "nutrition-ate-a-veg",        category: "nutrition", title: "Ate a vegetable today",            icon: "🥦", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Forget the macros — just one more vegetable a day beats any tracking app you'll quit in a week." },
+  { id: "nutrition-no-late-snack",    category: "nutrition", title: "No late-night snacking",           icon: "🌙", difficulty: "easy",   timeOfDay: "evening", frequency: "daily",
+    why: "The single highest-leverage eating habit. No counting — just close the kitchen after dinner." },
+  { id: "nutrition-fruit-swap",       category: "nutrition", title: "Swapped a snack for fruit",        icon: "🍌", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "One swap, no math. Fiber + water keep you full far longer than the packaged version." },
+  { id: "nutrition-home-cooked",      category: "nutrition", title: "Ate a home-cooked meal",           icon: "🍳", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Cooking once beats logging every bite. You control the ingredients without counting a thing." },
+  { id: "nutrition-protein-feel",     category: "nutrition", title: "Had protein with a meal",          icon: "🍗", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Aim for a palm-sized portion, not a number. Protein is the satiety lever that needs no scale." },
+  { id: "nutrition-stopped-full",     category: "nutrition", title: "Stopped eating when full",         icon: "🛑", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
+    why: "Noticing fullness retrains portion size better than any calorie target — and it's free." },
+
   // ═══ READING ═══
   { id: "reading-10-pages",           category: "reading",  title: "Read 10 pages",                     icon: "📖", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
     why: "10 pages × 365 days = ~12 books per year. Compound learning is the highest-ROI habit." },
@@ -205,6 +219,21 @@ const QUESTS = [
     why: "Music practice is one of the few activities that lights up nearly the entire brain at once." },
   { id: "creative-photograph",        category: "creative", title: "Photograph something beautiful",    icon: "📸", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily",
     why: "Trains your eye to notice beauty. Daily aesthetic appreciation correlates with higher wellbeing." },
+
+  // ═══ AVOIDANCE — type:"avoid" quests (10B) ═══
+  // These are habits you KEEP by doing nothing. Check them off at day's end if you held the line.
+  { id: "avoid-doom-scroll-9pm",      category: "screen",   title: "No doom scrolling after 9 PM",    icon: "📵", difficulty: "medium", timeOfDay: "evening", frequency: "daily", type: "avoid",
+    why: "Late-night scrolling delays sleep onset by 60–90 min and floods cortisol. One avoided session is a genuine win." },
+  { id: "avoid-social-before-noon",   category: "screen",   title: "No social media before noon",     icon: "🚫", difficulty: "medium", timeOfDay: "morning", frequency: "daily", type: "avoid",
+    why: "Opening social feeds before noon primes your brain for reactive thinking all day. Protect your deep-work window." },
+  { id: "avoid-caffeine-after-2pm",   category: "sleep",    title: "No caffeine after 2 PM",          icon: "☕", difficulty: "easy",   timeOfDay: "anytime", frequency: "daily", type: "avoid",
+    why: "Caffeine has a 5–7 hour half-life. A 3 PM coffee means half the dose is still active at 10 PM, wrecking deep sleep." },
+  { id: "avoid-late-night-snack",     category: "sleep",    title: "No late-night snacking",          icon: "🌙", difficulty: "easy",   timeOfDay: "evening", frequency: "daily", type: "avoid",
+    why: "Eating within 2 hours of sleep raises core body temperature and digestive activity — both suppress slow-wave sleep." },
+  { id: "avoid-impulse-purchase",     category: "mind",     title: "No impulse purchase today",       icon: "💳", difficulty: "medium", timeOfDay: "anytime", frequency: "daily", type: "avoid",
+    why: "The average impulse buy decision takes 8 seconds. A 24-hour pause converts 90% of them into non-purchases." },
+  { id: "avoid-negative-self-talk",   category: "mind",     title: "No negative self-talk today",     icon: "🛡️", difficulty: "hard",   timeOfDay: "anytime", frequency: "daily", type: "avoid",
+    why: "Catching and naming negative self-talk is the single most evidence-backed cognitive reframe. Each catch is a rep." },
 ];
 
 export const QUEST_LIBRARY = QUESTS;

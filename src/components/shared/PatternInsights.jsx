@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Lightbulb } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
+import { getCategoryCompletionRates } from "../../utils/intelligence";
 
 // Extract the category id from any of the three quest-id shapes the app uses.
 function categoryFromQuestId(id) {
@@ -137,6 +138,31 @@ function generateInsights(state) {
       body: `${top[1]} completions all-time. Consider raising the bar on this category — adaptive difficulty.`,
       color: "#3B82F6",
     });
+  }
+
+  // 4b. Most-skipped focus area (Phase 9D) — tell the user *where* they slip,
+  // not just that they did. Restricted to declared focus categories so we never
+  // flag a domain the user never opted into. Pairs the weakest area with the
+  // weakest day-of-week already derived above.
+  const focus = Array.isArray(state.focusCategories) ? state.focusCategories : [];
+  if (focus.length > 0) {
+    const rates = getCategoryCompletionRates(state);
+    const weakest = focus
+      .filter((c) => c in rates)
+      .map((c) => ({ c, rate: rates[c] }))
+      .sort((a, b) => a.rate - b.rate)[0];
+    if (weakest && weakest.rate < 0.6) {
+      const meta = CATEGORIES.find((c) => c.id === weakest.c);
+      const label = meta?.label || (weakest.c.charAt(0).toUpperCase() + weakest.c.slice(1));
+      const dayClause = (worstDow >= 0 && avg[worstDow] > 0 && worstDow !== bestDow)
+        ? ` It slips most on ${dowNames[worstDow]}s — stack it earlier that day.`
+        : " Try doing it earlier in the day, while willpower is highest.";
+      out.push({
+        title: `${label} is your most-skipped focus area`,
+        body: `Only ${Math.round(weakest.rate * 100)}% completion in ${label}.${dayClause}`,
+        color: "#EF4444",
+      });
+    }
   }
 
   // 5. Goal-aware nudge — reference the user's stated primary goal so the

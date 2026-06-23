@@ -19,7 +19,7 @@ export function questIdMatchesCategory(qid, category) {
 
 // Frequency → today's day-of-week check (Sun=0..Sat=6).
 // MWF for "3x_week", Mon-Fri for "weekdays", Sunday for "weekly", any day for "monthly" (always due).
-function isDueToday(frequency, dayNumber) {
+function isDueToday(frequency, _dayNumber) {
   const today = new Date();
   const dow = today.getDay();
   switch (frequency) {
@@ -121,6 +121,7 @@ export function getDayQuests(day, customQuests, state) {
             timeOfDay: lib.timeOfDay || "anytime",
             difficulty: lib.difficulty,
             frequency: freq,
+            type: lib.type || "build",
           };
         }
         // LEGACY SHAPE: { id, category, questIndex }
@@ -277,10 +278,10 @@ export function reconcileStreaks(s) {
   const lastActive = s.lastActiveDate;
   if (!lastActive || lastActive === today) return s;
 
-  // Check if any missed day was an intentional rest day. Walk forward
-  // from the day AFTER lastActive up to the day BEFORE today, in journey-day
-  // numbers so we can match against state.restDays directly.
+  // Check if any missed day was an intentional rest day OR a paused day.
+  // Walk forward from the day AFTER lastActive up to the day BEFORE today.
   const restDays = s.restDays || [];
+  const pausedDates = s.pausedDates || [];
   const missedDays = daysBetween(lastActive);
   // The day-number of `lastActive`. Today's journey day is s.currentDay; if the
   // user missed N days, lastActive corresponded to currentDay - N.
@@ -288,7 +289,12 @@ export function reconcileStreaks(s) {
   let allMissedWereRest = true;
   for (let i = 1; i <= missedDays; i++) {
     const checkDay = lastActiveDayNum + i;
-    if (!restDays.includes(checkDay)) { allMissedWereRest = false; break; }
+    // Build the date string for this missed day to check against pausedDates
+    const missedDate = new Date(lastActive);
+    missedDate.setDate(missedDate.getDate() + i);
+    const missedDateStr = dateToLocalDayKey(missedDate);
+    const isPaused = pausedDates.includes(missedDateStr);
+    if (!restDays.includes(checkDay) && !isPaused) { allMissedWereRest = false; break; }
   }
 
   // ANY miss should consume a freeze or break the streak. The previous code
@@ -304,7 +310,9 @@ export function reconcileStreaks(s) {
         streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak, missedDays }],
       };
     } else {
-      s = { ...s, streak: 0 };
+      // Preserve the broken streak so the comeback modal can offer a
+      // guilt-free partial restore (Phase 9E).
+      s = { ...s, streak: 0, lastBrokenStreak: s.streak };
     }
   }
 

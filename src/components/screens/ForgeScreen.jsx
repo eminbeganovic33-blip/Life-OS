@@ -23,10 +23,8 @@ export default function ForgeScreen({ state, save }) {
       {/* Hard Mode toggle */}
       <button onClick={toggleHardMode} style={{
         ...styles.hardModeRow,
-        background: hardMode
-          ? "linear-gradient(135deg, rgba(239,68,68,0.10) 0%, rgba(220,38,38,0.04) 100%)"
-          : TOKENS.color.surface,
-        border: hardMode ? "1px solid rgba(239,68,68,0.25)" : "1px solid transparent",
+        background: hardMode ? TOKENS.color.dangerSoft : TOKENS.color.surface,
+        border: hardMode ? `1px solid ${TOKENS.color.danger}40` : `1px solid ${TOKENS.color.border}`,
       }}>
         <Flame size={18} color={hardMode ? "#EF4444" : TOKENS.color.textTertiary} />
         <div style={{ flex: 1, textAlign: "left" }}>
@@ -59,7 +57,7 @@ export default function ForgeScreen({ state, save }) {
 }
 
 const styles = {
-  screen: { padding: TOKENS.space[5], paddingBottom: 0 },
+  screen: { paddingTop: TOKENS.space[5], paddingRight: TOKENS.space[5], paddingLeft: TOKENS.space[5], paddingBottom: 100 },
   hardModeRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,

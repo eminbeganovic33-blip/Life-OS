@@ -4,9 +4,17 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/((?!assets/|firebase-messaging-sw\\.js|sw\\.js|favicon\\.svg|manifest\\.json|robots\\.txt|.*\\..*).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|\\.well-known/|firebase-messaging-sw\\.js|sw\\.js|favicon\\.svg|manifest\\.json|robots\\.txt|.*\\..*).*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
     {
       "source": "/firebase-messaging-sw.js",
       "headers": [

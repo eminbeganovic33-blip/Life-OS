@@ -56,11 +56,16 @@ export function AuthProvider({ children }) {
         setError(friendlyAuthError(err));
       });
 
+    // Hard timeout — if Firebase doesn't respond in 4s, unblock the app anyway.
+    // This prevents an infinite loading spinner on flaky connections or misconfigured domains.
+    const timeout = setTimeout(() => setLoading(false), 4000);
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      clearTimeout(timeout);
       setUser(firebaseUser);
       setLoading(false);
     });
-    return unsubscribe;
+    return () => { clearTimeout(timeout); unsubscribe(); };
   }, []);
 
   const login = async (email, password) => {

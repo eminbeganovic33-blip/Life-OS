@@ -43,9 +43,10 @@ const SUGGESTIONS = {
     "Floss every night", "Stretch in shower",
   ],
   nutrition: [
-    "Protein with breakfast (30g+)", "No food after 8 PM",
-    "Vegetables at every meal", "Skip processed sugar today",
-    "Log all meals", "Eat one whole-food meal",
+    "Protein with breakfast (30g+)", "No late-night snacking",
+    "Vegetables at every meal", "Ate a vegetable today",
+    "Eat one whole-food meal", "Swapped a snack for fruit",
+    "Stopped eating when full", "Ate a home-cooked meal",
   ],
   reading: [
     "Read 10 pages", "Read 20 minutes",
@@ -231,12 +232,14 @@ const styles = {
   },
   header: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: `${TOKENS.space[5]}px`,
+    paddingRight: `${TOKENS.space[5]}px`,
+    paddingBottom: `${TOKENS.space[5]}px`,
+    paddingLeft: `${TOKENS.space[5]}px`,
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1, borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   headerTitle: {
     fontSize: TOKENS.font.size.lg, fontWeight: TOKENS.font.weight.bold,
     color: TOKENS.color.text,
@@ -312,7 +315,7 @@ const styles = {
     marginTop: 2,
   },
   xpPill: {
-    fontSize: 10, fontWeight: 800, letterSpacing: 0.4,
+    fontSize: 11, fontWeight: 800, letterSpacing: 0.4,
   },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", padding: 6 },
 };
