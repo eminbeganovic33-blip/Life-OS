@@ -1,7 +1,7 @@
 // Feature Set 4: Intelligent XP Weighting
 // Parses quest text and assigns XP dynamically based on difficulty tier
 
-import { dateToLocalDayKey, questIdMatchesCategory } from "./helpers";
+import { dateToLocalDayKey, parseDayKey, questIdMatchesCategory, workoutCountForDay, workoutVolumeForDay } from "./helpers";
 
 const TIER_3_KEYWORDS = [
   "workout", "gym", "cold shower", "run", "push-ups", "push ups",
@@ -304,7 +304,7 @@ function getWeeklyChallengeProgress(state, challenge) {
 
   // Day-keyed state (completedDays, completedQuests, journal) is indexed by
   // LOCAL ISO date strings, NOT day numbers. Convert via startDate.
-  const startDate = state.startDate ? new Date(state.startDate) : new Date();
+  const startDate = state.startDate ? parseDayKey(state.startDate) : new Date();
   const keyForDayNum = (d) => {
     const date = new Date(startDate);
     date.setDate(date.getDate() + d - 1);
@@ -320,7 +320,7 @@ function getWeeklyChallengeProgress(state, challenge) {
     }
     case "dojo": {
       for (let d = weekStart; d <= weekEnd; d++) {
-        if (state.workoutLogs?.[keyForDayNum(d)]?.length > 0) current++;
+        if (workoutCountForDay(state.workoutLogs?.[keyForDayNum(d)]) > 0) current++;
       }
       break;
     }
@@ -360,14 +360,8 @@ function getWeeklyChallengeProgress(state, challenge) {
       break;
     }
     case "dojo_volume": {
-      const startDate = state.startDate ? new Date(state.startDate) : new Date();
       for (let d = weekStart; d <= weekEnd; d++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + d - 1);
-        const key = dateToLocalDayKey(date);
-        (state.workoutLogs?.[key] || []).forEach((entry) => {
-          entry.sets.forEach((s) => { current += s.weight * s.reps; });
-        });
+        current += workoutVolumeForDay(state.workoutLogs?.[keyForDayNum(d)]);
       }
       break;
     }

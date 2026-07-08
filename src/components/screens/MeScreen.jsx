@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getSoundsEnabled, setSoundsEnabled, feedback } from "../../utils/audio";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
-import { getTodayStr, daysBetween, getLevelIndex } from "../../utils";
+import { getTodayStr, daysBetween, getLevelIndex, getTotalVolume, workoutCountForDay } from "../../utils";
 import { LEVELS, MOTIVATION_CARDS } from "../../data/constants";
 import { TROPHIES } from "../../data/trophies";
 import { CATEGORIES } from "../../data/categories";
@@ -58,25 +58,11 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
 
   const totalWorkouts = useMemo(() => {
     return Object.values(state.workoutLogs || {}).reduce(
-      (sum, day) => sum + (Array.isArray(day) ? day.length : 1), 0
+      (sum, day) => sum + workoutCountForDay(day), 0
     );
   }, [state.workoutLogs]);
 
-  const totalVolume = useMemo(() => {
-    let vol = 0;
-    Object.values(state.workoutLogs || {}).forEach((entries) => {
-      const list = Array.isArray(entries) ? entries : [entries];
-      list.forEach((entry) => {
-        (entry.sets || entry.exercises || []).forEach((s) => {
-          if (s.weight && s.reps) vol += s.weight * s.reps;
-          if (s.sets) s.sets.forEach((set) => {
-            if (set.weight && set.reps) vol += set.weight * set.reps;
-          });
-        });
-      });
-    });
-    return vol;
-  }, [state.workoutLogs]);
+  const totalVolume = useMemo(() => getTotalVolume(state.workoutLogs), [state.workoutLogs]);
 
   const trophyCount = Object.keys(state.unlockedTrophies || {}).length;
   const lifetimeQuests = useMemo(() => {

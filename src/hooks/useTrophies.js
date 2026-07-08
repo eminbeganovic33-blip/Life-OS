@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { TROPHIES } from "../data";
-import { getTodayStr, getTotalVolume } from "../utils";
+import { getTodayStr, getTotalVolume, workoutCountForDay } from "../utils";
 
 // Extract category from any quest id shape (legacy / lib- / custom-).
 function questCategory(qid) {
@@ -26,7 +26,7 @@ export function useTrophies() {
     });
 
     const totalCompletedDays = Object.keys(s.completedDays || {}).length;
-    const workoutCount = Object.values(s.workoutLogs || {}).reduce((a, b) => a + b.length, 0);
+    const workoutCount = Object.values(s.workoutLogs || {}).reduce((a, b) => a + workoutCountForDay(b), 0);
     const completedCourses = Object.values(s.courseProgress || {}).filter((p) => p.completed).length;
     const recoveryCount = (s.recoveryJournals || []).length;
     const totalVolume = getTotalVolume(s.workoutLogs);

@@ -3,6 +3,7 @@ import { Lightbulb } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { getCategoryCompletionRates } from "../../utils/intelligence";
+import { parseDayKey, daysBetween } from "../../utils/helpers";
 
 // Extract the category id from any of the three quest-id shapes the app uses.
 function categoryFromQuestId(id) {
@@ -105,11 +106,11 @@ function generateInsights(state) {
   const forgeEntries = Object.entries(state.sobrietyDates || {});
   if (forgeEntries.length > 0) {
     const oldest = forgeEntries.reduce((m, [id, date]) => {
-      const d = new Date(date);
+      const d = parseDayKey(date);
       return !m || d < m.date ? { id, date: d } : m;
     }, null);
     if (oldest) {
-      const days = Math.floor((Date.now() - oldest.date) / 86400000);
+      const days = daysBetween(oldest.date.toISOString());
       if (days >= 30) {
         out.push({
           title: `${days} days clean from ${oldest.id.replace(/_/g, " ")}`,

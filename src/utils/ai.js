@@ -5,7 +5,7 @@
 // AI Workout Generator are wired up today. If more callers appear, add
 // purpose-built wrappers rather than expanding this file.
 
-import { dateToLocalDayKey } from "./helpers";
+import { dateToLocalDayKey, daysBetween } from "./helpers";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-2.0-flash";
@@ -145,8 +145,7 @@ function buildStateSummary(state) {
     .map(([day, mood]) => `${day}: ${MOOD_LABELS[mood] || "Unknown"}`);
 
   const forgeTrackers = Object.entries(sobrietyDates).map(([id, date]) => {
-    const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-    return `${id}: ${days} days clean`;
+    return `${id}: ${daysBetween(date)} days clean`;
   });
 
   const journalKeys = Object.keys(journal).sort().reverse();

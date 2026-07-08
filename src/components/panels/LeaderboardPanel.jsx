@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, Award, Flame, Trophy, Dumbbell, BookOpen, Shield, Target, TrendingUp } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
-import { daysBetween, getLevelIndex } from "../../utils";
+import { daysBetween, getLevelIndex, getTotalVolume } from "../../utils";
 import { LEVELS } from "../../data/constants";
 
 // Tier thresholds for "global percentile" approximations.
@@ -33,18 +33,7 @@ export default function LeaderboardPanel({ state, onClose }) {
     const trophies = Object.keys(state.unlockedTrophies || {}).length;
     const coursesDone = Object.values(state.courseProgress || {}).filter((p) => p.completed).length;
 
-    let volume = 0;
-    Object.values(state.workoutLogs || {}).forEach((entries) => {
-      const list = Array.isArray(entries) ? entries : [entries];
-      list.forEach((entry) => {
-        (entry.sets || entry.exercises || []).forEach((s) => {
-          if (s.weight && s.reps) volume += s.weight * s.reps;
-          if (s.sets) s.sets.forEach((set) => {
-            if (set.weight && set.reps) volume += set.weight * set.reps;
-          });
-        });
-      });
-    });
+    const volume = getTotalVolume(state.workoutLogs);
 
     const forgeStreaks = Object.entries(state.sobrietyDates || {}).map(([id, date]) => ({
       id, days: daysBetween(date),
