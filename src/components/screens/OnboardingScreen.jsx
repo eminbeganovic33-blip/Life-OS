@@ -9,18 +9,23 @@ import { CATEGORIES } from "../../data/categories";
 import { ANIMAL_AVATARS, renderAnimalAvatar } from "../shared/AnimalAvatars";
 import { getTodayStr } from "../../utils";
 import { getCalibratedStartersForCategory, QUEST_LIBRARY } from "../../data/questLibrary";
+import { TROPHIES } from "../../data/trophies";
 import { track } from "../../firebase";
 
 const QUEST_LIBRARY_COUNT = QUEST_LIBRARY.length;
+// Not imported from data/exerciseLibrary.js — that file is 32KB and belongs to
+// the lazy Dojo chunk; OnboardingScreen is eager. Keep in sync manually.
+const EXERCISE_COUNT = 45;
+const TROPHY_COUNT = TROPHIES.length;
 
 // ── Static data ─────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
   { icon: Target,   color: "#7C5CFC", title: "Daily Quests", body: "Pick habits, complete daily, earn XP" },
   { icon: Shield,   color: "#F97316", title: "Forge",        body: "Quit habits, track sober days" },
-  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: "Log workouts from a 945-exercise library" },
+  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: `Guided programs + a ${EXERCISE_COUNT}-exercise library` },
   { icon: BookOpen, color: "#3B82F6", title: "Academy",      body: "Courses + book summaries" },
-  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: "34 trophies. Streaks. Boss days." },
+  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: `${TROPHY_COUNT} trophies. Streaks. Boss days.` },
 ];
 
 const ACTIVITY_OPTIONS = [

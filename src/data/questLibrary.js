@@ -280,16 +280,20 @@ export function getCalibratedStartersForCategory(categoryId, timeCommitment = "s
   const tryPush = (q) => { if (q && !picks.find((p) => p.id === q.id)) picks.push(q); };
 
   if (timeCommitment === "long") {
-    tryPush(easies[0]);
-    if (count >= 2) tryPush(meds[0]);
-    if (count >= 3) tryPush(hards[0]);
+    tryPush(easies[0] || meds[0]);
+    if (count >= 2) tryPush(meds[0] || easies[1]);
+    if (count >= 3) tryPush(hards[0] || meds[1]);
   } else if (timeCommitment === "medium") {
-    tryPush(easies[0]);
+    // Prefer easy, but fall back to medium — several categories (e.g. screen)
+    // have no easy quests, and returning [] silently under-seeds onboarding.
+    tryPush(easies[0] || meds[0]);
     if (count >= 2) tryPush(meds[0] || easies[1]);
     if (count >= 3) tryPush(meds[1] || easies[2]);
   } else {
     // short
-    for (let i = 0; i < count; i++) tryPush(easies[i] || cat[i]);
+    for (let i = 0; i < count; i++) tryPush(easies[i] || meds[i] || cat[i]);
   }
+  // Guarantee at least one pick for any non-empty category, whatever the mix.
+  if (picks.length === 0) tryPush(cat[0]);
   return picks.slice(0, count);
 }

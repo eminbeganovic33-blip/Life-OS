@@ -6,6 +6,7 @@ import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../uti
 import { getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import { CATEGORIES } from "../../data/categories";
 import { LEVELS, MOTIVATION_CARDS } from "../../data/constants";
+import { QUEST_LIBRARY } from "../../data/questLibrary";
 import StreakPill from "../shared/StreakPill";
 import ProgressRing from "../shared/ProgressRing";
 import AICoachWidget from "../shared/AICoachWidget";
@@ -220,7 +221,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           <Sparkles size={20} color={TOKENS.color.brand} />
           <div style={styles.emptyTitle}>No habits yet</div>
           <div style={styles.emptyBody}>
-            Browse 86 vetted habits and pick the ones that fit your life. Add as many or as few as you want.
+            Browse {QUEST_LIBRARY.length} vetted habits and pick the ones that fit your life. Add as many or as few as you want.
           </div>
           <div style={styles.emptyCta}>Browse the library →</div>
         </motion.button>
