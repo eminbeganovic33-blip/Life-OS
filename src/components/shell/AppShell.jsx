@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { TOKENS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
 import { lazyWithRetry } from "../../utils/lazyWithRetry";
+import { prefetchLazyChunks } from "../../utils/prefetchLazyChunks";
 import { useTrophies } from "../../hooks/useTrophies";
 import { useToast } from "../shared/Toast";
 
@@ -125,6 +126,14 @@ export default function AppShell({ state, save, user }) {
   useEffect(() => {
     track("tab_view", { tab: activeTab });
   }, [activeTab]);
+
+  // Warm every lazy chunk during idle time so tab switches are instant and the
+  // service worker caches them for offline (first paint stays untouched —
+  // kickoff is delayed well past initial render).
+  useEffect(() => {
+    const t = setTimeout(() => prefetchLazyChunks(), 3000);
+    return () => clearTimeout(t);
+  }, []);
 
   // Android TWA: hardware back button closes the active panel instead of exiting the app.
   useEffect(() => {

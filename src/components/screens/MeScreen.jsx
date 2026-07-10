@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronRight, RotateCcw, Shield, Trophy,
-  Download, LogOut, Flame, Award,
+  Download, Upload, LogOut, Flame, Award,
   Sparkles, Star, LogIn, TrendingUp, Settings, Crown,
   Volume2, VolumeX, PlayCircle,
 } from "lucide-react";
@@ -87,6 +87,51 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
       localStorage.removeItem("life-os-state");
       window.location.reload();
     }
+  }
+
+  // Restore from an exported backup file. The mirror of handleExport — without
+  // this, local-only users who switch phones have no way back into their data.
+  function handleImport() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(reader.result);
+        } catch {
+          window.alert("That file isn't valid JSON. Make sure you picked a Life OS backup.");
+          return;
+        }
+        // Sanity check: a real backup has at least these core keys.
+        const looksLikeBackup = parsed && typeof parsed === "object" &&
+          ("activeQuests" in parsed || "completedQuests" in parsed || "startDate" in parsed);
+        if (!looksLikeBackup) {
+          window.alert("That JSON doesn't look like a Life OS backup — no habit data found in it.");
+          return;
+        }
+        const days = Object.keys(parsed.completedQuests || {}).length;
+        const ok = window.confirm(
+          `Restore this backup? It contains ${days} day(s) of history and will REPLACE everything currently on this device.`
+        );
+        if (!ok) return;
+        // Write through BOTH stores, mirroring useAppState's adapter — it
+        // prefers window.storage on load, so localStorage alone isn't enough.
+        const json = JSON.stringify(parsed);
+        Promise.resolve(window.storage?.set?.("life-os-state", json))
+          .catch(() => {})
+          .finally(() => {
+            try { localStorage.setItem("life-os-state", json); } catch { /* full/blocked storage — reload will surface it */ }
+            window.location.reload();
+          });
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   }
 
   function handleSignOut() {
@@ -335,6 +380,11 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
         <button onClick={handleExport} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
           <Download size={16} color={TOKENS.color.text} />
           <span style={styles.linkLabel}>Export data</span>
+          <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+        </button>
+        <button onClick={handleImport} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+          <Upload size={16} color={TOKENS.color.text} />
+          <span style={styles.linkLabel}>Import backup</span>
           <ChevronRight size={16} color={TOKENS.color.textTertiary} />
         </button>
         {user ? (
