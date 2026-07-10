@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X } from "lucide-react";
+import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X, Inbox, PauseCircle, PlayCircle, Ban, AlertTriangle, Play } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
 import { getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import { CATEGORIES } from "../../data/categories";
 import { LEVELS, MOTIVATION_CARDS } from "../../data/constants";
+import { QUEST_LIBRARY } from "../../data/questLibrary";
 import StreakPill from "../shared/StreakPill";
 import ProgressRing from "../shared/ProgressRing";
 import AICoachWidget from "../shared/AICoachWidget";
+import RoutineModeModal from "../shared/RoutineModeModal";
 import { feedback } from "../../utils/audio";
 
 const TIME_BLOCKS = [
@@ -21,12 +23,38 @@ const TIME_BLOCKS = [
 export default function TodayScreen({ state, save, onOpenPanel }) {
   const today = getTodayStr();
   const dayNumber = state.startDate ? daysBetween(state.startDate) + 1 : 1;
-  const todayQuests = getDayQuests(dayNumber, state.customQuests, state);
+  const allTodayQuests = getDayQuests(dayNumber, state.customQuests, state);
+  // 10B: separate build quests from avoidance quests
+  const todayQuests = allTodayQuests.filter((q) => q.type !== "avoid");
+  const avoidQuests  = allTodayQuests.filter((q) => q.type === "avoid");
   const completedIds = state.completedQuests?.[today] || [];
   const completedToday = todayQuests.filter((q) => completedIds.includes(q.id));
   const progress = todayQuests.length > 0 ? completedToday.length / todayQuests.length : 0;
   const allDone = todayQuests.length > 0 && completedToday.length === todayQuests.length;
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
+  const [routineBlock, setRoutineBlock] = useState(null); // 10C: { block, quests }
+
+  // 10A: Pause Day
+  const isPaused = (state.pausedDates || []).includes(today);
+  function togglePause() {
+    const paused = state.pausedDates || [];
+    const next = isPaused ? paused.filter((d) => d !== today) : [...paused, today];
+    save({ ...state, pausedDates: next });
+  }
+
+  // 10D: Habit Load Coach
+  const activeCount = (state.activeQuests || []).filter((aq) => !aq.paused).length;
+  const showOverload = activeCount >= 8 && state.habitOverloadDismissedAt !== today;
+  function dismissOverload() { save({ ...state, habitOverloadDismissedAt: today }); }
+  function enterFocusMode() {
+    const active = (state.activeQuests || []).filter((aq) => !aq.paused);
+    // Keep the 5 with most recently added first, pause the rest
+    const keep = new Set(active.slice(0, 5).map((aq) => aq.id));
+    const updated = (state.activeQuests || []).map((aq) =>
+      keep.has(aq.id) ? aq : { ...aq, paused: true }
+    );
+    save({ ...state, activeQuests: updated, habitOverloadDismissedAt: today });
+  }
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -39,7 +67,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
   const levelName = LEVELS[levelIdx]?.name || "Beginner";
   const forgeEntries = Object.entries(state.sobrietyDates || {});
 
-  // Group quests by time block
+  // Group build quests by time block (avoidance quests get their own section)
   const questsByBlock = useMemo(() => {
     const groups = { morning: [], midday: [], evening: [], anytime: [] };
     todayQuests.forEach((q) => {
@@ -58,6 +86,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
   }, []);
 
   function toggleQuest(questId, explicitXp) {
+    if (isPaused) return; // 10A: no quest toggles on paused days
     const isDone = completedIds.includes(questId);
     const newCompleted = isDone
       ? completedIds.filter((id) => id !== questId)
@@ -82,51 +111,104 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
 
   return (
     <div style={styles.screen}>
+      {/* Spotlight hero — the one place the RPG identity lives. Everything
+          below stays calm/neutral so this reads as the day's "headline". */}
       <motion.header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        style={styles.header}
+        style={styles.hero}
       >
-        <div>
-          <div style={styles.greeting}>
-            {greeting}{state.userName ? `, ${state.userName}` : ""}
+        <div style={styles.heroGlow} />
+        <div style={styles.heroTopRow}>
+          <span style={styles.heroKicker}>LIFE OS</span>
+          <div style={styles.heroTopRight}>
+            <StreakPill streak={state.streak || 0} freezes={state.streakFreezes || 0} tone="dark" />
+            {/* 10A: Pause Day toggle */}
+            <button
+              onClick={togglePause}
+              title={isPaused ? "Resume today" : "Pause today (travel / sick day)"}
+              style={{
+                ...styles.heroIconBtn,
+                background: isPaused ? "rgba(249,115,22,0.22)" : "rgba(255,255,255,0.10)",
+                borderColor: isPaused ? "rgba(249,115,22,0.45)" : "rgba(255,255,255,0.16)",
+              }}
+            >
+              {isPaused
+                ? <PlayCircle size={16} color="#FDBA74" />
+                : <PauseCircle size={16} color="rgba(255,255,255,0.7)" />}
+            </button>
           </div>
-          <div style={styles.dayLabel}>Day {dayNumber}</div>
         </div>
-        <div style={styles.headerRight}>
-          <div style={styles.levelPill}>Lv.{levelIdx + 1} {levelName}</div>
-          <StreakPill streak={state.streak || 0} freezes={state.streakFreezes || 0} />
+        <div style={styles.heroMain}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={styles.heroGreeting}>
+              {greeting}{state.userName ? `, ${state.userName}` : ""}
+            </div>
+            <div style={styles.heroDay}>Day {dayNumber}</div>
+            <div style={styles.heroLevelRow}>
+              <span style={styles.heroLevelPill}>Lv.{levelIdx + 1}</span>
+              <span style={styles.heroLevelName}>{levelName}</span>
+            </div>
+          </div>
+          {todayQuests.length > 0 && (
+            <button
+              onClick={() => onOpenPanel("progress")}
+              style={styles.heroRingBtn}
+              title="View progress"
+            >
+              <ProgressRing
+                progress={progress}
+                size={76}
+                strokeWidth={6}
+                color={allDone ? "#34D399" : "#FFFFFF"}
+                trackColor="rgba(255,255,255,0.16)"
+                textColor="#FFFFFF"
+              />
+              <span style={styles.heroRingCaption}>
+                {completedToday.length}/{todayQuests.length} done
+              </span>
+            </button>
+          )}
         </div>
       </motion.header>
 
-      {/* Progress ring (only when roster is non-empty) */}
-      {todayQuests.length > 0 && (
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
+      {/* 10A: Paused-day banner */}
+      {isPaused && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
-          onClick={() => onOpenPanel("progress")}
-          style={{
-            ...styles.progressSection,
-            background: allDone
-              ? "linear-gradient(135deg, rgba(34,197,94,0.10) 0%, rgba(16,185,129,0.04) 100%)"
-              : styles.progressSection.background,
-            borderColor: allDone ? "rgba(34,197,94,0.22)" : styles.progressSection.border,
-          }}
+          style={styles.pauseBanner}
         >
-          <ProgressRing progress={progress} size={64} />
-          <div style={styles.progressText}>
-            <div style={styles.progressCount}>
-              {completedToday.length} of {todayQuests.length}
-            </div>
-            <div style={styles.progressLabel}>
-              {allDone ? "All protocols complete" : "protocols done"}
-            </div>
+          <Shield size={15} color="#F97316" />
+          <div style={{ flex: 1 }}>
+            <div style={styles.pauseBannerTitle}>Day Paused — streaks are safe 🛡️</div>
+            <div style={styles.pauseBannerSub}>Travel day, sick day, or just a rest. Come back tomorrow.</div>
           </div>
-          <ChevronDown size={16} color={TOKENS.color.textTertiary} style={{ transform: "rotate(-90deg)", flexShrink: 0 }} />
-        </motion.button>
+          <button onClick={togglePause} style={styles.pauseResume}>Resume</button>
+        </motion.div>
       )}
+
+      {/* 10D: Habit overload warning */}
+      {showOverload && !isPaused && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={styles.overloadCard}
+        >
+          <AlertTriangle size={15} color="#F59E0B" />
+          <div style={{ flex: 1 }}>
+            <div style={styles.overloadTitle}>You have {activeCount} active habits</div>
+            <div style={styles.overloadSub}>Research shows 3–5 stick best long-term. Focus Mode keeps your top 5 active and pauses the rest.</div>
+          </div>
+          <div style={styles.overloadActions}>
+            <button onClick={enterFocusMode} style={styles.focusModeBtn}>Focus Mode</button>
+            <button onClick={dismissOverload} style={styles.dismissBtn}><X size={13} /></button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Progress now lives in the hero ring above. */}
 
       {/* Empty roster state — invite the user to build one */}
       {todayQuests.length === 0 && (
@@ -139,7 +221,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           <Sparkles size={20} color={TOKENS.color.brand} />
           <div style={styles.emptyTitle}>No habits yet</div>
           <div style={styles.emptyBody}>
-            Browse 86 vetted habits and pick the ones that fit your life. Add as many or as few as you want.
+            Browse {QUEST_LIBRARY.length} vetted habits and pick the ones that fit your life. Add as many or as few as you want.
           </div>
           <div style={styles.emptyCta}>Browse the library →</div>
         </motion.button>
@@ -275,7 +357,8 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
 
           return (
             <div key={block.id} style={styles.timeBlock}>
-              <button onClick={() => toggleBlock(block.id)} style={styles.blockHeader}>
+              <div style={styles.blockHeaderRow}>
+              <button onClick={() => toggleBlock(block.id)} style={{ ...styles.blockHeader, flex: 1 }}>
                 <div style={{
                   ...styles.blockIconWrap,
                   background: blockDone ? `${block.accent}20` : `${block.accent}10`,
@@ -293,6 +376,18 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                 </div>
                 {isCollapsed ? <ChevronDown size={16} color={TOKENS.color.textTertiary} /> : <ChevronUp size={16} color={TOKENS.color.textTertiary} />}
               </button>
+              {/* 10C: Start Routine button — only for morning/evening, when there are quests */}
+              {(block.id === "morning" || block.id === "evening") && !blockDone && !isPaused && (
+                <button
+                  onClick={() => setRoutineBlock({ block, quests: blockQuests })}
+                  style={styles.startRoutineBtn}
+                  title="Focus mode — step through one at a time"
+                >
+                  <Play size={11} color={block.accent} fill={block.accent} />
+                  <span style={{ color: block.accent }}>Start</span>
+                </button>
+              )}
+              </div>
 
               <AnimatePresence initial={false}>
                 {!isCollapsed && (
@@ -423,6 +518,21 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         </button>
       )}
 
+      {/* Quick-capture inbox strip — only when there are notes to triage */}
+      {(() => {
+        const openInbox = (state.inbox || []).filter((i) => i.status === "open").length;
+        if (openInbox === 0) return null;
+        return (
+          <button onClick={() => onOpenPanel("inbox")} style={styles.inboxStrip}>
+            <Inbox size={16} color="#10B981" />
+            <span style={styles.inboxStripText}>
+              Inbox · {openInbox} to triage
+            </span>
+            <ChevronDown size={14} color={TOKENS.color.textTertiary} style={{ transform: "rotate(-90deg)", marginLeft: "auto" }} />
+          </button>
+        );
+      })()}
+
       {/* Quick journal CTA — switches copy if user already journaled today */}
       {(() => {
         const journaledToday = !!(state.journal?.[today]?.text || state.moods?.[today]);
@@ -449,13 +559,84 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         </motion.section>
       )}
 
+      {/* 10B: Avoidance quests section */}
+      {avoidQuests.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          style={styles.avoidSection}
+        >
+          <div style={styles.avoidHeader}>
+            <Ban size={13} color="#EF4444" />
+            <span style={styles.avoidTitle}>Avoidance Habits</span>
+            <span style={styles.avoidSub}>Check off if you kept the line today</span>
+          </div>
+          {avoidQuests.map((q) => {
+            const isDone = completedIds.includes(q.id);
+            return (
+              <button
+                key={q.id}
+                onClick={() => toggleQuest(q.id)}
+                disabled={isPaused}
+                style={{
+                  ...styles.avoidRow,
+                  background: isDone ? "rgba(16,185,129,0.07)" : "rgba(239,68,68,0.04)",
+                  borderColor: isDone ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.15)",
+                  opacity: isPaused ? 0.5 : 1,
+                }}
+              >
+                <div style={{
+                  ...styles.avoidCheck,
+                  background: isDone ? "#10B981" : "transparent",
+                  borderColor: isDone ? "#10B981" : "#EF4444",
+                }}>
+                  {isDone ? (
+                    <svg width="10" height="10" viewBox="0 0 10 10">
+                      <path d="M2 5 L4.5 7.5 L8 3" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <Ban size={9} color="#EF4444" />
+                  )}
+                </div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ ...styles.questText, color: isDone ? TOKENS.color.textTertiary : TOKENS.color.text }}>
+                    {q.text}
+                  </div>
+                  <div style={styles.questMeta}>
+                    <span style={{ color: isDone ? "#10B981" : TOKENS.color.textTertiary }}>
+                      {isDone ? "✓ Kept today" : "Tap when you hold the line"}
+                    </span>
+                    <span style={{ color: isDone ? "#10B981" : "#EF4444" }}>+{q.xp} XP</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </motion.section>
+      )}
+
       <AICoachWidget state={state} />
+
+      {/* 10C: Routine Mode Modal */}
+      <AnimatePresence>
+        {routineBlock && (
+          <RoutineModeModal
+            key="routine"
+            block={routineBlock.block}
+            quests={routineBlock.quests}
+            completedIds={completedIds}
+            onToggle={toggleQuest}
+            onClose={() => setRoutineBlock(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 const styles = {
-  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px` },
+  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px 120px` },
   domainRow: {
     display: "flex", gap: TOKENS.space[2], overflowX: "auto",
     marginBottom: TOKENS.space[4], paddingBottom: 2,
@@ -470,28 +651,69 @@ const styles = {
   },
   domainTileText: { display: "flex", flexDirection: "column", alignItems: "flex-start" },
   domainTileLabel: { fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold, lineHeight: 1.2 },
-  domainTileMeta: { fontSize: 10, fontWeight: TOKENS.font.weight.semibold, lineHeight: 1.2 },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: TOKENS.space[7] },
-  greeting: { fontSize: TOKENS.font.size.md, color: TOKENS.color.textSecondary, fontWeight: TOKENS.font.weight.medium },
-  dayLabel: { fontSize: TOKENS.font.size.hero, fontWeight: TOKENS.font.weight.heavy, color: TOKENS.color.text, letterSpacing: -1, marginTop: 2 },
-  headerRight: { paddingTop: 4, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 },
-  levelPill: {
-    fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold, color: "#fff",
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+  domainTileMeta: { fontSize: 11, fontWeight: TOKENS.font.weight.semibold, lineHeight: 1.2 },
+  // ── Spotlight hero (the "game layer") ──────────────────────────────────
+  hero: {
+    position: "relative",
+    overflow: "hidden",
+    background: TOKENS.game.spotlight,
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: TOKENS.radius.xl,
+    padding: TOKENS.space[5],
+    marginBottom: TOKENS.space[5],
+    boxShadow: TOKENS.shadow.lg,
+  },
+  heroGlow: {
+    position: "absolute", top: -50, right: -30,
+    width: 180, height: 180, borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(124,92,252,0.55) 0%, rgba(236,72,153,0.18) 55%, transparent 72%)",
+    filter: "blur(8px)", pointerEvents: "none",
+  },
+  heroTopRow: {
+    position: "relative", zIndex: 1,
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    marginBottom: TOKENS.space[4],
+  },
+  heroKicker: {
+    fontSize: 11, fontWeight: TOKENS.font.weight.heavy,
+    letterSpacing: TOKENS.track.caps, textTransform: "uppercase",
+    color: TOKENS.game.spotlightTextSoft,
+  },
+  heroTopRight: { display: "flex", alignItems: "center", gap: 8 },
+  heroIconBtn: {
+    width: 32, height: 32, borderRadius: TOKENS.radius.full,
+    border: "1px solid", display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", flexShrink: 0,
+  },
+  heroMain: {
+    position: "relative", zIndex: 1,
+    display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: TOKENS.space[4],
+  },
+  heroGreeting: {
+    fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.medium,
+    color: TOKENS.game.spotlightTextSoft,
+  },
+  heroDay: {
+    fontSize: TOKENS.font.size.hero, fontWeight: TOKENS.font.weight.heavy,
+    color: TOKENS.game.spotlightText, letterSpacing: TOKENS.track.tighter,
+    lineHeight: 1, marginTop: 4,
+  },
+  heroLevelRow: { display: "flex", alignItems: "center", gap: 8, marginTop: TOKENS.space[3] },
+  heroLevelPill: {
+    fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.heavy, color: "#fff",
+    background: TOKENS.game.gradient,
     padding: "4px 12px", borderRadius: TOKENS.radius.full,
-    boxShadow: "0 4px 12px rgba(124,92,252,0.25)",
+    boxShadow: TOKENS.shadow.glowBrand,
   },
-  progressSection: {
-    display: "flex", alignItems: "center", gap: TOKENS.space[5],
-    padding: TOKENS.space[5], width: "100%",
-    background: "linear-gradient(135deg, rgba(124,92,252,0.06) 0%, rgba(236,72,153,0.04) 100%)",
-    border: "1px solid rgba(124,92,252,0.08)",
-    borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[5],
-    cursor: "pointer",
+  heroLevelName: { fontSize: 13, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.game.spotlightTextSoft },
+  heroRingBtn: {
+    background: "none", border: "none", cursor: "pointer", flexShrink: 0,
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
   },
-  progressText: { flex: 1 },
-  progressCount: { fontSize: TOKENS.font.size.xl, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text },
-  progressLabel: { fontSize: TOKENS.font.size.sm, color: TOKENS.color.textSecondary, marginTop: 2 },
+  heroRingCaption: {
+    fontSize: 11, fontWeight: TOKENS.font.weight.semibold,
+    color: TOKENS.game.spotlightTextSoft,
+  },
   celebration: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
@@ -508,7 +730,7 @@ const styles = {
     flexShrink: 0,
   },
   celebrationKicker: {
-    fontSize: 10, fontWeight: 900, color: "#16A34A",
+    fontSize: 11, fontWeight: 900, color: "#16A34A",
     letterSpacing: 0.8,
   },
   celebrationText: {
@@ -530,7 +752,7 @@ const styles = {
     background: "rgba(251,191,36,0.18)",
     display: "flex", alignItems: "center", justifyContent: "center",
   },
-  bonusLabel: { fontSize: 10, fontWeight: 900, color: "#B45309", letterSpacing: 0.8 },
+  bonusLabel: { fontSize: 11, fontWeight: 900, color: "#B45309", letterSpacing: 0.8 },
   bonusText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: 2 },
   challengeCard: {
     padding: TOKENS.space[5],
@@ -539,11 +761,11 @@ const styles = {
     borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[5],
   },
   challengeHeader: { display: "flex", alignItems: "center", gap: 6 },
-  challengeLabel: { fontSize: 10, fontWeight: 900, color: "#7C5CFC", letterSpacing: 0.8 },
+  challengeLabel: { fontSize: 11, fontWeight: 900, color: "#7C5CFC", letterSpacing: 0.8 },
   challengeText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: TOKENS.space[2] },
   challengeBar: { height: 4, background: "rgba(124,92,252,0.10)", borderRadius: 2, marginTop: TOKENS.space[3], overflow: "hidden" },
   challengeFill: { height: "100%", background: "#7C5CFC", transition: "width 0.4s ease" },
-  challengeMeta: { fontSize: 10, color: TOKENS.color.textTertiary, fontWeight: TOKENS.font.weight.semibold, marginTop: 6 },
+  challengeMeta: { fontSize: 11, color: TOKENS.color.textTertiary, fontWeight: TOKENS.font.weight.semibold, marginTop: 6 },
   blocks: { marginBottom: TOKENS.space[5] },
   timeBlock: { marginBottom: TOKENS.space[4] },
   blockHeader: {
@@ -560,7 +782,7 @@ const styles = {
     color: TOKENS.color.text, display: "flex", alignItems: "center", gap: 8,
   },
   blockCount: { fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold },
-  blockTime: { fontSize: 10, color: TOKENS.color.textTertiary, marginTop: 1 },
+  blockTime: { fontSize: 11, color: TOKENS.color.textTertiary, marginTop: 1 },
   questList: { display: "flex", flexDirection: "column", gap: 4 },
   questRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
@@ -576,14 +798,14 @@ const styles = {
   },
   questText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.medium, lineHeight: 1.4 },
   questMeta: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     display: "flex", gap: 8, marginTop: 2, fontWeight: TOKENS.font.weight.semibold,
   },
   forgeStrip: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[3]}px ${TOKENS.space[4]}px`,
-    background: "linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(234,88,12,0.04) 100%)",
-    border: "1px solid rgba(249,115,22,0.15)",
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.border}`,
     borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[3],
     cursor: "pointer", width: "100%",
   },
@@ -591,7 +813,7 @@ const styles = {
   forgeName: { fontWeight: TOKENS.font.weight.semibold, textTransform: "capitalize" },
   forgeDays: { fontWeight: 900, color: "#F97316" },
   forgeDivider: { color: TOKENS.color.textTertiary },
-  forgeMore: { color: TOKENS.color.textTertiary, fontStyle: "italic", fontSize: 11 },
+  forgeMore: { color: TOKENS.color.textTertiary, fontStyle: "italic", fontSize: 12 },
   addQuestBtn: {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
     width: "100%",
@@ -615,16 +837,30 @@ const styles = {
     border: "none", cursor: "pointer", width: "100%",
     marginBottom: TOKENS.space[5],
   },
+  inboxStrip: {
+    display: "flex", alignItems: "center", gap: TOKENS.space[3],
+    padding: `${TOKENS.space[3]}px ${TOKENS.space[4]}px`,
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.border}`,
+    borderRadius: TOKENS.radius.lg, marginBottom: TOKENS.space[3],
+    cursor: "pointer", width: "100%",
+  },
+  inboxStripText: {
+    fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold,
+    color: TOKENS.color.text,
+  },
   journalCtaText: { fontSize: TOKENS.font.size.sm, color: TOKENS.color.textSecondary, fontWeight: TOKENS.font.weight.medium },
   quoteCard: {
     padding: TOKENS.space[5],
-    background: "linear-gradient(135deg, rgba(251,191,36,0.06) 0%, rgba(249,115,22,0.04) 100%)",
-    border: "1px solid rgba(251,191,36,0.12)",
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.borderSubtle}`,
     borderRadius: TOKENS.radius.lg,
+    borderLeft: `3px solid ${TOKENS.color.brandBorder}`,
   },
   quoteText: {
-    fontSize: TOKENS.font.size.sm, fontStyle: "italic",
-    lineHeight: 1.5, color: TOKENS.color.text,
+    fontSize: TOKENS.font.size.md, fontStyle: "italic",
+    lineHeight: 1.5, color: TOKENS.color.text, fontWeight: TOKENS.font.weight.medium,
+    letterSpacing: TOKENS.track.tight,
   },
   quoteAuthor: {
     fontSize: TOKENS.font.size.xs, color: TOKENS.color.textSecondary,
@@ -683,5 +919,112 @@ const styles = {
     fontSize: TOKENS.font.size.xs,
     color: TOKENS.color.textSecondary,
     lineHeight: 1.5,
+  },
+
+  // 10A: Pause Day
+  pauseBtn: {
+    width: 32, height: 32, borderRadius: 10,
+    border: "1px solid",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", flexShrink: 0,
+  },
+  pauseBanner: {
+    display: "flex", alignItems: "flex-start", gap: 10,
+    padding: "12px 14px",
+    background: "rgba(249,115,22,0.08)",
+    border: "1px solid rgba(249,115,22,0.20)",
+    borderRadius: 12,
+    marginBottom: TOKENS.space[4],
+  },
+  pauseBannerTitle: {
+    fontSize: 13, fontWeight: 700, color: "#F97316", marginBottom: 2,
+  },
+  pauseBannerSub: {
+    fontSize: 13, color: TOKENS.color.textSecondary,
+  },
+  pauseResume: {
+    alignSelf: "center",
+    padding: "6px 12px", borderRadius: 8,
+    background: "#F97316", color: "#fff",
+    border: "none", cursor: "pointer",
+    fontSize: 13, fontWeight: 700, flexShrink: 0,
+  },
+
+  // 10D: Habit Load Coach
+  overloadCard: {
+    display: "flex", alignItems: "flex-start", gap: 10,
+    padding: "12px 14px",
+    background: "rgba(245,158,11,0.08)",
+    border: "1px solid rgba(245,158,11,0.22)",
+    borderRadius: 12,
+    marginBottom: TOKENS.space[4],
+  },
+  overloadTitle: {
+    fontSize: 13, fontWeight: 700, color: "#F59E0B", marginBottom: 2,
+  },
+  overloadSub: {
+    fontSize: 13, color: TOKENS.color.textSecondary, lineHeight: 1.45,
+  },
+  overloadActions: {
+    display: "flex", alignItems: "center", gap: 6, flexShrink: 0, alignSelf: "flex-start", marginTop: 2,
+  },
+  focusModeBtn: {
+    padding: "5px 10px", borderRadius: 7,
+    background: "#F59E0B", color: "#fff",
+    border: "none", cursor: "pointer",
+    fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
+  },
+  dismissBtn: {
+    width: 26, height: 26, borderRadius: 8,
+    background: TOKENS.color.surfaceAlt,
+    border: `1px solid ${TOKENS.color.border}`,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer",
+  },
+
+  // 10C: Routine Mode start button
+  blockHeaderRow: {
+    display: "flex", alignItems: "center",
+  },
+  startRoutineBtn: {
+    display: "flex", alignItems: "center", gap: 4,
+    padding: "5px 10px", marginRight: 4,
+    borderRadius: 20, border: "1px solid",
+    background: "transparent", cursor: "pointer",
+    fontSize: 12, fontWeight: 700,
+    borderColor: "currentColor", flexShrink: 0,
+  },
+
+  // 10B: Avoidance habits section
+  avoidSection: {
+    marginBottom: TOKENS.space[4],
+    borderRadius: 14,
+    border: "1px solid rgba(239,68,68,0.12)",
+    overflow: "hidden",
+    background: "rgba(239,68,68,0.02)",
+  },
+  avoidHeader: {
+    display: "flex", alignItems: "center", gap: 6,
+    padding: "10px 14px",
+    borderBottom: "1px solid rgba(239,68,68,0.10)",
+  },
+  avoidTitle: {
+    fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+    color: "#EF4444", textTransform: "uppercase",
+  },
+  avoidSub: {
+    fontSize: 12, color: TOKENS.color.textTertiary,
+    marginLeft: "auto",
+  },
+  avoidRow: {
+    width: "100%", display: "flex", alignItems: "center", gap: 12,
+    padding: "11px 14px",
+    border: "none", borderTop: "1px solid transparent",
+    cursor: "pointer", background: "transparent", textAlign: "left",
+  },
+  avoidCheck: {
+    width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+    border: "2px solid",
+    display: "flex", alignItems: "center", justifyContent: "center",
   },
 };

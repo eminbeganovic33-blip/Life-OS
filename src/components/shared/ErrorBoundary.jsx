@@ -76,7 +76,7 @@ const styles = {
     background: "rgba(239,68,68,0.06)",
     border: "1px solid rgba(239,68,68,0.20)",
     borderRadius: TOKENS.radius.md,
-    fontSize: 11,
+    fontSize: 12,
     color: TOKENS.color.textSecondary,
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
     maxWidth: 380, width: "100%",

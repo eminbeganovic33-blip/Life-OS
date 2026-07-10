@@ -133,20 +133,20 @@ const styles = {
     marginBottom: 12, textAlign: "left",
   },
   statsLabel: {
-    fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
     color: TOKENS.color.textTertiary, marginBottom: 4,
   },
   statRow: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
     padding: "7px 0", borderBottom: `1px solid ${TOKENS.color.border}`,
   },
-  statLabel: { fontSize: 12, color: TOKENS.color.textSecondary },
+  statLabel: { fontSize: 13, color: TOKENS.color.textSecondary },
   statValue: { fontSize: 14, fontWeight: 800, color: TOKENS.color.text },
   unlockBox: {
     background: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)",
     borderRadius: 12, padding: "10px 16px", marginBottom: 20, textAlign: "left",
   },
-  unlockItem: { fontSize: 12, lineHeight: 1.9, color: TOKENS.color.textSecondary },
+  unlockItem: { fontSize: 13, lineHeight: 1.9, color: TOKENS.color.textSecondary },
   btn: {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
     width: "100%", padding: "14px 24px", borderRadius: 14,

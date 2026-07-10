@@ -23,6 +23,8 @@ export const defaultState = () => ({
   questCompletedAt: {},
   xpByDay: {},          // real XP earned per day (keyed by ISO date string)
   customQuests: [],
+  // Quick capture inbox (Phase 9A) — { id, text, createdAt, status:"open"|"done" }
+  inbox: [],
   // Journal
   journal: {},
   moods: {},
@@ -49,6 +51,10 @@ export const defaultState = () => ({
   subStreaks: {},
   // Rest days
   restDays: [],
+  // 10A: Pause Day — array of YYYY-MM-DD strings where user paused (no streak break, no XP)
+  pausedDates: [],
+  // 10D: Habit Load Coach — date user last dismissed the overload warning
+  habitOverloadDismissedAt: null,
   // Progression
   // Personalization (set during onboarding)
   userName: null,

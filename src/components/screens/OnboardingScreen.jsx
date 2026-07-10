@@ -9,17 +9,23 @@ import { CATEGORIES } from "../../data/categories";
 import { ANIMAL_AVATARS, renderAnimalAvatar } from "../shared/AnimalAvatars";
 import { getTodayStr } from "../../utils";
 import { getCalibratedStartersForCategory, QUEST_LIBRARY } from "../../data/questLibrary";
+import { TROPHIES } from "../../data/trophies";
+import { track } from "../../firebase";
 
 const QUEST_LIBRARY_COUNT = QUEST_LIBRARY.length;
+// Not imported from data/exerciseLibrary.js — that file is 32KB and belongs to
+// the lazy Dojo chunk; OnboardingScreen is eager. Keep in sync manually.
+const EXERCISE_COUNT = 45;
+const TROPHY_COUNT = TROPHIES.length;
 
 // ── Static data ─────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
   { icon: Target,   color: "#7C5CFC", title: "Daily Quests", body: "Pick habits, complete daily, earn XP" },
   { icon: Shield,   color: "#F97316", title: "Forge",        body: "Quit habits, track sober days" },
-  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: "Log workouts from a 945-exercise library" },
+  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: `Guided programs + a ${EXERCISE_COUNT}-exercise library` },
   { icon: BookOpen, color: "#3B82F6", title: "Academy",      body: "Courses + book summaries" },
-  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: "34 trophies. Streaks. Boss days." },
+  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: `${TROPHY_COUNT} trophies. Streaks. Boss days.` },
 ];
 
 const ACTIVITY_OPTIONS = [
@@ -216,6 +222,20 @@ export default function OnboardingScreen({ state, save }) {
       });
     }
 
+    // Safety net: if the user selected no domains, seed a few universal easy
+    // starters so Today is never empty on day 1 (empty first screen = churn).
+    if (activeQuests.length === 0) {
+      ["sleep", "water", "exercise"].forEach((catId) => {
+        const picks = getCalibratedStartersForCategory(catId, "short", 1);
+        picks.forEach((q, i) => activeQuests.push({
+          id: `aq-${catId}-${i}-${Date.now()}`,
+          libraryId: q.id,
+          addedAt: Date.now(),
+          paused: false,
+        }));
+      });
+    }
+
     // 2) Forge trackers — auto-create one entry per vice the user wants to quit
     //    (only adds new ones; never resets a tracker that's already running)
     const sobrietyDates = { ...(state.sobrietyDates || {}) };
@@ -244,6 +264,15 @@ export default function OnboardingScreen({ state, save }) {
         vices,
         setAt: today,
       },
+    });
+
+    // Funnel: onboarding completed — the top of the retention funnel.
+    track("onboarding_complete", {
+      goal: goal || "none",
+      domains: domains.length,
+      vices: vices.length,
+      quests_seeded: activeQuests.length,
+      time_commitment: timeCommit || "short",
     });
   }
 
@@ -673,11 +702,11 @@ const styles = {
   content: { flex: 1, display: "flex", flexDirection: "column", paddingTop: TOKENS.space[4] },
   center: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingTop: "12%" },
   heroGradient: {
-    width: 112, height: 112, borderRadius: 32,
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    width: 112, height: 112, borderRadius: TOKENS.radius.xl,
+    background: TOKENS.game.gradient,
     display: "flex", alignItems: "center", justifyContent: "center",
     marginBottom: TOKENS.space[6],
-    boxShadow: "0 16px 40px rgba(124,92,252,0.3)",
+    boxShadow: TOKENS.shadow.glowBrand,
   },
   title: {
     fontSize: TOKENS.font.size.xxl,
@@ -749,7 +778,7 @@ const styles = {
     marginTop: TOKENS.space[6], marginBottom: TOKENS.space[3],
   },
   subHeaderLabel: {
-    fontSize: 11, fontWeight: 900, letterSpacing: 0.8,
+    fontSize: 12, fontWeight: 900, letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   optionList: { display: "flex", flexDirection: "column", gap: TOKENS.space[2] },
@@ -804,7 +833,7 @@ const styles = {
     textAlign: "center",
   },
   timeLabel: { fontSize: TOKENS.font.size.xs, fontWeight: 900 },
-  timeSub: { fontSize: 10, color: TOKENS.color.textTertiary, marginTop: 2 },
+  timeSub: { fontSize: 11, color: TOKENS.color.textTertiary, marginTop: 2 },
   // Domains
   domainGrid: {
     display: "flex", flexWrap: "wrap", gap: TOKENS.space[3],
@@ -833,10 +862,10 @@ const styles = {
   // Ready
   readyGlow: {
     width: 112, height: 112, borderRadius: "50%",
-    background: "linear-gradient(135deg, #22C55E 0%, #10B981 100%)",
+    background: TOKENS.game.success,
     display: "flex", alignItems: "center", justifyContent: "center",
     marginBottom: TOKENS.space[6],
-    boxShadow: "0 16px 40px rgba(34,197,94,0.3)",
+    boxShadow: TOKENS.shadow.glowSuccess,
   },
   readyStatsRow: {
     display: "flex", gap: TOKENS.space[3],
@@ -854,7 +883,7 @@ const styles = {
     letterSpacing: -0.5,
   },
   readyStatLabel: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.semibold,
     textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2,
   },

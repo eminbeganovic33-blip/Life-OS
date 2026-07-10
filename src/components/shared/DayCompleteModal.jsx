@@ -89,7 +89,7 @@ const styles = {
     position: "relative", zIndex: 1,
   },
   kicker: {
-    fontSize: 11, fontWeight: 900,
+    fontSize: 12, fontWeight: 900,
     color: "#7C5CFC", letterSpacing: 1.5,
     marginBottom: 4,
   },
@@ -119,7 +119,7 @@ const styles = {
     fontWeight: 900,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: TOKENS.color.textTertiary,
     marginTop: 4,
     fontWeight: TOKENS.font.weight.semibold,

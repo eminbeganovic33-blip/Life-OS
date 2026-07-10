@@ -108,23 +108,23 @@ export default function TrainScreen({ state, save }) {
 }
 
 const styles = {
-  screen: { padding: TOKENS.space[5], paddingBottom: 0 },
+  screen: { paddingTop: TOKENS.space[5], paddingRight: TOKENS.space[5], paddingLeft: TOKENS.space[5], paddingBottom: 100 },
   aiCard: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[4]}px ${TOKENS.space[5]}px`,
-    background: "linear-gradient(135deg, rgba(124,92,252,0.08) 0%, rgba(236,72,153,0.04) 100%)",
-    border: "1px solid rgba(124,92,252,0.15)",
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.border}`,
     borderRadius: TOKENS.radius.lg,
     marginBottom: TOKENS.space[3],
     cursor: "pointer", width: "100%",
   },
   aiIconWrap: {
     width: 36, height: 36, borderRadius: TOKENS.radius.md,
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    background: TOKENS.game.gradient,
     display: "flex", alignItems: "center", justifyContent: "center",
-    boxShadow: "0 6px 16px rgba(124,92,252,0.3)",
+    boxShadow: TOKENS.shadow.glowBrand,
   },
-  aiLabel: { fontSize: 10, fontWeight: 900, color: "#7C5CFC", letterSpacing: 0.8 },
+  aiLabel: { fontSize: 11, fontWeight: 800, color: TOKENS.color.brand, letterSpacing: TOKENS.track.caps },
   aiText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   aiOpen: {
     padding: TOKENS.space[5],
@@ -136,7 +136,7 @@ const styles = {
     display: "flex", alignItems: "center", gap: 6,
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text,
   },
-  closeBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  closeBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   aiWarning: {
     padding: `${TOKENS.space[2]}px ${TOKENS.space[3]}px`,
     background: "rgba(251,191,36,0.10)",
@@ -172,7 +172,7 @@ const styles = {
     borderRadius: TOKENS.radius.md,
   },
   aiPlanTitle: {
-    fontSize: 10, fontWeight: 900, color: TOKENS.color.textTertiary,
+    fontSize: 11, fontWeight: 900, color: TOKENS.color.textTertiary,
     letterSpacing: 0.8, marginBottom: TOKENS.space[2],
   },
   aiPlanText: {

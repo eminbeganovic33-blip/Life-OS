@@ -1,7 +1,14 @@
 import { TOKENS } from "../../styles/tokens";
 
-export default function ProgressRing({ progress, size = 64 }) {
-  const strokeWidth = 5;
+export default function ProgressRing({
+  progress,
+  size = 64,
+  strokeWidth = 5,
+  color = TOKENS.color.text,
+  trackColor = TOKENS.color.border,
+  textColor,
+  showLabel = true,
+}) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - Math.min(progress, 1));
@@ -14,7 +21,7 @@ export default function ProgressRing({ progress, size = 64 }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={TOKENS.color.border}
+          stroke={trackColor}
           strokeWidth={strokeWidth}
         />
         <circle
@@ -22,7 +29,7 @@ export default function ProgressRing({ progress, size = 64 }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={TOKENS.color.text}
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -30,18 +37,21 @@ export default function ProgressRing({ progress, size = 64 }) {
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       </svg>
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: TOKENS.font.size.md,
-        fontWeight: TOKENS.font.weight.bold,
-        color: TOKENS.color.text,
-      }}>
-        {Math.round(progress * 100)}%
-      </div>
+      {showLabel && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: size >= 56 ? TOKENS.font.size.md : TOKENS.font.size.xs,
+          fontWeight: TOKENS.font.weight.bold,
+          color: textColor || color,
+          letterSpacing: TOKENS.track.tight,
+        }}>
+          {Math.round(progress * 100)}%
+        </div>
+      )}
     </div>
   );
 }

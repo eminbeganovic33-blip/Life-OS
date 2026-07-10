@@ -1,32 +1,41 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TOKENS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
+import { prefetchLazyChunks } from "../../utils/prefetchLazyChunks";
 import { useTrophies } from "../../hooks/useTrophies";
 import { useToast } from "../shared/Toast";
 
-import DomainPanel from "../panels/DomainPanel";
-import JournalPanel from "../panels/JournalPanel";
-import ForgePanel from "../panels/ForgePanel";
-import DojoPanel from "../panels/DojoPanel";
-import ProgressPanel from "../panels/ProgressPanel";
-import AcademyPanel from "../panels/AcademyPanel";
-import TrophyPanel from "../panels/TrophyPanel";
-import KnowledgePanel from "../panels/KnowledgePanel";
-import CustomQuestPanel from "../panels/CustomQuestPanel";
-import AvatarPickerPanel from "../panels/AvatarPickerPanel";
-import BookLibraryPanel from "../panels/BookLibraryPanel";
-import LeaderboardPanel from "../panels/LeaderboardPanel";
-import CharacterPanel from "../panels/CharacterPanel";
-import CardCollectionPanel from "../panels/CardCollectionPanel";
-import QuestLibraryPanel from "../panels/QuestLibraryPanel";
+// Panels are lazy-loaded — they pull in the heavy data libraries (exercises,
+// books, courses, forge programs) which would otherwise bloat the initial bundle.
+// lazyWithRetry auto-reloads once if a chunk 404s after a new deploy.
+const DomainPanel = lazyWithRetry(() => import("../panels/DomainPanel"));
+const JournalPanel = lazyWithRetry(() => import("../panels/JournalPanel"));
+const ForgePanel = lazyWithRetry(() => import("../panels/ForgePanel"));
+const DojoPanel = lazyWithRetry(() => import("../panels/DojoPanel"));
+const ProgressPanel = lazyWithRetry(() => import("../panels/ProgressPanel"));
+const AcademyPanel = lazyWithRetry(() => import("../panels/AcademyPanel"));
+const TrophyPanel = lazyWithRetry(() => import("../panels/TrophyPanel"));
+const KnowledgePanel = lazyWithRetry(() => import("../panels/KnowledgePanel"));
+const CustomQuestPanel = lazyWithRetry(() => import("../panels/CustomQuestPanel"));
+const AvatarPickerPanel = lazyWithRetry(() => import("../panels/AvatarPickerPanel"));
+const BookLibraryPanel = lazyWithRetry(() => import("../panels/BookLibraryPanel"));
+const LeaderboardPanel = lazyWithRetry(() => import("../panels/LeaderboardPanel"));
+const CharacterPanel = lazyWithRetry(() => import("../panels/CharacterPanel"));
+const CardCollectionPanel = lazyWithRetry(() => import("../panels/CardCollectionPanel"));
+const QuestLibraryPanel = lazyWithRetry(() => import("../panels/QuestLibraryPanel"));
+const InboxPanel = lazyWithRetry(() => import("../panels/InboxPanel"));
 
+// Today + Onboarding stay eager: Today is the default tab (fastest first paint),
+// and Onboarding is the first-run entry screen — it must never gate a brand-new
+// user behind a second network fetch that could fail. The rest are lazy.
 import TodayScreen from "../screens/TodayScreen";
-import TrainScreen from "../screens/TrainScreen";
-import LearnScreen from "../screens/LearnScreen";
-import ForgeScreen from "../screens/ForgeScreen";
-import MeScreen from "../screens/MeScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
+const TrainScreen = lazyWithRetry(() => import("../screens/TrainScreen"));
+const LearnScreen = lazyWithRetry(() => import("../screens/LearnScreen"));
+const ForgeScreen = lazyWithRetry(() => import("../screens/ForgeScreen"));
+const MeScreen = lazyWithRetry(() => import("../screens/MeScreen"));
 
 import XPToast from "../shared/XPToast";
 import DayCompleteModal from "../shared/DayCompleteModal";
@@ -37,15 +46,38 @@ import Confetti from "../shared/Confetti";
 import BossModal from "../shared/BossModal";
 import ForgeSuccessModal from "../shared/ForgeSuccessModal";
 import AnniversaryModal, { ANNIVERSARY_DAYS } from "../shared/AnniversaryModal";
+import QuickCaptureFab from "../shared/QuickCaptureFab";
 import TabBar from "./TabBar";
 import { MOTIVATION_CARDS } from "../../data/constants";
 import { feedback } from "../../utils/audio";
+import { track } from "../../firebase";
 
 const SPECIAL_PANELS = [
   "journal", "forge", "dojo", "progress",
   "academy", "trophies", "knowledge", "custom-quests",
   "avatar", "books", "leaderboard", "character", "cards", "quest-library",
+  "inbox",
 ];
+
+// Minimal fallback shown while a lazy screen/panel chunk loads. Kept subtle —
+// chunks are small and load in a blink on a warm connection.
+function ScreenFallback() {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, display: "flex",
+      alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+    }}>
+      <div style={{
+        width: 22, height: 22,
+        border: "2px solid rgba(124,92,252,0.20)",
+        borderTopColor: "#7C5CFC",
+        borderRadius: "50%",
+        animation: "spin 0.6s linear infinite",
+      }} />
+    </div>
+  );
+}
 
 export default function AppShell({ state, save, user }) {
   const [activeTab, setActiveTab] = useState("today");
@@ -56,6 +88,7 @@ export default function AppShell({ state, save, user }) {
   const [levelUpModal, setLevelUpModal] = useState(null);
   const [weeklyReview, setWeeklyReview] = useState(false);
   const [comebackDays, setComebackDays] = useState(0);
+  const [comebackPrevStreak, setComebackPrevStreak] = useState(0);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [bossModal, setBossModal] = useState(null);
   const [forgeSuccess, setForgeSuccess] = useState(null);
@@ -88,6 +121,33 @@ export default function AppShell({ state, save, user }) {
   }, []);
   const closePanel = useCallback(() => setActivePanel(null), []);
 
+  // Funnel: which of the 5 pillars users actually open. Drives the post-launch
+  // focus decision — keep what gets used, demote what doesn't.
+  useEffect(() => {
+    track("tab_view", { tab: activeTab });
+  }, [activeTab]);
+
+  // Warm every lazy chunk during idle time so tab switches are instant and the
+  // service worker caches them for offline (first paint stays untouched —
+  // kickoff is delayed well past initial render).
+  useEffect(() => {
+    const t = setTimeout(() => prefetchLazyChunks(), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Android TWA: hardware back button closes the active panel instead of exiting the app.
+  useEffect(() => {
+    function handleAndroidBack() {
+      if (activePanel) { setActivePanel(null); return; }
+      if (dayCompleteModal) { setDayCompleteModal(null); return; }
+      if (levelUpModal !== null) { setLevelUpModal(null); return; }
+      if (weeklyReview) { setWeeklyReview(false); return; }
+      // Nothing to close — let the OS handle it (app moves to background)
+    }
+    window.addEventListener("android-back", handleAndroidBack);
+    return () => window.removeEventListener("android-back", handleAndroidBack);
+  }, [activePanel, dayCompleteModal, levelUpModal, weeklyReview]);
+
   // Comeback detection + streak protection + lastActiveDate bump on mount.
   // Consolidated into a single save() so we don't race with other mount effects.
   useEffect(() => {
@@ -111,11 +171,17 @@ export default function AppShell({ state, save, user }) {
           patch.streakFreezes = freezes - daysToCover;
           toastMsg = `Streak freeze used (${patch.streakFreezes} left). Streak preserved.`;
         } else {
+          // Stash the pre-break streak so the comeback modal can offer a
+          // guilt-free partial restore before it's zeroed out.
+          setComebackPrevStreak(state.lastBrokenStreak || state.streak || 0);
           patch.streak = 0;
           patch.streakFreezes = state.hardMode ? freezes : 0;
           setComebackDays(diff);
         }
       } else if (diff >= 2) {
+        // reconcileStreaks() may have already zeroed the streak on load —
+        // recover the pre-break value it stashed for the partial-restore offer.
+        setComebackPrevStreak(state.lastBrokenStreak || 0);
         setComebackDays(diff);
       }
     }
@@ -214,6 +280,8 @@ export default function AppShell({ state, save, user }) {
         setTimeout(() => toast.show(`Streak freeze earned (${newFreezes}/3)`, { type: "xp", duration: 2400 }), 1600);
       }
 
+      track("day_complete", { day: dayNumber, xp_earned: xpEarned, streak: newStreak });
+
       setTimeout(() => {
         setDayCompleteModal({ day: dayNumber, xpEarned, streak: newStreak });
         setConfettiTrigger((c) => c + 1);
@@ -267,31 +335,43 @@ export default function AppShell({ state, save, user }) {
   }, []);
 
   if (!state.onboarded) {
-    return <OnboardingScreen state={state} save={save} />;
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <OnboardingScreen state={state} save={save} />
+      </Suspense>
+    );
   }
 
   return (
     <div data-app-shell style={styles.container}>
       <div style={styles.content}>
-        {activeTab === "today" && (
-          <TodayScreen state={state} save={save} onOpenPanel={openPanel} />
-        )}
-        {activeTab === "train" && (
-          <TrainScreen state={state} save={save} />
-        )}
-        {activeTab === "learn" && (
-          <LearnScreen state={state} save={save} />
-        )}
-        {activeTab === "forge" && (
-          <ForgeScreen state={state} save={save} />
-        )}
-        {activeTab === "me" && (
-          <MeScreen state={state} save={save} user={user} onOpenPanel={openPanel} />
-        )}
+        <Suspense fallback={<ScreenFallback />}>
+          {activeTab === "today" && (
+            <TodayScreen state={state} save={save} onOpenPanel={openPanel} />
+          )}
+          {activeTab === "train" && (
+            <TrainScreen state={state} save={save} />
+          )}
+          {activeTab === "learn" && (
+            <LearnScreen state={state} save={save} />
+          )}
+          {activeTab === "forge" && (
+            <ForgeScreen state={state} save={save} />
+          )}
+          {activeTab === "me" && (
+            <MeScreen state={state} save={save} user={user} onOpenPanel={openPanel} />
+          )}
+        </Suspense>
       </div>
 
       <TabBar activeTab={activeTab} onChangeTab={(tab) => { setActivePanel(null); setActiveTab(tab); }} />
 
+      {/* QuickCaptureFab: Today tab only — prevents it covering content on other screens */}
+      {activeTab === "today" && (
+        <QuickCaptureFab state={state} save={save} onOpenInbox={() => openPanel("inbox")} />
+      )}
+
+      <Suspense fallback={<ScreenFallback />}>
       <AnimatePresence>
         {activePanel === "journal" && (
           <JournalPanel key="journal" state={state} save={save} onClose={closePanel} />
@@ -335,6 +415,9 @@ export default function AppShell({ state, save, user }) {
         {activePanel === "quest-library" && (
           <QuestLibraryPanel key="quest-library" state={state} save={save} onClose={closePanel} />
         )}
+        {activePanel === "inbox" && (
+          <InboxPanel key="inbox" state={state} save={save} onClose={closePanel} />
+        )}
         {activePanel && !SPECIAL_PANELS.includes(activePanel) && (
           <DomainPanel
             key={activePanel}
@@ -346,6 +429,7 @@ export default function AppShell({ state, save, user }) {
           />
         )}
       </AnimatePresence>
+      </Suspense>
 
       <XPToast xp={xpToast.xp} visible={xpToast.visible} />
 
@@ -378,6 +462,17 @@ export default function AppShell({ state, save, user }) {
       {comebackDays > 0 && (
         <ComebackModal
           missedDays={comebackDays}
+          prevStreak={comebackPrevStreak}
+          onLogOne={() => {
+            setActivePanel(null);
+            setActiveTab("today");
+            setComebackDays(0);
+          }}
+          onRestoreHalf={() => {
+            const restored = Math.floor(comebackPrevStreak / 2);
+            save({ ...state, streak: restored, lastBrokenStreak: 0 });
+            setComebackDays(0);
+          }}
           onDismiss={() => setComebackDays(0)}
         />
       )}

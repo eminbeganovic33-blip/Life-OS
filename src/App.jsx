@@ -5,12 +5,18 @@ import { ToastProvider } from "./components/shared/Toast";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import AuthScreen from "./components/screens/AuthScreen";
 import AppShell from "./components/shell/AppShell";
+import PrivacyPolicyScreen from "./components/screens/PrivacyPolicyScreen";
 
 injectGlobalStyles();
 
 export default function LifeOS() {
   const { user, loading: authLoading } = useAuth();
   const { state, loading: stateLoading, save } = useAppState();
+
+  // Serve privacy policy at /privacy without auth or state dependency
+  if (window.location.pathname === "/privacy") {
+    return <PrivacyPolicyScreen onBack={() => window.history.back()} />;
+  }
 
   if (authLoading || stateLoading || !state) {
     return (

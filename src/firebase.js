@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getAnalytics, logEvent as _logEvent, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -23,6 +24,7 @@ let auth = null;
 let googleProvider = null;
 let facebookProvider = null;
 let db = null;
+let analytics = null;
 
 if (firebaseConfigured) {
   app = initializeApp(firebaseConfig);
@@ -30,7 +32,21 @@ if (firebaseConfigured) {
   googleProvider = new GoogleAuthProvider();
   facebookProvider = new FacebookAuthProvider();
   db = getFirestore(app);
+  // Analytics: only init in production, and only if the browser supports it
+  if (import.meta.env.PROD) {
+    isSupported().then((yes) => {
+      if (yes) analytics = getAnalytics(app);
+    });
+  }
 }
 
-export { auth, googleProvider, facebookProvider, db };
+/**
+ * Log a Firebase Analytics event (no-op in dev or if analytics not initialised).
+ * Usage: track("quest_completed", { category: "sleep", xp: 15 })
+ */
+export function track(eventName, params = {}) {
+  if (analytics) _logEvent(analytics, eventName, params);
+}
+
+export { auth, googleProvider, facebookProvider, db, analytics };
 export default app;

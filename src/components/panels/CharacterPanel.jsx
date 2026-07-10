@@ -120,8 +120,9 @@ export default function CharacterPanel({ state, onClose }) {
         {/* Hero */}
         <div style={{
           ...styles.hero,
-          background: `linear-gradient(135deg, ${tier.color}18 0%, ${tier.color}04 100%)`,
-          borderColor: `${tier.color}30`,
+          background: TOKENS.color.surface,
+          border: `1px solid ${TOKENS.color.border}`,
+          borderLeft: `3px solid ${tier.color}`,
         }}>
           <div style={styles.avatarBig}>
             {state.avatar ? (
@@ -215,12 +216,14 @@ const styles = {
   },
   header: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1, borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   title: {
     fontSize: TOKENS.font.size.lg, fontWeight: TOKENS.font.weight.bold,
     color: TOKENS.color.text,
@@ -263,7 +266,7 @@ const styles = {
   },
   statBarFill: { height: "100%" },
   statSource: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     marginTop: 4, fontStyle: "italic",
   },
   masterySection: { marginBottom: TOKENS.space[6] },
@@ -288,6 +291,6 @@ const styles = {
   },
   masteryFill: { height: "100%", transition: "width 0.4s ease" },
   masteryMeta: {
-    fontSize: 10, color: TOKENS.color.textTertiary, marginTop: 4,
+    fontSize: 11, color: TOKENS.color.textTertiary, marginTop: 4,
   },
 };
