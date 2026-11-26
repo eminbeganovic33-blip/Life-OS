@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { TOKENS } from "../../styles/tokens";
+import { downloadJson, readRawState, stash, STATE_KEY } from "../../utils/backup";
 
 export default class ErrorBoundary extends Component {
   state = { error: null };
@@ -10,13 +11,27 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     // Log so the user can include details in a bug report.
-    // eslint-disable-next-line no-console
     console.error("[Life OS]", error, info?.componentStack);
+    try {
+      window.__lifeosSentry?.captureException(error, { extra: { componentStack: info?.componentStack } });
+    } catch { /* reporting must never throw */ }
   }
 
+  // The whole shell is replaced by this screen, so "Me → Export" is
+  // unreachable here — offer the export directly.
+  handleExport = () => {
+    const raw = readRawState();
+    if (!raw) { window.alert("No saved data found on this device."); return; }
+    const day = new Date().toISOString().slice(0, 10);
+    downloadJson(raw, `life-os-backup-${day}.json`);
+  };
+
   handleReset = () => {
-    if (window.confirm("Reset all app data? This cannot be undone.")) {
-      try { localStorage.removeItem("life-os-state"); } catch {}
+    if (window.confirm("Reset all app data? Export a backup first — this cannot be undone.")) {
+      try {
+        stash(readRawState()); // last-resort copy, recoverable from Me
+        localStorage.removeItem(STATE_KEY);
+      } catch { /* blocked storage */ }
       window.location.reload();
     }
   };
@@ -29,12 +44,15 @@ export default class ErrorBoundary extends Component {
           <div style={styles.title}>Something broke</div>
           <div style={styles.sub}>
             Your data is safe on this device. Reload to try again. If it keeps happening,
-            export your data from Me → Export, then reset.
+            export a backup first, then reset.
           </div>
           <pre style={styles.errBox}>{this.state.error.message}</pre>
           <div style={styles.btnRow}>
             <button onClick={() => window.location.reload()} style={styles.btnPrimary}>
               Reload
+            </button>
+            <button onClick={this.handleExport} style={styles.btnSecondary}>
+              Export backup
             </button>
             <button onClick={this.handleReset} style={styles.btnSecondary}>
               Reset data
@@ -84,7 +102,7 @@ const styles = {
     textAlign: "left",
   },
   btnRow: {
-    display: "flex", gap: 10, marginTop: 24,
+    display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap", justifyContent: "center",
   },
   btnPrimary: {
     padding: "12px 24px",

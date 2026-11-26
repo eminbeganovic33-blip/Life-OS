@@ -15,6 +15,8 @@ import { CATEGORIES } from "../../data/categories";
 import { renderAnimalAvatar } from "../shared/AnimalAvatars";
 import { getCharacterStats, getCharacterTier, STAT_META } from "../../utils/character";
 import { useAuth } from "../../hooks/useAuth";
+import { firebaseConfigured } from "../../firebase";
+import { STATE_KEY, PRE_IMPORT_KEY, validateBackup, downloadJson, readRawState, latestQuarantine, stash } from "../../utils/backup";
 import YearInPixels from "../shared/YearInPixels";
 import PatternInsights from "../shared/PatternInsights";
 
@@ -72,21 +74,34 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
   }, [state.completedQuests]);
 
   function handleExport() {
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `life-os-backup-${today}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson(state, `life-os-backup-${today}.json`);
   }
 
   function handleReset() {
-    if (window.confirm("This will erase ALL your data permanently. Are you sure?")) {
-      localStorage.removeItem("life-os-state");
+    if (window.confirm("This will erase ALL your data permanently. Export a backup first. Are you sure?")) {
+      localStorage.removeItem(STATE_KEY);
       window.location.reload();
     }
+  }
+
+  // A blob that failed to load (or was reset from the crash screen) is kept
+  // in quarantine — let the user take it with them.
+  const quarantined = latestQuarantine();
+  function handleRecoveryDownload() {
+    if (quarantined) downloadJson(quarantined, `life-os-recovered-${today}.json`);
+  }
+
+  // Undo the last import: the state from right before it was snapshotted.
+  const preImport = (() => { try { return localStorage.getItem(PRE_IMPORT_KEY); } catch { return null; } })();
+  function handleUndoImport() {
+    if (!preImport) return;
+    if (!window.confirm("Restore the data you had before your last import? The imported data is kept as a recovery copy.")) return;
+    try {
+      stash(readRawState());
+      localStorage.setItem(STATE_KEY, preImport);
+      localStorage.removeItem(PRE_IMPORT_KEY);
+    } catch { /* storage blocked */ }
+    window.location.reload();
   }
 
   // Restore from an exported backup file. The mirror of handleExport — without
@@ -107,25 +122,29 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           window.alert("That file isn't valid JSON. Make sure you picked a Life OS backup.");
           return;
         }
-        // Sanity check: a real backup has at least these core keys.
-        const looksLikeBackup = parsed && typeof parsed === "object" &&
-          ("activeQuests" in parsed || "completedQuests" in parsed || "startDate" in parsed);
-        if (!looksLikeBackup) {
-          window.alert("That JSON doesn't look like a Life OS backup — no habit data found in it.");
+        // Schema check: wrong-typed fields are reset to defaults (they used to
+        // crash the next load, which then wiped everything).
+        const result = validateBackup(parsed);
+        if (!result.ok) {
+          window.alert(result.reason);
           return;
         }
-        const days = Object.keys(parsed.completedQuests || {}).length;
+        const { days, journalEntries, fixedFields } = result.summary;
         const ok = window.confirm(
-          `Restore this backup? It contains ${days} day(s) of history and will REPLACE everything currently on this device.`
+          `Restore this backup? It has ${days} completed day(s) and ${journalEntries} journal entr${journalEntries === 1 ? "y" : "ies"}` +
+          (fixedFields ? ` (${fixedFields} damaged field(s) will be reset)` : "") +
+          `. It will REPLACE everything on this device — a copy of your current data is kept first.`
         );
         if (!ok) return;
+        // Snapshot the current state so a wrong file is reversible.
+        try { const current = readRawState(); if (current) localStorage.setItem(PRE_IMPORT_KEY, current); } catch { /* full storage */ }
         // Write through BOTH stores, mirroring useAppState's adapter — it
         // prefers window.storage on load, so localStorage alone isn't enough.
-        const json = JSON.stringify(parsed);
-        Promise.resolve(window.storage?.set?.("life-os-state", json))
+        const json = JSON.stringify(result.state);
+        Promise.resolve(window.storage?.set?.(STATE_KEY, json))
           .catch(() => {})
           .finally(() => {
-            try { localStorage.setItem("life-os-state", json); } catch { /* full/blocked storage — reload will surface it */ }
+            try { localStorage.setItem(STATE_KEY, json); } catch { /* full/blocked storage — reload will surface it */ }
             window.location.reload();
           });
       };
@@ -372,6 +391,21 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             }} />
           </div>
         </button>
+        {firebaseConfigured && (
+          <button
+            onClick={() => save({ ...state, analyticsConsent: !state.analyticsConsent })}
+            style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}
+            aria-pressed={!!state.analyticsConsent}
+          >
+            <Shield size={16} color={state.analyticsConsent ? TOKENS.color.text : TOKENS.color.textTertiary} />
+            <span style={styles.linkLabel}>
+              Share anonymous usage stats {state.analyticsConsent ? "on" : "off"}
+            </span>
+            <div style={{ ...styles.toggleSwitch, background: state.analyticsConsent ? "#22C55E" : TOKENS.color.border }}>
+              <div style={{ ...styles.toggleKnob, transform: state.analyticsConsent ? "translateX(16px)" : "translateX(0)" }} />
+            </div>
+          </button>
+        )}
         <button onClick={() => save({ ...state, onboarded: false, _replayTour: true })} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
           <PlayCircle size={16} color="#7C5CFC" />
           <span style={{ ...styles.linkLabel, color: "#7C5CFC" }}>Replay welcome tour</span>
@@ -387,7 +421,21 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           <span style={styles.linkLabel}>Import backup</span>
           <ChevronRight size={16} color={TOKENS.color.textTertiary} />
         </button>
-        {user ? (
+        {preImport && (
+          <button onClick={handleUndoImport} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+            <RotateCcw size={16} color={TOKENS.color.text} />
+            <span style={styles.linkLabel}>Undo last import</span>
+            <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+          </button>
+        )}
+        {quarantined && (
+          <button onClick={handleRecoveryDownload} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+            <Download size={16} color={TOKENS.color.warning} />
+            <span style={{ ...styles.linkLabel, color: TOKENS.color.warning }}>Download recovered data</span>
+            <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+          </button>
+        )}
+        {!firebaseConfigured ? null : user ? (
           <button onClick={handleSignOut} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
             <LogOut size={16} color={TOKENS.color.textSecondary} />
             <span style={{ ...styles.linkLabel, color: TOKENS.color.textSecondary }}>

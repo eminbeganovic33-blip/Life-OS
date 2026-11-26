@@ -582,7 +582,7 @@ export function getProactiveNudges(state) {
       type: "streak_celebration",
       icon: "🎉",
       title: `${streak}-day streak!`,
-      message: `You've been consistent for ${streak} days straight. That puts you ahead of 90% of users who start habit-building apps.`,
+      message: `You've been consistent for ${streak} days straight. Most people who start a new habit drop it within the first two weeks — you didn't.`,
       priority: 2,
     });
   }

@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/.bin/vite", "--host", "--port", "5173"],
       "port": 5173
+    },
+    {
+      "name": "life-os-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/vite", "preview", "--host", "--port", "4174", "--strictPort"],
+      "port": 4174
     }
   ]
 }

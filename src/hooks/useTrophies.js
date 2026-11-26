@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { TROPHIES } from "../data";
-import { getTodayStr, getTotalVolume, workoutCountForDay } from "../utils";
+import { getTodayStr, getTotalVolume, workoutCountForDay, getCalendarDay } from "../utils";
 
 // Extract category from any quest id shape (legacy / lib- / custom-).
 function questCategory(qid) {
@@ -38,7 +38,8 @@ export function useTrophies() {
       let earned = false;
       if (t.daysReq && t.category === "all") earned = totalCompletedDays >= t.daysReq;
       else if (t.daysReq && t.category !== "all") earned = (completedQuestsByCategory[t.category] || 0) >= t.daysReq;
-      else if (t.dayReq) earned = s.currentDay >= t.dayReq;
+      // state.currentDay is never updated after init — derive the journey day.
+      else if (t.dayReq) earned = getCalendarDay(s.startDate) >= t.dayReq;
       else if (t.countReq && t.category === "dojo") earned = workoutCount >= t.countReq;
       else if (t.countReq && t.category === "academy") earned = completedCourses >= t.countReq;
       else if (t.countReq && t.category === "forge") earned = recoveryCount >= t.countReq;

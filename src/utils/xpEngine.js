@@ -225,7 +225,12 @@ export function getDailyBonusQuest(state) {
   const catCounts = {};
   const totalDays = Math.max(Object.keys(state.completedDays || {}).length, 1);
 
-  Object.entries(state.completedQuests || {}).forEach(([, qIds]) => {
+  // Exclude today's completions: otherwise finishing a quest (or the bonus
+  // itself) re-sorts the categories, the pick changes and a fresh bonus id
+  // appears — measured at 10 claimable bonuses (+520 XP) in one day.
+  const todayKey = dateToLocalDayKey(new Date());
+  Object.entries(state.completedQuests || {}).forEach(([dayKey, qIds]) => {
+    if (dayKey === todayKey || !Array.isArray(qIds)) return;
     qIds.forEach((qid) => {
       const parts = qid.split("-");
       const cat = (parts[0] === "lib" || parts[0] === "custom") ? parts[1] : parts[0];

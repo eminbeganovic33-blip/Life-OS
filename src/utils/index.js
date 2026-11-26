@@ -15,6 +15,9 @@ export {
   isPrestigeReady,
   MAX_LEVEL_INDEX,
   reconcileStreaks,
+  freezeAwardFor,
+  getConsistency,
+  addDaysToKey,
   migrateActiveQuests,
 } from "./helpers";
 export { defaultState, devSeedState } from "./state";

@@ -2,6 +2,13 @@
 
 > Reorganized by dependency order: each phase builds on the previous.
 > Items marked [DONE] are already implemented and deployed.
+>
+> **⚠ 2026-11-05 audit:** the current plan of record is
+> [`docs/audit/2026-11-05-lifeos-audit-and-plan.md`](docs/audit/2026-11-05-lifeos-audit-and-plan.md).
+> Parts of "Completed features" below are **not** in the code: smart/browser
+> notifications, the Pomodoro focus timer, swipe-to-uncheck protection and the
+> 7-day custom-quest unlock. Counts (categories, trophies, levels, courses) are
+> also out of date. Trust the audit doc over this list.
 
 ---
 

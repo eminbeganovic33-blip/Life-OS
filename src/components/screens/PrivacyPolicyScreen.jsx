@@ -1,6 +1,11 @@
 /**
  * Privacy Policy — rendered as an in-app screen AND at /privacy (for Play Store URL).
- * Last updated: June 2026
+ * Last updated: November 2026.
+ *
+ * Keep this in lockstep with the code. Every outbound data flow is listed in
+ * docs/audit/2026-11-05-lifeos-audit-and-plan.md ("Data-flow table"); if you
+ * add a network call, update both. A policy that contradicts the app is a
+ * Play Store rejection/takedown risk.
  */
 export default function PrivacyPolicyScreen({ onBack }) {
   return (
@@ -10,54 +15,75 @@ export default function PrivacyPolicyScreen({ onBack }) {
           <button onClick={onBack} style={styles.back}>← Back</button>
         )}
         <h1 style={styles.title}>Privacy Policy</h1>
-        <p style={styles.meta}>Life OS · Last updated June 2026</p>
+        <p style={styles.meta}>Life OS · Last updated November 2026</p>
       </div>
 
       <div style={styles.body}>
         <Section title="Overview">
-          Life OS ("the app") is a personal habit-tracking application. We take your privacy
-          seriously. This policy explains what data is collected, how it is used, and your rights.
+          Life OS ("the app") is a personal habit, sobriety and workout tracker. It is built
+          local-first: your data lives on your device. This policy lists every case in which
+          anything leaves it.
         </Section>
 
-        <Section title="Data we collect">
-          <b>When you use the app without an account (local-only mode):</b>
+        <Section title="Data stored on your device">
           <ul>
-            <li>No data leaves your device. All habits, streaks, journal entries, and progress are stored exclusively in your browser's localStorage.</li>
-            <li>We collect no personal information, usage analytics, or identifiers.</li>
-          </ul>
-
-          <b>When you create an account (optional):</b>
-          <ul>
-            <li><b>Email address</b> — used only for authentication and account recovery.</li>
-            <li><b>Display name</b> — shown only to you inside the app.</li>
-            <li><b>App data</b> (habits, streaks, journal entries, workout logs) — synced to your private Firestore document, readable only by your authenticated account.</li>
-            <li>We do <b>not</b> collect payment info, location, contacts, health sensor data, or any device identifier.</li>
+            <li>Your habits, streaks, XP, journal entries, moods, workout logs, quit-tracker (Forge) dates and settings are stored only in this browser/app's local storage on your device.</li>
+            <li>They are <b>not</b> uploaded to our servers or synced to the cloud. If you clear the app's storage or uninstall it, they are gone — use <b>Me → Export data</b> to keep a backup file.</li>
+            <li>Mood, journal and sobriety data can be sensitive. It stays on your device unless you use the AI Coach (below).</li>
           </ul>
         </Section>
 
-        <Section title="How we use your data">
+        <Section title="When data leaves your device">
           <ul>
-            <li>To sync your progress across devices (signed-in users only).</li>
-            <li>To authenticate you when you sign in.</li>
-            <li>We do <b>not</b> sell, share, or monetise your data in any form.</li>
-            <li>We do <b>not</b> use your data for advertising.</li>
-            <li>We do <b>not</b> perform automated profiling or use AI to analyse your journal entries or habits.</li>
+            <li>
+              <b>AI Coach and AI workout generator (only when you use them).</b> Your message and a
+              summary of your app data — your name, level and streak, recent quests, recent moods,
+              Forge tracker names and day counts, your onboarding goals, and a short excerpt of your
+              latest journal entry — are sent to Google's Gemini API to generate the reply. The app asks
+              for your permission before the first request, and nothing is sent if you don't use
+              these features.
+              See <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" style={styles.link}>Gemini API terms</a>.
+            </li>
+            <li>
+              <b>Usage statistics (off unless you turn them on in Me → Settings).</b> If enabled,
+              Firebase Analytics (Google) receives events such as which tab you opened, that a quest
+              was added or a day completed, and your onboarding choices (goal, time budget, and how
+              many focus areas and habits-to-quit you picked). It never receives journal text, mood
+              entries or which habits you're quitting. The data is pseudonymous: it is tied to a random
+              app-instance identifier, not your name or email. Turning the setting off stops
+              collection immediately.
+            </li>
+            <li>
+              <b>Account sign-in (optional, only where offered).</b> If you sign in, Firebase
+              Authentication (Google) stores your email address and display name to identify you.
+              Signing in does <b>not</b> upload or sync your app data.
+            </li>
+            <li>
+              <b>Crash reports (when enabled by us).</b> If the app crashes, an error report (error
+              message, code location, browser/device type, app version and page address) may be sent
+              to Sentry so we can fix it. Reports are not meant to include your journal or habit
+              content.
+            </li>
+            <li>
+              <b>Hosting.</b> The app is served by Vercel, which keeps standard access logs (IP address,
+              user agent). Fonts are loaded from Google Fonts, which sees your IP address.
+            </li>
           </ul>
-        </Section>
-
-        <Section title="Third-party services">
-          <ul>
-            <li><b>Firebase (Google)</b> — Authentication and Firestore database for signed-in users. Governed by <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer" style={styles.link}>Google's Privacy Policy</a>.</li>
-            <li><b>Vercel</b> — Hosts the web application. Standard server access logs (IP, user-agent) may be retained by Vercel per their policy. We do not access or store these logs.</li>
-          </ul>
-          No advertising SDKs, social trackers, or analytics platforms are embedded in the app.
+          We do <b>not</b> sell or share your data, show ads, or use advertising SDKs.
         </Section>
 
         <Section title="Data retention &amp; deletion">
           <ul>
-            <li><b>Local-only users:</b> All data is stored on your device. Clear your browser/app storage at any time to delete everything.</li>
-            <li><b>Signed-in users:</b> You can delete your account and all associated data permanently by emailing <a href="mailto:eminbeganovic33@gmail.com" style={styles.link}>eminbeganovic33@gmail.com</a> with the subject "Delete my data". We will action the request within 30 days.</li>
+            <li><b>On-device data:</b> delete it any time with <b>Me → Reset all data</b>, or by clearing the app's storage.</li>
+            <li><b>Account:</b> to delete your account, email <a href="mailto:eminbeganovic33@gmail.com?subject=Delete%20my%20Life%20OS%20account" style={styles.link}>eminbeganovic33@gmail.com</a> with the subject "Delete my account". We delete it within 30 days.</li>
+            <li><b>Analytics and crash data</b> are kept by Google/Sentry under their standard retention (up to 14 months for analytics) and can be deleted on request.</li>
           </ul>
+        </Section>
+
+        <Section title="Health and recovery information">
+          Life OS is not a medical service. Quit-tracker milestones and health facts are general
+          information, not medical advice. If you are dealing with addiction, please also reach out
+          to a professional or a local support line.
         </Section>
 
         <Section title="Children">
@@ -65,15 +91,15 @@ export default function PrivacyPolicyScreen({ onBack }) {
         </Section>
 
         <Section title="Your rights (GDPR / CCPA)">
-          If you are in the EU or California, you have the right to access, correct, export, or delete your personal data. Contact us at the email below to exercise these rights.
+          If you are in the EU/EEA, the UK or California, you have the right to access, correct, export, or delete your personal data, and to withdraw consent (for example by turning off usage statistics). Your on-device data can be exported at any time from Me → Export data. Contact us at the email below for anything held by third parties.
         </Section>
 
         <Section title="Security">
-          All data in transit is encrypted via HTTPS/TLS. Firestore data is encrypted at rest by Google. We never store passwords — authentication is delegated entirely to Firebase (Google Sign-In or Firebase email auth with hashed credentials).
+          All data in transit is encrypted via HTTPS/TLS. We never store passwords — sign-in is handled by Firebase Authentication. On-device data is protected by your device's own security; anyone with access to your unlocked device and this app can see it.
         </Section>
 
         <Section title="Changes to this policy">
-          We may update this policy. When we do, the "Last updated" date at the top changes. Continued use of the app after changes constitutes acceptance.
+          We may update this policy. When we do, the "Last updated" date at the top changes, and material changes are announced in the app.
         </Section>
 
         <Section title="Contact">

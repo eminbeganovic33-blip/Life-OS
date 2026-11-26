@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X, Inbox, PauseCircle, PlayCircle, Ban, AlertTriangle, Play } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
-import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
+import { getTodayStr, getDayQuests, daysBetween, getLevelIndex, getConsistency } from "../../utils";
 import { getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
 import { CATEGORIES } from "../../data/categories";
 import { LEVELS, MOTIVATION_CARDS } from "../../data/constants";
@@ -63,6 +63,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
     return "Good evening";
   }, []);
 
+  const consistency = getConsistency(state);
   const levelIdx = getLevelIndex(state.xp || 0);
   const levelName = LEVELS[levelIdx]?.name || "Beginner";
   const forgeEntries = Object.entries(state.sobrietyDates || {});
@@ -93,7 +94,9 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
       : [...completedIds, questId];
     // Daily Bonus / Weekly Challenge quests aren't in todayQuests, so look up
     // their xp via the explicit param when the caller knows it.
-    const quest = todayQuests.find((q) => q.id === questId);
+    // Look in ALL of today's quests — avoidance quests (10B) live outside
+    // todayQuests and were silently paid the 15 XP fallback instead of q.xp.
+    const quest = allTodayQuests.find((q) => q.id === questId);
     const xpForQuest = quest?.xp ?? explicitXp ?? 15;
     const xpDelta = isDone ? -xpForQuest : xpForQuest;
     feedback(isDone ? "questUncheck" : "questCheck");
@@ -101,7 +104,8 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
       ...state,
       completedQuests: { ...state.completedQuests, [today]: newCompleted },
       xp: Math.max(0, (state.xp || 0) + xpDelta),
-      lifetimeXp: (state.lifetimeXp || 0) + (xpDelta > 0 ? xpDelta : 0),
+      // Unchecking reverses the award; otherwise check/uncheck/check farms lifetime XP.
+      lifetimeXp: Math.max(0, (state.lifetimeXp || 0) + xpDelta),
     });
   }
 
@@ -150,6 +154,12 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
               <span style={styles.heroLevelPill}>Lv.{levelIdx + 1}</span>
               <span style={styles.heroLevelName}>{levelName}</span>
             </div>
+            {consistency.total >= 3 && (
+              <div style={styles.heroConsistency} title="Completed days out of the recent days of your journey">
+                {consistency.done} of the last {consistency.total} days
+                {(state.streak || 0) > 1 ? ` · ${state.streak}-day streak` : ""}
+              </div>
+            )}
           </div>
           {todayQuests.length > 0 && (
             <button
@@ -342,6 +352,29 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           <div style={styles.challengeMeta}>
             {weeklyChallenge.progress || 0} / {weeklyChallenge.requirement}
           </div>
+          {weeklyChallenge.completed && (() => {
+            const claimKey = String(weeklyChallenge.weekNum);
+            const claimed = !!state.weeklyChallengesClaimed?.[claimKey];
+            return claimed ? (
+              <div style={{ ...styles.challengeMeta, color: TOKENS.color.success, fontWeight: 800 }}>Reward claimed ✓</div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (state.weeklyChallengesClaimed?.[claimKey]) return;
+                  feedback("questCheck");
+                  save({
+                    ...state,
+                    xp: (state.xp || 0) + weeklyChallenge.xpReward,
+                    lifetimeXp: (state.lifetimeXp || 0) + weeklyChallenge.xpReward,
+                    weeklyChallengesClaimed: { ...(state.weeklyChallengesClaimed || {}), [claimKey]: today },
+                  });
+                }}
+                style={styles.challengeClaim}
+              >
+                Claim +{weeklyChallenge.xpReward} XP
+              </button>
+            );
+          })()}
         </motion.div>
       )}
 
@@ -616,7 +649,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         </motion.section>
       )}
 
-      <AICoachWidget state={state} />
+      <AICoachWidget state={state} save={save} />
 
       {/* 10C: Routine Mode Modal */}
       <AnimatePresence>
@@ -699,6 +732,7 @@ const styles = {
     lineHeight: 1, marginTop: 4,
   },
   heroLevelRow: { display: "flex", alignItems: "center", gap: 8, marginTop: TOKENS.space[3] },
+  heroConsistency: { marginTop: TOKENS.space[2], fontSize: TOKENS.font.size.xs, fontWeight: 700, color: "rgba(255,255,255,0.72)" },
   heroLevelPill: {
     fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.heavy, color: "#fff",
     background: TOKENS.game.gradient,
@@ -762,6 +796,10 @@ const styles = {
   },
   challengeHeader: { display: "flex", alignItems: "center", gap: 6 },
   challengeLabel: { fontSize: 11, fontWeight: 900, color: "#7C5CFC", letterSpacing: 0.8 },
+  challengeClaim: {
+    marginTop: TOKENS.space[2], width: "100%", minHeight: 40, borderRadius: 12, border: "none",
+    background: "#7C5CFC", color: "#fff", fontWeight: 800, fontSize: TOKENS.font.size.sm, cursor: "pointer",
+  },
   challengeText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: TOKENS.space[2] },
   challengeBar: { height: 4, background: "rgba(124,92,252,0.10)", borderRadius: 2, marginTop: TOKENS.space[3], overflow: "hidden" },
   challengeFill: { height: "100%", background: "#7C5CFC", transition: "width 0.4s ease" },

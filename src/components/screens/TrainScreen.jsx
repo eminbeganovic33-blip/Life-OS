@@ -3,7 +3,7 @@ import { Sparkles, Wand2, X } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import DojoPanel from "../panels/DojoPanel";
 import EmbeddedPanelHost from "../shared/EmbeddedPanelHost";
-import { isAIConfigured, chatWithCoach } from "../../utils/ai";
+import { isAIConfigured, chatWithCoach, ensureAIConsent } from "../../utils/ai";
 
 export default function TrainScreen({ state, save }) {
   const [genOpen, setGenOpen] = useState(false);
@@ -13,6 +13,7 @@ export default function TrainScreen({ state, save }) {
   const [error, setError] = useState(null);
 
   async function generate() {
+    if (!ensureAIConsent(state, save)) return;
     setError(null);
     setLoading(true);
     setPlan(null);

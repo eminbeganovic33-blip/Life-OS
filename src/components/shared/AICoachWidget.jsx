@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, X, Sparkles } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
-import { isAIConfigured, chatWithCoach } from "../../utils/ai";
+import { isAIConfigured, chatWithCoach, ensureAIConsent } from "../../utils/ai";
 
 // Suggested first-prompts tailored to what the AI Coach actually knows.
 function buildSuggestions(state) {
@@ -22,7 +22,7 @@ function buildSuggestions(state) {
   return Array.from(new Set(pool)).slice(0, 4);
 }
 
-export default function AICoachWidget({ state }) {
+export default function AICoachWidget({ state, save }) {
   const [open, setOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState("");
@@ -33,6 +33,7 @@ export default function AICoachWidget({ state }) {
   async function send() {
     const msg = input.trim();
     if (!msg || loading) return;
+    if (!ensureAIConsent(state, save)) return;
     setInput("");
     setHistory((h) => [...h, { from: "user", text: msg }]);
     setLoading(true);

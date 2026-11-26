@@ -1,0 +1,97 @@
+{
+  "startDate": "2026-11-05",
+  "currentDay": 1,
+  "xp": 110,
+  "lifetimeXp": 110,
+  "streak": 1,
+  "bestStreak": 1,
+  "lastActiveDate": "2026-11-05",
+  "onboarded": true,
+  "completedDays": {
+    "2026-11-05": true
+  },
+  "completedQuests": {
+    "2026-11-05": [
+      "lib-water-glass-before-coffee-day1",
+      "lib-sleep-lights-out-1030-day1",
+      "lib-exercise-walk-10-day1",
+      "lib-nutrition-whole-food-meal-day1"
+    ]
+  },
+  "questCompletedAt": {},
+  "xpByDay": {},
+  "customQuests": [],
+  "journal": {},
+  "moods": {},
+  "workoutLogs": {},
+  "liftingStreak": 0,
+  "bestLiftingStreak": 0,
+  "lastLiftDate": null,
+  "courseProgress": {},
+  "courseXpAwarded": {},
+  "academyFocus": [
+    "lifting"
+  ],
+  "stepCompletedAt": {},
+  "bookProgress": {},
+  "bookXpAwarded": {},
+  "unlockedTrophies": {
+    "first_step": "2026-11-05"
+  },
+  "sobrietyDates": {
+    "smoking": "2026-11-05"
+  },
+  "recoveryJournals": [],
+  "forgeStoriesSeen": {},
+  "forgeGoals": {},
+  "subStreaks": {},
+  "restDays": [],
+  "userName": "Prod",
+  "focusCategories": null,
+  "activeQuests": [
+    {
+      "id": "aq-exercise-0-1793897005029",
+      "libraryId": "exercise-walk-10",
+      "addedAt": 1793897005029,
+      "paused": false
+    },
+    {
+      "id": "aq-nutrition-0-1793897005029",
+      "libraryId": "nutrition-whole-food-meal",
+      "addedAt": 1793897005029,
+      "paused": false
+    },
+    {
+      "id": "aq-sleep-0-1793897005029",
+      "libraryId": "sleep-lights-out-1030",
+      "addedAt": 1793897005029,
+      "paused": false
+    },
+    {
+      "id": "aq-water-0-1793897005029",
+      "libraryId": "water-glass-before-coffee",
+      "addedAt": 1793897005029,
+      "paused": false
+    }
+  ],
+  "retiredQuestIds": [],
+  "questGraduations": {},
+  "_activeQuestsMigrated": false,
+  "skippedAuth": true,
+  "wantsAuth": false,
+  "_replayTour": false,
+  "profile": {
+    "activityLevel": "sedentary",
+    "sleepQuality": "poor",
+    "primaryGoal": "fitness",
+    "timeCommitment": "short",
+    "vices": [
+      "smoking"
+    ],
+    "setAt": "2026-11-05"
+  },
+  "collectedCards": {
+    "card-24": "2026-11-05"
+  },
+  "streakFreezes": 0
+}

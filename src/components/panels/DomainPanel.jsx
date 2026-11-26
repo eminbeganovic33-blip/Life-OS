@@ -34,7 +34,7 @@ export default function DomainPanel({ domainId, state, save, onClose, onOpenPane
     save({
       ...state,
       xp: Math.max(0, (state.xp || 0) + xpDelta),
-      lifetimeXp: Math.max(0, (state.lifetimeXp || 0) + (xpDelta > 0 ? xpDelta : 0)),
+      lifetimeXp: Math.max(0, (state.lifetimeXp || 0) + xpDelta),
       completedQuests: {
         ...state.completedQuests,
         [today]: todayCompleted,

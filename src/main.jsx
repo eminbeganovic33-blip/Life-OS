@@ -1,24 +1,26 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import * as Sentry from "@sentry/react";
 import { AuthProvider } from "./hooks/useAuth";
 import LifeOS from "./App.jsx";
 
-// Sentry — only active in production. Add VITE_SENTRY_DSN to Vercel env vars.
-// Get your DSN at: https://sentry.io → New Project → Browser JavaScript
+// Sentry — only in production with a DSN (add VITE_SENTRY_DSN to Vercel env
+// vars). Loaded on demand so local-only users don't download it at all.
 if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: "production",
-    release: `life-os@${import.meta.env.VITE_APP_VERSION || "1.0.0"}`,
-    tracesSampleRate: 0.2,
-    ignoreErrors: [
-      "ResizeObserver loop limit exceeded",
-      "Non-Error promise rejection",
-      "NetworkError",
-      "Load failed",
-    ],
-  });
+  import("@sentry/react").then((Sentry) => {
+    Sentry.init({
+      dsn: import.meta.env.VITE_SENTRY_DSN,
+      environment: "production",
+      release: `life-os@${import.meta.env.VITE_APP_VERSION || "1.0.0"}`,
+      tracesSampleRate: 0.2,
+      ignoreErrors: [
+        "ResizeObserver loop limit exceeded",
+        "Non-Error promise rejection",
+        "NetworkError",
+        "Load failed",
+      ],
+    });
+    window.__lifeosSentry = Sentry; // ErrorBoundary reports render crashes here
+  }).catch(() => {});
 }
 
 // ── Service worker: register, detect updates, reload on controller change ──
@@ -29,6 +31,7 @@ if ("serviceWorker" in navigator) {
       .then((reg) => {
         // If there's already a waiting worker on load, surface it right away
         if (reg.waiting && navigator.serviceWorker.controller) {
+          window.__lifeosSwWaiting = reg; // AppShell may not be mounted yet
           window.dispatchEvent(
             new CustomEvent("sw-update-available", { detail: { registration: reg } })
           );
@@ -42,7 +45,8 @@ if ("serviceWorker" in navigator) {
               installing.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              // A new SW is installed and waiting — tell the app to show the update toast
+              // A new SW is installed and waiting — tell the app to show the update prompt
+              window.__lifeosSwWaiting = reg;
               window.dispatchEvent(
                 new CustomEvent("sw-update-available", { detail: { registration: reg } })
               );
@@ -55,10 +59,14 @@ if ("serviceWorker" in navigator) {
       })
       .catch(() => {});
 
-    // When the new SW takes control, reload once so users see fresh assets
+    // A new version only takes control after the user taps "Update" (AppShell
+    // sends SKIP_WAITING) — then reload once so the page matches its assets.
+    // Never on the very first visit: there was no previous controller, nothing
+    // is stale, and reloading wiped half-filled onboarding.
+    const hadController = !!navigator.serviceWorker.controller;
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
+      if (!hadController || refreshing) return;
       refreshing = true;
       window.location.reload();
     });
