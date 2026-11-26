@@ -29,20 +29,16 @@ export default function PrivacyPolicyScreen({ onBack }) {
           <ul>
             <li>Your habits, streaks, XP, journal entries, moods, workout logs, quit-tracker (Forge) dates and settings are stored only in this browser/app's local storage on your device.</li>
             <li>They are <b>not</b> uploaded to our servers or synced to the cloud. If you clear the app's storage or uninstall it, they are gone — use <b>Me → Export data</b> to keep a backup file.</li>
-            <li>Mood, journal and sobriety data can be sensitive. It stays on your device unless you use the AI Coach (below).</li>
+            <li>Mood, journal and sobriety data can be sensitive. It stays on your device.</li>
           </ul>
         </Section>
 
         <Section title="When data leaves your device">
           <ul>
             <li>
-              <b>AI Coach and AI workout generator (only when you use them).</b> Your message and a
-              summary of your app data — your name, level and streak, recent quests, recent moods,
-              Forge tracker names and day counts, your onboarding goals, and a short excerpt of your
-              latest journal entry — are sent to Google's Gemini API to generate the reply. The app asks
-              for your permission before the first request, and nothing is sent if you don't use
-              these features.
-              See <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" style={styles.link}>Gemini API terms</a>.
+              <b>No AI features in this version.</b> The AI Coach and AI workout generator are
+              switched off, so none of your data is sent to an AI service. If we add AI features
+              later, we will update this policy and ask for your permission first.
             </li>
             <li>
               <b>Usage statistics (off unless you turn them on in Me → Settings).</b> If enabled,

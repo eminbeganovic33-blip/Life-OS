@@ -52,11 +52,22 @@ export default function ForgeScreen({ state, save }) {
       <EmbeddedPanelHost>
         <ForgePanel state={state} save={save} onClose={() => {}} />
       </EmbeddedPanelHost>
+
+      {/* Medical disclaimer (Play health-app policy; health facts are general) */}
+      <p style={styles.disclaimer}>
+        Life OS is a habit tool, not medical advice. Health milestones are general
+        information. Stopping heavy drinking or some medications suddenly can be
+        dangerous: talk to a doctor or a local support service first.
+      </p>
     </div>
   );
 }
 
 const styles = {
+  disclaimer: {
+    marginTop: TOKENS.space[4], fontSize: TOKENS.font.size.xs,
+    lineHeight: 1.5, color: TOKENS.color.textTertiary, textAlign: "center",
+  },
   screen: { paddingTop: TOKENS.space[5], paddingRight: TOKENS.space[5], paddingLeft: TOKENS.space[5], paddingBottom: 100 },
   hardModeRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],

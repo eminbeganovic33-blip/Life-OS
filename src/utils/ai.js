@@ -1,5 +1,5 @@
 // AI Service Layer — uses Gemini API via environment variable.
-// Key is loaded from VITE_GEMINI_API_KEY in .env (never hardcoded).
+// Disabled for v1: see the GEMINI_API_KEY note below.
 //
 // Public surface kept intentionally tiny — only the AI Coach widget and the
 // AI Workout Generator are wired up today. If more callers appear, add
@@ -7,7 +7,12 @@
 
 import { dateToLocalDayKey, daysBetween } from "./helpers";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+// AI coach is cut for v1 (decision 2026-11-26): any VITE_* key ships in the
+// public JS bundle, so the key is not read from the env at all. With an empty
+// key, isAIConfigured() is false and the coach + workout generator hide.
+// To bring AI back, call Gemini through a server-side proxy instead of
+// restoring `import.meta.env.VITE_GEMINI_API_KEY` here.
+const GEMINI_API_KEY = "";
 // gemini-2.0-flash was shut down on 2026-06-01; its official replacement is
 // gemini-3.6-flash. Keep the id overridable so the next retirement is an env
 // change, not a code change.
