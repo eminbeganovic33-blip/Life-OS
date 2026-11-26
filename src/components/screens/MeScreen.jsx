@@ -19,6 +19,7 @@ import { firebaseConfigured } from "../../firebase";
 import { STATE_KEY, PRE_IMPORT_KEY, validateBackup, downloadJson, readRawState, latestQuarantine, stash } from "../../utils/backup";
 import YearInPixels from "../shared/YearInPixels";
 import PatternInsights from "../shared/PatternInsights";
+import { Emoji } from "../shared/Emoji";
 
 const TROPHY_SECTIONS = [
   { id: "streaks",   label: "Streaks",       icon: "🔥", cats: ["all"] },
@@ -181,7 +182,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           }}>
             {state.avatar
               ? renderAnimalAvatar(state.avatar, 72)
-              : <span style={{ fontSize: 56 }}>{tier.emoji}</span>}
+              : <span style={{ fontSize: 56 }}><Emoji e={tier.emoji} size="1.1em" /></span>}
             <div style={{ ...styles.levelBadge, background: tier.color }}>Lv.{levelIdx + 1}</div>
           </div>
         </button>
@@ -214,7 +215,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           <Sparkles size={14} color="#7C5CFC" />
           <span style={styles.sectionBtnLabel}>CHARACTER STATS</span>
           <span style={styles.tierChip} title={tier.next ? `${tier.next.min - tier.total} pts to ${tier.next.label}` : "Max tier"}>
-            <span>{tier.emoji}</span>
+            <span><Emoji e={tier.emoji} size="1.1em" /></span>
             <span style={{ color: tier.color }}>{tier.label}</span>
             <span style={{ color: TOKENS.color.textTertiary }}>· {tier.total}</span>
           </span>
@@ -227,7 +228,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             return (
               <div key={key} style={styles.miniStatItem}>
                 <div style={styles.miniStatHead}>
-                  <span style={{ fontSize: 13 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 13 }}><Emoji e={meta.icon} size="1.1em" /></span>
                   <span style={styles.miniStatLabel}>{meta.label.slice(0, 3).toUpperCase()}</span>
                   <span style={{ ...styles.miniStatValue, color: meta.color }}>{v}</span>
                 </div>
@@ -291,7 +292,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
                 onClick={() => setExpandedTrophy((p) => ({ ...p, [sec.id]: !p[sec.id] }))}
                 style={styles.trophySectionHeader}
               >
-                <span style={{ fontSize: 18 }}>{sec.icon}</span>
+                <span style={{ fontSize: 18 }}><Emoji e={sec.icon} size="1.1em" /></span>
                 <span style={styles.trophySectionLabel}>{sec.label}</span>
                 <span style={{ ...styles.trophySectionMeta, color: unlocked === sectionTrophies.length ? TOKENS.color.success : TOKENS.color.textTertiary }}>
                   {unlocked}/{sectionTrophies.length}
@@ -311,7 +312,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
                         opacity: isUnlocked ? 1 : 0.4,
                         filter: isUnlocked ? "none" : "grayscale(60%)",
                       }}>
-                        <span style={{ fontSize: 24 }}>{t.icon}</span>
+                        <span style={{ fontSize: 24 }}><Emoji e={t.icon} size="1.1em" /></span>
                         <div style={styles.trophyName}>{t.name}</div>
                         <div style={styles.trophyDesc}>{t.desc}</div>
                       </div>

@@ -1,6 +1,7 @@
 import { Component } from "react";
 import { TOKENS } from "../../styles/tokens";
 import { downloadJson, readRawState, stash, STATE_KEY } from "../../utils/backup";
+import { Emoji } from "./Emoji";
 
 export default class ErrorBoundary extends Component {
   state = { error: null };
@@ -40,7 +41,7 @@ export default class ErrorBoundary extends Component {
     if (this.state.error) {
       return (
         <div style={styles.container}>
-          <div style={styles.iconBadge}>⚠️</div>
+          <div style={styles.iconBadge}><Emoji e="⚠️" size="1.1em" /></div>
           <div style={styles.title}>Something broke</div>
           <div style={styles.sub}>
             Your data is safe on this device. Reload to try again. If it keeps happening,
@@ -107,7 +108,7 @@ const styles = {
   btnPrimary: {
     padding: "12px 24px",
     borderRadius: TOKENS.radius.lg, border: "none",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
     cursor: "pointer",
   },

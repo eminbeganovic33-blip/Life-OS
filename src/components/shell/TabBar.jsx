@@ -53,7 +53,7 @@ const styles = {
     left: 0,
     right: 0,
     minHeight: 64,
-    background: "rgba(255,255,255,0.82)",
+    background: "var(--c-tabbar)",
     borderTop: `1px solid ${TOKENS.color.border}`,
     display: "flex",
     alignItems: "stretch",

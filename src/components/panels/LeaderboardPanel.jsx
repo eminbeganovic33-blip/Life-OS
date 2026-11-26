@@ -4,6 +4,7 @@ import { ChevronLeft, Award, Flame, Trophy, Dumbbell, BookOpen, Shield, Target, 
 import { TOKENS } from "../../styles/tokens";
 import { daysBetween, getLevelIndex, getTotalVolume } from "../../utils";
 import { LEVELS } from "../../data/constants";
+import { Emoji } from "../shared/Emoji";
 
 // Tier thresholds for "global percentile" approximations.
 // Based on app-design assumptions, not real users.
@@ -151,7 +152,7 @@ export default function LeaderboardPanel({ state, onClose }) {
             <div key={r.label} style={styles.recordCard}>
               <div style={styles.recordHeader}>
                 <div style={styles.recordLabelWrap}>
-                  <div style={styles.recordIconWrap}>{r.icon}</div>
+                  <div style={styles.recordIconWrap}><Emoji e={r.icon} size="1.1em" /></div>
                   <span style={styles.recordLabel}>{r.label}</span>
                 </div>
                 <div style={{ ...styles.recordTier, color: r.tier.color, background: `${r.tier.color}14` }}>

@@ -5,6 +5,7 @@ import { TOKENS } from "../../styles/tokens";
 import { BOOKS, BOOK_CATEGORIES } from "../../data/bookLibrary";
 import { useToast } from "../shared/Toast";
 import { feedback } from "../../utils/audio";
+import { Emoji } from "../shared/Emoji";
 
 export default function BookLibraryPanel({ state, save, onClose }) {
   const [selectedBook, setSelectedBook] = useState(null);
@@ -98,7 +99,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
               boxShadow: `0 12px 36px ${justFinished.coverColor}50`,
             }}
           >
-            <span style={{ fontSize: 56 }}>{justFinished.icon}</span>
+            <span style={{ fontSize: 56 }}><Emoji e={justFinished.icon} size="1.1em" /></span>
           </motion.div>
           <div style={{ ...styles.bookCompleteKicker, color: justFinished.coverColor }}>BOOK COMPLETE</div>
           <div style={styles.bookCompleteTitle}>{justFinished.title}</div>
@@ -150,7 +151,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
         <div style={styles.body}>
           <div style={{ ...styles.bookHero, background: `${book.coverColor}12` }}>
             <div style={{ ...styles.coverIcon, background: book.coverColor }}>
-              <span style={{ fontSize: 40 }}>{book.icon}</span>
+              <span style={{ fontSize: 40 }}><Emoji e={book.icon} size="1.1em" /></span>
             </div>
             <div style={styles.bookTitle}>{book.title}</div>
             <div style={styles.bookAuthor}>by {book.author}</div>
@@ -240,7 +241,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
               color: category === cat.id ? "#fff" : TOKENS.color.textSecondary,
             }}
           >
-            {cat.icon} {cat.label}
+            <Emoji e={cat.icon} size="1.1em" /> {cat.label}
           </button>
         ))}
       </div>
@@ -248,7 +249,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
       <div style={styles.body}>
         {filteredBooks.length === 0 ? (
           <div style={styles.empty}>
-            <div style={styles.emptyIcon}>📚</div>
+            <div style={styles.emptyIcon}><Emoji e="📚" size="1.1em" /></div>
             <div style={styles.emptyTitle}>No books match</div>
             <div style={styles.emptyBody}>Try a different category or clear your search.</div>
           </div>
@@ -278,7 +279,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
                 }}
               >
                 <div style={{ ...styles.bookIcon, background: book.coverColor }}>
-                  <span style={{ fontSize: 22 }}>{book.icon}</span>
+                  <span style={{ fontSize: 22 }}><Emoji e={book.icon} size="1.1em" /></span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                   <div style={styles.rowTitle}>{book.title}</div>
@@ -470,7 +471,7 @@ const styles = {
   },
   bookCompleteContinue: {
     padding: "12px 24px", borderRadius: TOKENS.radius.full,
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     border: "none", cursor: "pointer",
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
   },

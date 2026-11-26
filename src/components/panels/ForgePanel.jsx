@@ -7,6 +7,7 @@ import {
 import { TOKENS } from "../../styles/tokens";
 import { getTodayStr, daysBetween } from "../../utils";
 import { getProgramDay } from "../../data/forgePrograms";
+import { Emoji } from "../shared/Emoji";
 
 const DEFAULT_HABITS = [
   { id: "smoking",       label: "Smoking",       icon: "🚬", color: "#EF4444" },
@@ -280,7 +281,7 @@ export default function ForgePanel({ state, save, onClose }) {
                 {availableHabits.map((habit) => (
                   <div key={habit.id} style={styles.startCard}>
                     <div style={styles.startLeft}>
-                      <span style={{ fontSize: 24 }}>{habit.icon}</span>
+                      <span style={{ fontSize: 24 }}><Emoji e={habit.icon} size="1.1em" /></span>
                       <span style={styles.startLabel}>{habit.label}</span>
                     </div>
                     {expandedGoal === habit.id ? (
@@ -379,7 +380,7 @@ function TrackerCard({ habit, goal, onRelapse, onExtend }) {
     <div style={styles.habitCard}>
       <div style={styles.habitTop}>
         <div style={styles.habitLeft}>
-          <span style={{ fontSize: 28 }}>{habit.icon}</span>
+          <span style={{ fontSize: 28 }}><Emoji e={habit.icon} size="1.1em" /></span>
           <div>
             <div style={styles.habitLabel}>{habit.label}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -440,7 +441,7 @@ function TrackerCard({ habit, goal, onRelapse, onExtend }) {
         <div style={{ ...styles.impactRow, background: `${habit.color}08`, borderColor: `${habit.color}18` }}>
           <div style={styles.impactStat}>
             <div style={{ ...styles.impactValue, color: habit.color }}>{units.toLocaleString()}</div>
-            <div style={styles.impactLabel}>{impact.icon} {impact.label}</div>
+            <div style={styles.impactLabel}><Emoji e={impact.icon} size="1.1em" /> {impact.label}</div>
           </div>
           {money !== null && (
             <div style={styles.impactStat}>
@@ -589,7 +590,7 @@ function JournalTab({ journals, filter, setFilter, state, save }) {
           <div key={i} style={styles.journalEntry}>
             <div style={styles.journalEntryHeader}>
               <div style={styles.journalEntryMeta}>
-                <span style={{ fontSize: 16 }}>{tr?.icon || "📝"}</span>
+                <Emoji e={tr?.icon || "📝"} size={20} />
                 <div>
                   <div style={styles.journalTracker}>{tr?.label || entry.tracker}</div>
                   <div style={styles.journalDate}>{entry.date}</div>
@@ -977,7 +978,7 @@ const styles = {
     padding: "8px 16px",
     borderRadius: TOKENS.radius.md,
     border: "none",
-    background: TOKENS.color.text,
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press,
     color: TOKENS.color.bg,
     fontSize: TOKENS.font.size.xs,
     fontWeight: TOKENS.font.weight.bold,
@@ -1128,7 +1129,7 @@ const styles = {
     padding: "14px",
     borderRadius: TOKENS.radius.lg,
     border: "none",
-    background: TOKENS.color.text,
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press,
     color: TOKENS.color.bg,
     fontSize: TOKENS.font.size.md,
     fontWeight: TOKENS.font.weight.bold,

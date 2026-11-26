@@ -4,6 +4,7 @@ import { ChevronLeft, Inbox as InboxIcon, Trash2, Check, BookOpen, Sparkles } fr
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { getTodayStr } from "../../utils";
+import { Emoji } from "../shared/Emoji";
 
 // Same auto-assigned XP tiers as CustomQuestPanel — keep quest creation consistent.
 const CATEGORY_XP = {
@@ -109,7 +110,7 @@ export default function InboxPanel({ state, save, onClose }) {
                         onClick={() => makeQuest(item, cat.id)}
                         style={{ ...styles.chip, borderColor: `${color}55`, color }}
                       >
-                        {cat.icon} {cat.label}
+                        <Emoji e={cat.icon} size="1.1em" /> {cat.label}
                       </button>
                     );
                   })}

@@ -8,37 +8,42 @@
 // Backward compatible: every key the app referenced before still exists.
 
 export const TOKENS = {
+  // Colours are CSS variables (defined in styles/global.js) so light and dark
+  // mode share one palette. Light values are listed in the comments.
   color: {
     // ── Calm base ──────────────────────────────────────────────────────────
-    bg: "#FFFFFF",
-    surface: "#F6F6F9",          // neutral resting card (was pastel-gradient territory)
-    surfaceElevated: "#FFFFFF",
-    surfaceAlt: "#EFEFF4",       // sunken / secondary chips (previously undefined → bug)
-    surfaceSunken: "#EFEFF4",
-    border: "rgba(17, 17, 26, 0.08)",
-    borderSubtle: "rgba(17, 17, 26, 0.04)",
-    borderStrong: "rgba(17, 17, 26, 0.14)",
-    text: "#15151E",
-    textSecondary: "rgba(21, 21, 30, 0.60)",
-    textTertiary: "rgba(21, 21, 30, 0.40)",
-    accent: "#15151E",
-    accentSoft: "rgba(21, 21, 30, 0.06)",
+    bg: "var(--c-bg)",                         // #FFFFFF
+    surface: "var(--c-surface)",               // #F4F3FA neutral resting card
+    surfaceElevated: "var(--c-surface-elevated)", // #FFFFFF
+    surfaceAlt: "var(--c-surface-alt)",        // #ECEAF5 sunken / chips
+    surfaceSunken: "var(--c-surface-alt)",
+    border: "var(--c-border)",
+    borderSubtle: "var(--c-border-subtle)",
+    borderStrong: "var(--c-border-strong)",
+    text: "var(--c-text)",                     // #16152B
+    textSecondary: "var(--c-text-2)",
+    textTertiary: "var(--c-text-3)",
+    accent: "var(--c-text)",
+    accentSoft: "var(--c-accent-soft)",
+    // Filled primary buttons (white text on it in both modes).
+    primary: "var(--c-primary)",               // #6C47FF
+    primaryShadow: "var(--c-primary-shadow)",  // #4A2BD6, the "pressable" lip
 
     // ── Semantic ───────────────────────────────────────────────────────────
     success: "#22C55E",
-    successSoft: "rgba(34, 197, 94, 0.10)",
+    successSoft: "rgba(34, 197, 94, 0.14)",
     warning: "#F59E0B",
-    warningSoft: "rgba(245, 158, 11, 0.10)",
+    warningSoft: "rgba(245, 158, 11, 0.14)",
     danger: "#EF4444",
-    dangerSoft: "rgba(239, 68, 68, 0.08)",
+    dangerSoft: "rgba(239, 68, 68, 0.12)",
 
     // ── Brand / game layer ─────────────────────────────────────────────────
     brand: "#7C5CFC",
-    brandSoft: "rgba(124, 92, 252, 0.10)",
-    brandBorder: "rgba(124, 92, 252, 0.22)",
+    brandSoft: "rgba(124, 92, 252, 0.14)",
+    brandBorder: "rgba(124, 92, 252, 0.28)",
     xp: "#FBBF24",               // the one true "reward" gold
-    xpSoft: "rgba(251, 191, 36, 0.14)",
-    xpDeep: "#B45309",           // gold text on light bg
+    xpSoft: "rgba(251, 191, 36, 0.16)",
+    xpDeep: "var(--c-xp-deep)",  // gold text: #B45309 light, #FBBF24 dark
   },
 
   // ── Game layer: gradients, glow, dark "spotlight" surface ────────────────
@@ -55,16 +60,20 @@ export const TOKENS = {
 
   space: [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80],
 
+  // Generous, friendly curves. Buttons use lg/xl; cards lg.
   radius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 22,
+    sm: 12,
+    md: 16,
+    lg: 20,
+    xl: 28,
     full: 9999,
   },
 
   font: {
-    sans: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    // Nunito (SIL OFL), self-hosted via @fontsource. Rounded and thick at
+    // 800/900 for headings and numbers; 600 keeps body text readable.
+    sans: "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    display: "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     size: {
       xs: 12,
       sm: 14,
@@ -74,12 +83,13 @@ export const TOKENS = {
       xxl: 30,
       hero: 38,
     },
+    // One step heavier than a typical UI: Nunito is light for its weight.
     weight: {
-      regular: 400,
-      medium: 500,
-      semibold: 600,
-      bold: 700,
-      heavy: 800,
+      regular: 500,
+      medium: 600,
+      semibold: 700,
+      bold: 800,
+      heavy: 900,
     },
   },
 
@@ -93,10 +103,12 @@ export const TOKENS = {
   },
 
   shadow: {
-    sm: "0 1px 2px rgba(17,17,26,0.04)",
-    md: "0 4px 16px rgba(17,17,26,0.06)",
-    lg: "0 10px 30px rgba(17,17,26,0.08)",
-    xl: "0 20px 50px rgba(17,17,26,0.12)",
+    sm: "var(--sh-sm)",
+    md: "var(--sh-md)",
+    lg: "var(--sh-lg)",
+    xl: "var(--sh-xl)",
+    // "Pressable" lip under filled buttons.
+    press: "0 4px 0 var(--c-primary-shadow)",
     // Game-layer glows — colored, for spotlight elements only.
     glowBrand: "0 10px 30px rgba(124,92,252,0.32)",
     glowGold: "0 8px 22px rgba(245,158,11,0.30)",

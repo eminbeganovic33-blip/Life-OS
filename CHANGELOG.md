@@ -2,6 +2,34 @@
 
 Dated entries, newest first. Each push to GitHub gets an entry saying what changed and why.
 
+## 2026-11-26 — Visual revamp: thick rounded font, big round buttons, real images, dark mode
+
+**Branch:** `claude/lifeos-visual-revamp` (on top of `claude/lifeos-v1-preview` / PR #6, which isn't merged yet)
+
+**Why:** Emin asked to "revamp lifeos completely visually, make it have large buttons with curved edges and nice thick font with images (source smth) instead of emojis." This is a **preview only**. Merging and production wait for Emin's OK on the look.
+
+**What changed:**
+- **Font:** Nunito (SIL OFL), self-hosted via `@fontsource/nunito`, so the Google Fonts request is gone and the privacy text and CSP are updated to match.
+  - Headings and numbers are 900 and body text is 600.
+  - The weight scale is one step heavier across the app.
+- **Buttons:**
+  - every button is at least 48px tall;
+  - corners are more rounded (radius scale 12/16/20/28);
+  - main actions are now a purple "pressable" button with a solid lip, instead of near-black;
+  - buttons press down slightly on tap.
+- **Images instead of emoji:** 136 Microsoft Fluent Emoji images (MIT) as 128px WebP, about 380 KB in total and lazy-loaded, with alt text.
+  - A new `Emoji` / `EmojiText` component renders them everywhere an emoji was shown: quests, Forge, trophies, moods, courses, books, toasts, modals.
+  - Source and licence are recorded in `CREDITS.md`.
+- **One palette, with light and dark mode:** the colour tokens are now CSS variables, and dark mode follows the phone's system setting. The tab bar and modals no longer use hard-coded white.
+- No change to behaviour or saved data. Only rendering changed.
+
+**Verified:**
+- `npm test`: 38/38 passing in 3 timezones. Lint: 0 errors. Build: green.
+- Headless phone screenshots (390×844, light and dark) of onboarding, Today, Train, Learn, Forge and Me:
+  - 0 console errors;
+  - no emoji characters left as text on those screens;
+  - no visible button under 44px on any of the five tabs (the Today pause button went from 32 to 48px).
+
 ## 2026-11-26 — v1 preview: AI coach cut, privacy, Forge disclaimer, security headers
 
 **Branch:** `claude/lifeos-v1-preview` (on top of `claude/lifeos-audit-optimize-1af8e3`, which is on top of PR #5)

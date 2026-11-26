@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ChevronRight, Zap } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
+import { Emoji, EmojiText } from "./Emoji";
 
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
@@ -63,7 +64,7 @@ export default function BossModal({ bossDay, onDismiss, state }) {
           transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.25 }}
           style={{ fontSize: 60, marginBottom: 8 }}
         >
-          {icon}
+          <Emoji e={icon} size="1.1em" />
         </motion.div>
 
         <div style={styles.xpBadge}>
@@ -83,7 +84,7 @@ export default function BossModal({ bossDay, onDismiss, state }) {
 
         <div style={styles.unlockBox}>
           {unlocks.map((u, i) => (
-            <div key={i} style={styles.unlockItem}>{u}</div>
+            <div key={i} style={styles.unlockItem}><EmojiText>{u}</EmojiText></div>
           ))}
         </div>
 
@@ -150,7 +151,7 @@ const styles = {
   btn: {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
     width: "100%", padding: "14px 24px", borderRadius: 14,
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: 15, fontWeight: 900, border: "none", cursor: "pointer",
   },
 };

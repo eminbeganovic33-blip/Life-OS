@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, User, ChevronRight, AlertCircle } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { useAuth } from "../../hooks/useAuth";
+import { Emoji } from "../shared/Emoji";
 
 export default function AuthScreen({ onSkip }) {
   const { login, signup, loginWithGoogle, error: authError } = useAuth();
@@ -50,7 +51,7 @@ export default function AuthScreen({ onSkip }) {
           transition={{ duration: 0.5 }}
         >
           <div style={styles.heroGradient}>
-            <div style={styles.heroEmoji}>⚡</div>
+            <div style={styles.heroEmoji}><Emoji e="⚡" size="1.1em" /></div>
           </div>
           <div style={styles.logo}>Life OS</div>
           <div style={styles.tagline}>Build the life. One habit at a time.</div>
@@ -222,7 +223,7 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
     width: "100%", padding: "14px",
     borderRadius: TOKENS.radius.lg, border: `1px solid ${TOKENS.color.border}`,
-    background: "#fff", color: TOKENS.color.text,
+    background: TOKENS.color.surfaceElevated, color: TOKENS.color.text,
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.semibold,
     cursor: "pointer", transition: TOKENS.transition.fast,
   },
@@ -236,7 +237,7 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
     width: "100%", padding: "14px",
     borderRadius: TOKENS.radius.lg, border: "none",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold,
     cursor: "pointer",
   },
@@ -296,7 +297,7 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
     width: "100%", padding: "14px",
     borderRadius: TOKENS.radius.lg, border: "none",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold,
     cursor: "pointer", marginTop: TOKENS.space[2],
   },

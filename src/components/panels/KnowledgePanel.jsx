@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, BookOpen } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { QUEST_GUIDES } from "../../data/questGuides";
+import { Emoji } from "../shared/Emoji";
 
 // Filter out alias entries (entries that only redirect to other guides)
 const guideEntries = Object.entries(QUEST_GUIDES).filter(
@@ -34,7 +35,7 @@ export default function KnowledgePanel({ onClose }) {
             <ChevronLeft size={20} color={TOKENS.color.text} />
           </button>
           <div style={{ flex: 1 }}>
-            <div style={styles.guideTitle}>{guide.icon} {guide.title}</div>
+            <div style={styles.guideTitle}><Emoji e={guide.icon} size="1.1em" /> {guide.title}</div>
             {guide.subtitle && <div style={styles.guideSub}>{guide.subtitle}</div>}
           </div>
         </div>
@@ -112,7 +113,7 @@ export default function KnowledgePanel({ onClose }) {
       <div style={styles.guideList}>
         {guideEntries.map(([key, g]) => (
           <button key={key} onClick={() => setSelectedKey(key)} style={styles.guideCard}>
-            <div style={styles.guideIcon}>{g.icon}</div>
+            <div style={styles.guideIcon}><Emoji e={g.icon} size="1.1em" /></div>
             <div style={{ flex: 1 }}>
               <div style={styles.guideName}>{g.title}</div>
               {g.subtitle && <div style={styles.guideDesc}>{g.subtitle}</div>}

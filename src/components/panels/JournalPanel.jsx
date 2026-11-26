@@ -5,6 +5,7 @@ import { TOKENS } from "../../styles/tokens";
 import { getTodayStr } from "../../utils";
 import { useToast } from "../shared/Toast";
 import { track } from "../../firebase";
+import { Emoji } from "../shared/Emoji";
 
 const MOODS = [
   { val: 1, emoji: "😣", label: "Awful", color: "#EF4444" },
@@ -191,7 +192,7 @@ export default function JournalPanel({ state, save, onClose }) {
                   <button onClick={() => openEntry(entry.date)} style={styles.entryBtn}>
                     <div style={styles.entryHeader}>
                       <span style={styles.entryDate}>{dateLabel}</span>
-                      {moodData && <span style={{ fontSize: 18 }}>{moodData.emoji}</span>}
+                      {moodData && <span style={{ fontSize: 18 }}><Emoji e={moodData.emoji} size="1.1em" /></span>}
                     </div>
                     {entry.text && (
                       <div style={styles.entryPreview}>
@@ -279,7 +280,7 @@ export default function JournalPanel({ state, save, onClose }) {
                     transform: active ? "translateY(-2px)" : "none",
                   }}
                 >
-                  <span style={{ fontSize: 26, filter: active ? "none" : "grayscale(0.3)", opacity: active ? 1 : 0.85 }}>{m.emoji}</span>
+                  <span style={{ fontSize: 26, filter: active ? "none" : "grayscale(0.3)", opacity: active ? 1 : 0.85 }}><Emoji e={m.emoji} size="1.1em" /></span>
                   <span style={{
                     fontSize: TOKENS.font.size.xs,
                     color: active ? m.color : TOKENS.color.textTertiary,

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, Trophy } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { TROPHIES, getTrophyTierColor } from "../../data/trophies";
+import { Emoji } from "../shared/Emoji";
 
 export default function TrophyPanel({ state, onClose }) {
   const unlocked = state.unlockedTrophies || {};
@@ -42,7 +43,7 @@ export default function TrophyPanel({ state, onClose }) {
               const tc = getTrophyTierColor(t.tier || 1);
               return (
                 <div key={t.id} style={{ ...styles.card, background: tc.bg, borderColor: tc.border }}>
-                  <div style={styles.icon}>{t.icon}</div>
+                  <div style=<Emoji e={styles.icon} size="1.1em" />><Emoji e={t.icon} size="1.1em" /></div>
                   <div style={{ flex: 1 }}>
                     <div style={styles.name}>{t.name}</div>
                     <div style={styles.desc}>{t.desc}</div>
@@ -59,7 +60,7 @@ export default function TrophyPanel({ state, onClose }) {
             <div style={styles.sectionLabel}>Locked</div>
             {locked.map((t) => (
               <div key={t.id} style={styles.lockedCard}>
-                <div style={{ ...styles.icon, opacity: 0.3 }}>{t.icon}</div>
+                <div style={{ ...styles.icon, opacity: 0.3 }}><Emoji e={t.icon} size="1.1em" /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ ...styles.name, color: TOKENS.color.textTertiary }}>{t.name}</div>
                   <div style={styles.desc}>{t.desc}</div>

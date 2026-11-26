@@ -6,6 +6,7 @@ import {
   getCharacterStats, getCharacterTier, getAllDomainMasteries, STAT_META,
 } from "../../utils/character";
 import { renderAnimalAvatar } from "../shared/AnimalAvatars";
+import { Emoji } from "../shared/Emoji";
 
 // SVG radar chart with 5 axes
 function RadarChart({ stats, color, max }) {
@@ -84,7 +85,7 @@ function RadarChart({ stats, color, max }) {
             dominantBaseline="middle"
             fontSize="14"
           >
-            {meta.icon}
+            <Emoji e={meta.icon} size="1.1em" />
           </text>
         );
       })}
@@ -128,7 +129,7 @@ export default function CharacterPanel({ state, onClose }) {
             {state.avatar ? (
               renderAnimalAvatar(state.avatar, 88)
             ) : (
-              <span style={{ fontSize: 56 }}>{tier.emoji}</span>
+              <span style={{ fontSize: 56 }}><Emoji e={tier.emoji} size="1.1em" /></span>
             )}
           </div>
           <div style={{ ...styles.tierLabel, color: tier.color }}>{tier.label}</div>
@@ -156,7 +157,7 @@ export default function CharacterPanel({ state, onClose }) {
             return (
               <div key={key} style={styles.statRow}>
                 <div style={styles.statRowTop}>
-                  <span style={{ fontSize: 18 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 18 }}><Emoji e={meta.icon} size="1.1em" /></span>
                   <span style={styles.statName}>{meta.label}</span>
                   <span style={{ ...styles.statValue, color: meta.color }}>{value}</span>
                 </div>

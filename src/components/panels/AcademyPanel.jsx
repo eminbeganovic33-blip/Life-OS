@@ -7,6 +7,7 @@ import { LEVELS } from "../../data/constants";
 import { daysBetween } from "../../utils";
 import { useToast } from "../shared/Toast";
 import { feedback } from "../../utils/audio";
+import { Emoji } from "../shared/Emoji";
 
 function getUserLevel(xp) {
   let lvl = 0;
@@ -113,7 +114,7 @@ export default function AcademyPanel({ state, save, onClose }) {
             transition={{ type: "spring", stiffness: 200, damping: 14 }}
             style={styles.completeIcon}
           >
-            {justCompleted.icon}
+            <Emoji e={justCompleted.icon} size="1.1em" />
           </motion.div>
           <div style={styles.completeKicker}>COURSE COMPLETE</div>
           <div style={styles.completeTitle}>{justCompleted.title}</div>
@@ -154,7 +155,7 @@ export default function AcademyPanel({ state, save, onClose }) {
             <ChevronLeft size={20} color={TOKENS.color.text} />
           </button>
           <div style={{ flex: 1 }}>
-            <div style={styles.courseTitle}>{selectedCourse.icon} {selectedCourse.title}</div>
+            <div style={styles.courseTitle}><Emoji e={selectedCourse.icon} size="1.1em" /> {selectedCourse.title}</div>
             <div style={styles.stepCounter}>Step {activeStep + 1} of {totalSteps} — {completedSteps} done</div>
           </div>
         </div>
@@ -261,7 +262,7 @@ export default function AcademyPanel({ state, save, onClose }) {
                 background: done ? "rgba(34,197,94,0.10)" : inProgress ? "rgba(124,92,252,0.08)" : "transparent",
                 borderRadius: 12,
               }}>
-                {course.icon}
+                <Emoji e={course.icon} size="1.1em" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={styles.courseName}>{course.title}</div>
@@ -507,7 +508,7 @@ const styles = {
   },
   completeContinue: {
     padding: "12px 24px", borderRadius: TOKENS.radius.full,
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     border: "none", cursor: "pointer",
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
   },

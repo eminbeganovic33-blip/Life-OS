@@ -136,7 +136,7 @@ const styles = {
   badge: {
     position: "absolute", top: -4, right: -4,
     minWidth: 18, height: 18, padding: "0 5px",
-    borderRadius: 9, background: TOKENS.color.text, color: "#fff",
+    borderRadius: 9, background: TOKENS.color.primary, color: "#fff",
     fontSize: 11, fontWeight: 900,
     display: "flex", alignItems: "center", justifyContent: "center",
   },

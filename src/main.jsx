@@ -2,6 +2,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthProvider } from "./hooks/useAuth";
 import LifeOS from "./App.jsx";
+// Self-hosted Nunito (SIL OFL 1.1). No request goes to Google Fonts.
+import "@fontsource/nunito/500.css";
+import "@fontsource/nunito/600.css";
+import "@fontsource/nunito/700.css";
+import "@fontsource/nunito/800.css";
+import "@fontsource/nunito/900.css";
 
 // Sentry — only in production with a DSN (add VITE_SENTRY_DSN to Vercel env
 // vars). Loaded on demand so local-only users don't download it at all.

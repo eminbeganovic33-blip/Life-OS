@@ -158,7 +158,7 @@ const styles = {
   },
   aiGen: {
     width: "100%", padding: "12px",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     border: "none", borderRadius: TOKENS.radius.md,
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
   },

@@ -11,6 +11,7 @@ import { getTodayStr } from "../../utils";
 import { getCalibratedStartersForCategory, QUEST_LIBRARY } from "../../data/questLibrary";
 import { TROPHIES } from "../../data/trophies";
 import { track, setAnalyticsConsent, firebaseConfigured } from "../../firebase";
+import { Emoji } from "../shared/Emoji";
 
 const QUEST_LIBRARY_COUNT = QUEST_LIBRARY.length;
 // Not imported from data/exerciseLibrary.js — that file is 32KB and belongs to
@@ -395,7 +396,7 @@ function WelcomeStep() {
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: "spring", stiffness: 200, damping: 18 }}
       >
-        <span style={{ fontSize: 56 }}>⚡</span>
+        <Emoji e="⚡" size={64} />
       </motion.div>
       <h1 style={styles.title}>Life OS</h1>
       <p style={styles.tagline}>Build the life. One habit at a time.</p>
@@ -513,7 +514,7 @@ function VicesStep({ vices, toggleVice }) {
                 color: selected ? "#F97316" : TOKENS.color.text,
               }}
             >
-              <span style={{ fontSize: 18 }}>{v.icon}</span>
+              <span style={{ fontSize: 18 }}><Emoji e={v.icon} size="1.1em" /></span>
               <span>{v.label}</span>
             </button>
           );
@@ -546,7 +547,7 @@ function GoalsStep({ goal, setGoal, timeCommit, setTimeCommit }) {
                 borderColor: selected ? g.color : "transparent",
               }}
             >
-              <span style={{ fontSize: 24 }}>{g.emoji}</span>
+              <span style={{ fontSize: 24 }}><Emoji e={g.emoji} size="1.1em" /></span>
               <div style={{ flex: 1, textAlign: "left" }}>
                 <div style={{ ...styles.optionLabel, color: selected ? g.color : TOKENS.color.text }}>{g.label}</div>
                 <div style={styles.optionSub}>{g.sub}</div>
@@ -601,7 +602,7 @@ function DomainsStep({ domains, toggleDomain, suggestedFromGoal }) {
                 color: isSelected ? cat.color : TOKENS.color.textSecondary,
               }}
             >
-              <span style={{ fontSize: 18 }}>{cat.icon}</span>
+              <span style={{ fontSize: 18 }}><Emoji e={cat.icon} size="1.1em" /></span>
               <span style={styles.domainText}>{cat.label}</span>
               {isSuggested && !isSelected && (
                 <span style={styles.suggestedDot} title="Suggested" />
@@ -928,7 +929,7 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
     width: "100%", padding: "16px",
     borderRadius: TOKENS.radius.lg, border: "none",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold,
     transition: TOKENS.transition.fast,
   },

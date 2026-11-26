@@ -241,7 +241,7 @@ const styles = {
   },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
-    background: TOKENS.color.text,
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press,
     border: "none", cursor: "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
   },

@@ -5,6 +5,7 @@ import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { daysBetween, getDayQuests } from "../../utils";
 import { questIdMatchesCategory } from "../../utils/helpers";
 import { CATEGORIES } from "../../data/categories";
+import { Emoji } from "../shared/Emoji";
 
 function getDateKey(d) {
   const y = d.getFullYear();
@@ -217,7 +218,7 @@ export default function ProgressPanel({ state, onClose }) {
             <div style={styles.sectionLabel}>Domain consistency</div>
             {categoryStats.slice(0, 8).map((cat) => (
               <div key={cat.id} style={styles.catRow}>
-                <span style={{ fontSize: 16 }}>{cat.icon}</span>
+                <span style={{ fontSize: 16 }}><Emoji e={cat.icon} size="1.1em" /></span>
                 <span style={styles.catLabel}>{cat.label}</span>
                 <div style={styles.catBar}>
                   <div style={{

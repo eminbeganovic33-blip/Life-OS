@@ -8,6 +8,7 @@ import AuthScreen from "./components/screens/AuthScreen";
 import AppShell from "./components/shell/AppShell";
 import PrivacyPolicyScreen from "./components/screens/PrivacyPolicyScreen";
 import RecoveryScreen from "./components/screens/RecoveryScreen";
+import { Emoji } from "./components/shared/Emoji";
 
 injectGlobalStyles();
 
@@ -37,7 +38,7 @@ export default function LifeOS() {
           display: "flex", alignItems: "center", justifyContent: "center",
           boxShadow: "0 12px 32px rgba(124,92,252,0.30)",
           fontSize: 28,
-        }}>⚡</div>
+        }}><Emoji e="⚡" size={34} /></div>
         <div style={{
           width: 20, height: 20,
           border: "2px solid rgba(124,92,252,0.20)",

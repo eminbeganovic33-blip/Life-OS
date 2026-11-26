@@ -5,6 +5,7 @@ import { TOKENS } from "../../styles/tokens";
 import { getTodayStr } from "../../utils";
 import { EXERCISE_LIBRARY } from "../../data/exerciseLibrary";
 import { EXERCISE_PROGRAMS } from "../../data/exercisePrograms";
+import { Emoji } from "../shared/Emoji";
 
 const TEMPLATES = [
   {
@@ -479,7 +480,7 @@ export default function DojoPanel({ state, save, onClose }) {
         <div style={styles.body}>
           {recentWorkouts.length === 0 ? (
             <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>🏋️</div>
+              <div style={styles.emptyIcon}><Emoji e="🏋️" size="1.1em" /></div>
               <div style={styles.emptyTitle}>No workouts logged yet</div>
               <div style={styles.emptyBody}>Pick a quick workout or a structured program from the Dojo to log your first session.</div>
             </div>
@@ -519,7 +520,7 @@ export default function DojoPanel({ state, save, onClose }) {
           <button onClick={() => { setView("home"); setActiveProgram(null); }} style={styles.backBtn} aria-label="Close">
             <ChevronLeft size={20} color={TOKENS.color.text} />
           </button>
-          <span style={{ fontSize: 22 }}>{activeProgram.icon}</span>
+          <span style={{ fontSize: 22 }}><Emoji e={activeProgram.icon} size="1.1em" /></span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={styles.headerTitle}>{activeProgram.title}</div>
             <div style={styles.headerSub}>{activeProgram.duration} · {activeProgram.frequency} · {activeProgram.level}</div>
@@ -627,7 +628,7 @@ export default function DojoPanel({ state, save, onClose }) {
           <div style={styles.programGrid}>
             {EXERCISE_PROGRAMS.map((p) => (
               <button key={p.id} onClick={() => { setActiveProgram(p); setView("program-detail"); }} style={styles.programCard}>
-                <div style={styles.programIcon}>{p.icon}</div>
+                <div style={styles.programIcon}><Emoji e={p.icon} size="1.1em" /></div>
                 <div style={styles.programInfo}>
                   <div style={styles.programTitle}>{p.title}</div>
                   <div style={styles.programSub}>{p.subtitle}</div>
@@ -731,7 +732,7 @@ const styles = {
     padding: "8px 16px",
     borderRadius: TOKENS.radius.md,
     border: "none",
-    background: TOKENS.color.text,
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press,
     color: "#fff",
     fontSize: TOKENS.font.size.sm,
     fontWeight: TOKENS.font.weight.bold,

@@ -12,6 +12,7 @@ import ProgressRing from "../shared/ProgressRing";
 import AICoachWidget from "../shared/AICoachWidget";
 import RoutineModeModal from "../shared/RoutineModeModal";
 import { feedback } from "../../utils/audio";
+import { Emoji, EmojiText } from "../shared/Emoji";
 
 const TIME_BLOCKS = [
   { id: "morning", label: "Morning", icon: Sun, accent: "#F59E0B", time: "Wake up to noon" },
@@ -139,8 +140,8 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
               }}
             >
               {isPaused
-                ? <PlayCircle size={16} color="#FDBA74" />
-                : <PauseCircle size={16} color="rgba(255,255,255,0.7)" />}
+                ? <PlayCircle size={20} color="#FDBA74" />
+                : <PauseCircle size={20} color="rgba(255,255,255,0.75)" />}
             </button>
           </div>
         </div>
@@ -192,7 +193,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
         >
           <Shield size={15} color="#F97316" />
           <div style={{ flex: 1 }}>
-            <div style={styles.pauseBannerTitle}>Day Paused — streaks are safe 🛡️</div>
+            <div style={styles.pauseBannerTitle}><EmojiText>{"Day Paused — streaks are safe 🛡️"}</EmojiText></div>
             <div style={styles.pauseBannerSub}>Travel day, sick day, or just a rest. Come back tomorrow.</div>
           </div>
           <button onClick={togglePause} style={styles.pauseResume}>Resume</button>
@@ -278,7 +279,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           >
             <X size={14} color={TOKENS.color.textTertiary} />
           </button>
-          <div style={styles.welcomeTitle}>{titles[goal] || "Welcome to Life OS 🎯"}</div>
+          <div style={styles.welcomeTitle}><EmojiText>{titles[goal] || "Welcome to Life OS 🎯"}</EmojiText></div>
           <div style={styles.welcomeBody}>How to use the app this week:</div>
           <div style={styles.welcomeList}>
             {tips.map(([Icon, color, label, copy]) => (
@@ -416,7 +417,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                   style={styles.startRoutineBtn}
                   title="Focus mode — step through one at a time"
                 >
-                  <Play size={11} color={block.accent} fill={block.accent} />
+                  <Play size={13} color={block.accent} fill={block.accent} />
                   <span style={{ color: block.accent }}>Start</span>
                 </button>
               )}
@@ -465,7 +466,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                                 {q.text}
                               </div>
                               <div style={styles.questMeta}>
-                                <span>{cat?.icon} {cat?.label}</span>
+                                <span><Emoji e={cat?.icon} size="1.1em" /> {cat?.label}</span>
                                 <span style={{ color }}>+{q.xp} XP</span>
                               </div>
                             </div>
@@ -504,7 +505,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                     borderColor: allCatDone ? `${color}30` : TOKENS.color.border,
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>{cat.icon}</span>
+                  <span style={{ fontSize: 16 }}><Emoji e={cat.icon} size="1.1em" /></span>
                   <div style={styles.domainTileText}>
                     <div style={{ ...styles.domainTileLabel, color: allCatDone ? color : TOKENS.color.text }}>
                       {cat.label}
@@ -714,7 +715,7 @@ const styles = {
   },
   heroTopRight: { display: "flex", alignItems: "center", gap: 8 },
   heroIconBtn: {
-    width: 32, height: 32, borderRadius: TOKENS.radius.full,
+    width: 48, height: 48, borderRadius: TOKENS.radius.full,
     border: "1px solid", display: "flex", alignItems: "center", justifyContent: "center",
     cursor: "pointer", flexShrink: 0,
   },
@@ -1025,12 +1026,12 @@ const styles = {
     display: "flex", alignItems: "center",
   },
   startRoutineBtn: {
-    display: "flex", alignItems: "center", gap: 4,
-    padding: "5px 10px", marginRight: 4,
-    borderRadius: 20, border: "1px solid",
-    background: "transparent", cursor: "pointer",
-    fontSize: 12, fontWeight: 700,
-    borderColor: "currentColor", flexShrink: 0,
+    display: "flex", alignItems: "center", gap: 6,
+    padding: "0 18px", marginRight: 4,
+    borderRadius: TOKENS.radius.full, border: `1.5px solid ${TOKENS.color.border}`,
+    background: TOKENS.color.surface, cursor: "pointer",
+    fontSize: 15, fontWeight: 900,
+    flexShrink: 0,
   },
 
   // 10B: Avoidance habits section

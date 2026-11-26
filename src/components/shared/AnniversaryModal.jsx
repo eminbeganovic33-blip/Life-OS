@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 
 export const ANNIVERSARY_DAYS = [30, 100, 365];
 
@@ -69,7 +70,7 @@ export default function AnniversaryModal({ day, onDismiss }) {
             position: "relative", zIndex: 1,
           }}
         >
-          <span style={{ fontSize: 56 }}>{c.emoji}</span>
+          <span style={{ fontSize: 56 }}><Emoji e={c.emoji} size="1.1em" /></span>
         </motion.div>
         <div style={{ ...styles.day, color: c.color }}>DAY {day}</div>
         <div style={styles.title}>{c.title}</div>

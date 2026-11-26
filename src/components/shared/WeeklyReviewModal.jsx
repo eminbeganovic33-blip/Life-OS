@@ -4,6 +4,7 @@ import { BarChart3 } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { dateToLocalDayKey } from "../../utils/helpers";
+import { Emoji } from "./Emoji";
 
 function getWeekDates() {
   const dates = [];
@@ -105,7 +106,7 @@ export default function WeeklyReviewModal({ state, onDismiss }) {
 
           {stats.topDomain && (
             <div style={styles.highlight}>
-              Top domain: {stats.topDomain.icon} {stats.topDomain.label}
+              Top domain: <Emoji e={stats.topDomain.icon} size="1.1em" /> {stats.topDomain.label}
             </div>
           )}
 
@@ -131,7 +132,7 @@ const styles = {
     position: "relative",
     width: "100%",
     maxWidth: 340,
-    background: "#fff",
+    background: TOKENS.color.surfaceElevated,
     borderRadius: TOKENS.radius.xl,
     padding: "56px 24px 24px",
     textAlign: "center",
@@ -221,7 +222,7 @@ const styles = {
     padding: "14px",
     borderRadius: TOKENS.radius.lg,
     border: "none",
-    background: TOKENS.color.text,
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press,
     color: "#fff",
     fontSize: TOKENS.font.size.md,
     fontWeight: TOKENS.font.weight.bold,

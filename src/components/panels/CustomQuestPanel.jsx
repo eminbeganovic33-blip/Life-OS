@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, Plus, Trash2, Sparkles } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
+import { Emoji } from "../shared/Emoji";
 
 // XP is auto-assigned by category effort tier. No more user-gaming.
 const CATEGORY_XP = {
@@ -149,7 +150,7 @@ export default function CustomQuestPanel({ state, save, onClose }) {
                     color: isActive ? "#fff" : TOKENS.color.textSecondary,
                   }}
                 >
-                  {cat.icon} {cat.label}
+                  <Emoji e={cat.icon} size="1.1em" /> {cat.label}
                 </button>
               );
             })}
@@ -206,7 +207,7 @@ export default function CustomQuestPanel({ state, save, onClose }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={styles.questText}>{q.text}</div>
                     <div style={styles.questMeta}>
-                      <span>{cat?.icon} {cat?.label}</span>
+                      <span><Emoji e={cat?.icon} size="1.1em" /> {cat?.label}</span>
                       <span style={{ ...styles.xpPill, color: catColor }}>+{q.xp || CATEGORY_XP[q.category] || 15} XP</span>
                     </div>
                   </div>

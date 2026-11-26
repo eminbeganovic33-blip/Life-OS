@@ -75,7 +75,7 @@ const styles = {
   card: {
     position: "relative",
     width: "100%", maxWidth: 340,
-    background: "#fff",
+    background: TOKENS.color.surfaceElevated,
     borderRadius: TOKENS.radius.xl,
     padding: "56px 28px 28px",
     textAlign: "center",

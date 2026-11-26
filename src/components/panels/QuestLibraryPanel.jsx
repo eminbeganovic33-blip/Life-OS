@@ -8,6 +8,7 @@ import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { QUEST_LIBRARY, getXpForDifficulty } from "../../data/questLibrary";
 import { track } from "../../firebase";
+import { Emoji } from "../shared/Emoji";
 
 const TIME_ICONS = {
   morning: Sun, midday: Sunset, evening: Moon, anytime: Zap,
@@ -161,7 +162,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
                       background: isActive ? c : TOKENS.color.surface,
                       color: isActive ? "#fff" : TOKENS.color.textSecondary }}
                   >
-                    {cat.icon} {cat.label}
+                    <Emoji e={cat.icon} size="1.1em" /> {cat.label}
                   </button>
                 );
               })}
@@ -199,7 +200,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
                     }}>
                       <div style={styles.questHead}>
                         <div style={{ ...styles.questIcon, background: `${c}18` }}>
-                          <span style={{ fontSize: 18 }}>{q.icon}</span>
+                          <span style={{ fontSize: 18 }}><Emoji e={q.icon} size="1.1em" /></span>
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={styles.questTitle}>{q.title}</div>
@@ -261,7 +262,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
           <div style={styles.list}>
             {activeQuestData.length === 0 ? (
               <div style={styles.empty}>
-                <div style={styles.emptyIcon}>✨</div>
+                <div style={styles.emptyIcon}><Emoji e="✨" size="1.1em" /></div>
                 <div style={styles.emptyTitle}>Your quest roster is empty</div>
                 <div style={styles.emptyBody}>
                   Pick habits that fit your life. Start with 2-3 — add more as they stick.
@@ -282,7 +283,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
                   }}>
                     <div style={styles.questHead}>
                       <div style={{ ...styles.questIcon, background: `${c}18` }}>
-                        <span style={{ fontSize: 18 }}>{q.icon}</span>
+                        <span style={{ fontSize: 18 }}><Emoji e={q.icon} size="1.1em" /></span>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={styles.questTitle}>{q.title}</div>

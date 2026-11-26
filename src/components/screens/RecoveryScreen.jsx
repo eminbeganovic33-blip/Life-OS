@@ -1,5 +1,6 @@
 import { TOKENS } from "../../styles/tokens";
 import { downloadJson } from "../../utils/backup";
+import { Emoji } from "../shared/Emoji";
 
 // Shown when saved data exists but can't be loaded. Nothing is written to the
 // main storage key until the user picks "Start fresh" — the old behaviour was
@@ -8,7 +9,7 @@ export default function RecoveryScreen({ raw, message, onStartFresh }) {
   const day = new Date().toISOString().slice(0, 10);
   return (
     <div style={styles.page}>
-      <div style={styles.badge}>🛟</div>
+      <div style={styles.badge}><Emoji e="🛟" size="1.1em" /></div>
       <h1 style={styles.title}>We couldn't open your saved data</h1>
       <p style={styles.sub}>
         Your history is still on this device and a recovery copy has been kept. Download it first —
@@ -43,7 +44,7 @@ const styles = {
   title: { fontSize: 22, fontWeight: 900, margin: "0 0 8px" },
   sub: { fontSize: 15, lineHeight: 1.5, color: TOKENS.color.textSecondary, maxWidth: 380, margin: 0 },
   btns: { display: "flex", flexDirection: "column", gap: 10, marginTop: 24, width: "100%", maxWidth: 320 },
-  primary: { ...btn, border: "none", background: TOKENS.color.text, color: "#fff" },
+  primary: { ...btn, border: "none", background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff" },
   secondary: { ...btn, border: `1px solid ${TOKENS.color.border}`, background: TOKENS.color.surface, color: TOKENS.color.text },
   danger: { ...btn, border: "none", background: "transparent", color: TOKENS.color.danger },
   err: { marginTop: 20, fontSize: 11, color: TOKENS.color.textTertiary, whiteSpace: "pre-wrap", maxWidth: 360 },

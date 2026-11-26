@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Award } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 
 const FORGE_LABELS = {
   smoking: "Smoking", alcohol: "Alcohol", vaping: "Vaping",
@@ -72,7 +73,7 @@ export default function ForgeSuccessModal({ habitId, days, onDismiss }) {
 
           <div style={{ ...styles.kicker, color: accent }}>FREEDOM MILESTONE</div>
           <div style={styles.title}>{milestoneLabel}</div>
-          <div style={styles.subtitle}><span style={{ fontSize: 18 }}>{emoji}</span> {label} free</div>
+          <div style={styles.subtitle}><span style={{ fontSize: 18 }}><Emoji e={emoji} size="1.1em" /></span> {label} free</div>
 
           <div style={styles.messageBox}>
             <div style={styles.message}>{message}</div>
@@ -110,7 +111,7 @@ const styles = {
     maxWidth: 340, width: "100%",
     padding: "56px 28px 28px",
     borderRadius: TOKENS.radius.xl,
-    background: "#fff",
+    background: TOKENS.color.surfaceElevated,
     textAlign: "center",
     overflow: "hidden",
   },
@@ -159,7 +160,7 @@ const styles = {
   btn: {
     width: "100%", padding: 14,
     borderRadius: TOKENS.radius.lg, border: "none",
-    background: TOKENS.color.text, color: "#fff",
+    background: TOKENS.color.primary, boxShadow: TOKENS.shadow.press, color: "#fff",
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold,
     cursor: "pointer",
   },

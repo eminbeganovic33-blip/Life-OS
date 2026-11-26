@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, Circle, ChevronRight, Zap } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
+import { Emoji } from "./Emoji";
 
 /**
  * 10C — Routine Mode
@@ -83,7 +84,7 @@ export default function RoutineModeModal({ block, quests, completedIds, onToggle
               animate={{ opacity: 1, scale: 1, y: 0 }}
               style={styles.allDone}
             >
-              <div style={styles.allDoneIcon}>🏆</div>
+              <div style={styles.allDoneIcon}><Emoji e="🏆" size="1.1em" /></div>
               <div style={styles.allDoneTitle}>{block.label} Complete</div>
               <div style={styles.allDoneSub}>Every protocol locked in. That's the work.</div>
               <button onClick={onClose} style={styles.doneBtn}>Close</button>
@@ -107,7 +108,7 @@ export default function RoutineModeModal({ block, quests, completedIds, onToggle
               const color = DOMAIN_COLORS[current.category] || TOKENS.color.brand;
               return (
                 <div style={{ ...styles.catBadge, background: `${color}18`, color }}>
-                  {cat?.icon} {cat?.label}
+                  <Emoji e={cat?.icon} size="1.1em" /> {cat?.label}
                 </div>
               );
             })()}
@@ -178,7 +179,7 @@ export default function RoutineModeModal({ block, quests, completedIds, onToggle
                 </div>
                 <div style={{ flex: 1, textAlign: "left" }}>
                   <div style={{ ...styles.listText, textDecoration: isDone ? "line-through" : "none", color: isDone ? TOKENS.color.textTertiary : TOKENS.color.text }}>
-                    {cat?.icon} {q.text}
+                    <Emoji e={cat?.icon} size="1.1em" /> {q.text}
                   </div>
                 </div>
                 {isFocused && !isDone && <ChevronRight size={14} color={color} />}

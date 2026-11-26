@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TOKENS } from "../../styles/tokens";
+import { EmojiText } from "./Emoji";
 
 const ToastContext = createContext(null);
 
@@ -31,7 +32,7 @@ export function ToastProvider({ children }) {
                 background: t.type === "xp" ? "#111" : t.type === "error" ? TOKENS.color.danger : TOKENS.color.text,
               }}
             >
-              {t.message}
+              <EmojiText>{t.message}</EmojiText>
             </motion.div>
           ))}
         </AnimatePresence>

@@ -62,7 +62,7 @@ export default function PrivacyPolicyScreen({ onBack }) {
             </li>
             <li>
               <b>Hosting.</b> The app is served by Vercel, which keeps standard access logs (IP address,
-              user agent). Fonts are loaded from Google Fonts, which sees your IP address.
+              user agent). Fonts and icons are served from the app itself. Book covers in the Learn tab load from Open Library (Internet Archive), which sees your IP address.
             </li>
           </ul>
           We do <b>not</b> sell or share your data, show ads, or use advertising SDKs.

@@ -4,6 +4,7 @@ import { ChevronLeft, Check, Plus } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { getTodayStr, getDayQuests, daysBetween } from "../../utils";
+import { Emoji } from "../shared/Emoji";
 
 export default function DomainPanel({ domainId, state, save, onClose, onOpenPanel }) {
   const domain = CATEGORIES.find((c) => c.id === domainId);
@@ -58,7 +59,7 @@ export default function DomainPanel({ domainId, state, save, onClose, onOpenPane
           <ChevronLeft size={20} color={TOKENS.color.text} />
         </button>
         <div style={{ ...styles.domainIcon, background: `${color}14` }}>
-          <span style={{ fontSize: 22 }}>{domain?.icon}</span>
+          <span style={{ fontSize: 22 }}><Emoji e={domain?.icon} size="1.1em" /></span>
         </div>
         <div style={{ flex: 1 }}>
           <div style={styles.domainLabel}>{domain?.label}</div>
@@ -77,7 +78,7 @@ export default function DomainPanel({ domainId, state, save, onClose, onOpenPane
       <div style={styles.questList}>
         {quests.length === 0 && (
           <div style={styles.emptyState}>
-            <span style={{ fontSize: 36 }}>{domain?.icon}</span>
+            <span style={{ fontSize: 36 }}><Emoji e={domain?.icon} size="1.1em" /></span>
             <div style={styles.emptyTitle}>No quests today</div>
             <div style={styles.emptySub}>
               Add a custom quest to start tracking {domain?.label?.toLowerCase()} habits.

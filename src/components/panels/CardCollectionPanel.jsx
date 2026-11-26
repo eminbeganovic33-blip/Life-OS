@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, Lock, Star, Sparkles } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { MOTIVATION_CARDS } from "../../data/constants";
+import { Emoji } from "../shared/Emoji";
 
 const CAT_COLORS = {
   Discipline: "#EF4444",
@@ -87,7 +88,7 @@ export default function CardCollectionPanel({ state, onClose }) {
                 color: filter === cat ? "#fff" : TOKENS.color.textSecondary,
               }}
             >
-              {cat === "all" ? "All" : `${CAT_ICONS[cat]} ${cat}`}
+              {cat === "all" ? "All" : <><Emoji e={CAT_ICONS[cat]} size="1.15em" /> {cat}</>}
             </button>
           ))}
         </div>
@@ -117,7 +118,7 @@ export default function CardCollectionPanel({ state, onClose }) {
                   background: isCollected ? color : TOKENS.color.border,
                   color: isCollected ? "#fff" : TOKENS.color.textTertiary,
                 }}>
-                  {CAT_ICONS[c.category]} {c.category}
+                  <Emoji e={CAT_ICONS[c.category]} size="1.15em" /> {c.category}
                 </div>
                 <div style={{
                   ...styles.quote,
