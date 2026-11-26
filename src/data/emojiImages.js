@@ -2,6 +2,8 @@
 // Maps an emoji (variation selector removed) to its image in /public/emoji.
 // Images: Microsoft Fluent Emoji (MIT). See CREDITS.md.
 export const EMOJI_IMAGES = {
+  "☀": "sun",
+  "🌇": "sunset",
   "⏰": "alarm-clock",
   "⏱": "stopwatch",
   "☕": "hot-beverage",

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronsUp, Crown } from "lucide-react";
+
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 import { LEVELS } from "../../data/constants";
 
 export default function LevelUpModal({ level, onDismiss }) {
@@ -42,8 +43,8 @@ export default function LevelUpModal({ level, onDismiss }) {
             }}
           >
             {level >= 12
-              ? <Crown size={40} color="#fff" strokeWidth={2.2} />
-              : <ChevronsUp size={40} color="#fff" strokeWidth={2.4} />}
+              ? <Emoji e="👑" size={68} />
+              : <Emoji e="🚀" size={68} />}
           </motion.div>
 
           <div style={{ ...styles.kicker, color: accent }}>LEVEL UP</div>

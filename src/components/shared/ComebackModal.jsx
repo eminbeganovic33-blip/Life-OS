@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Sunrise } from "lucide-react";
+
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 
 export default function ComebackModal({ missedDays, onDismiss, prevStreak = 0, onLogOne, onRestoreHalf }) {
   if (!missedDays || missedDays <= 0) return null;
@@ -34,7 +35,7 @@ export default function ComebackModal({ missedDays, onDismiss, prevStreak = 0, o
             transition={{ type: "spring", stiffness: 220, damping: 18, delay: 0.1 }}
             style={styles.badge}
           >
-            <Sunrise size={32} color="#fff" strokeWidth={2.2} />
+            <Emoji e="🌅" size={60} />
           </motion.div>
 
           <div style={styles.kicker}>WELCOME BACK</div>

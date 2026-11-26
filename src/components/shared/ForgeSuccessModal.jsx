@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Award } from "lucide-react";
+import { Award } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { Emoji } from "./Emoji";
 
@@ -68,12 +68,12 @@ export default function ForgeSuccessModal({ habitId, days, onDismiss }) {
               boxShadow: `0 16px 40px ${accent}50`,
             }}
           >
-            <Shield size={40} color="#fff" strokeWidth={2.2} />
+            <Emoji e="🛡️" size={68} />
           </motion.div>
 
           <div style={{ ...styles.kicker, color: accent }}>FREEDOM MILESTONE</div>
           <div style={styles.title}>{milestoneLabel}</div>
-          <div style={styles.subtitle}><span style={{ fontSize: 18 }}><Emoji e={emoji} size="1.1em" /></span> {label} free</div>
+          <div style={styles.subtitle}><Emoji e={emoji} size={32} /> {label} free</div>
 
           <div style={styles.messageBox}>
             <div style={styles.message}>{message}</div>

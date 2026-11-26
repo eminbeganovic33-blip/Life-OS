@@ -1,5 +1,5 @@
-import { Flame, Snowflake } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 
 export default function StreakPill({ streak, freezes = 0, tone = "light" }) {
   if (!streak && !freezes) return null;
@@ -12,7 +12,7 @@ export default function StreakPill({ streak, freezes = 0, tone = "light" }) {
           ...styles.pill,
           background: dark ? "rgba(249, 115, 22, 0.20)" : "rgba(249, 115, 22, 0.10)",
         }}>
-          <Flame size={14} color="#FB923C" strokeWidth={2.5} fill="#FB923C" />
+          <Emoji e="🔥" size={22} label="" />
           <span style={{ ...styles.count, color: dark ? "#FDBA74" : "#F97316" }}>{streak}</span>
         </div>
       )}
@@ -24,7 +24,7 @@ export default function StreakPill({ streak, freezes = 0, tone = "light" }) {
           }}
           title={`${freezes} streak freeze${freezes > 1 ? "s" : ""} banked`}
         >
-          <Snowflake size={12} color="#60A5FA" strokeWidth={2.5} />
+          <Emoji e="❄️" size={20} label="" />
           <span style={{ ...styles.freezeCount, color: dark ? "#93C5FD" : "#3B82F6" }}>{freezes}</span>
         </div>
       )}

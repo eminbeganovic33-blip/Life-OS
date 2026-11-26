@@ -47,7 +47,7 @@ export default function AnniversaryModal({ day, onDismiss }) {
         transition={{ type: "spring", stiffness: 280, damping: 20 }}
         style={{
           ...styles.modal,
-          background: `linear-gradient(135deg, ${c.color}15 0%, #FFFFFF 50%)`,
+          background: `linear-gradient(135deg, ${c.color}22 0%, transparent 55%), var(--c-surface-elevated)`,
           border: `2px solid ${c.color}40`,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -70,7 +70,7 @@ export default function AnniversaryModal({ day, onDismiss }) {
             position: "relative", zIndex: 1,
           }}
         >
-          <span style={{ fontSize: 56 }}><Emoji e={c.emoji} size="1.1em" /></span>
+          <Emoji e={c.emoji} size={72} />
         </motion.div>
         <div style={{ ...styles.day, color: c.color }}>DAY {day}</div>
         <div style={styles.title}>{c.title}</div>

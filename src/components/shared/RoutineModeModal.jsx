@@ -279,7 +279,7 @@ const styles = {
     border: "1px solid rgba(16,185,129,0.20)",
     textAlign: "center",
   },
-  allDoneIcon: { fontSize: 40, marginBottom: 12 },
+  allDoneIcon: { fontSize: 72, marginBottom: 12 },
   allDoneTitle: {
     fontSize: 22, fontWeight: 800,
     color: "#10B981", marginBottom: 6,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, Trophy, BookOpen, Plus, Dumbbell, X, Inbox, PauseCircle, PlayCircle, Ban, AlertTriangle, Play } from "lucide-react";
+import { Shield, Sparkles, Sun, Sunset, Moon, ChevronDown, ChevronUp, Zap, BookOpen, Plus, Dumbbell, X, Inbox, PauseCircle, PlayCircle, Ban, AlertTriangle, Play } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
 import { getTodayStr, getDayQuests, daysBetween, getLevelIndex, getConsistency } from "../../utils";
 import { getDailyBonusQuest, getWeeklyChallenge } from "../../utils/xpEngine";
@@ -15,10 +15,10 @@ import { feedback } from "../../utils/audio";
 import { Emoji, EmojiText } from "../shared/Emoji";
 
 const TIME_BLOCKS = [
-  { id: "morning", label: "Morning", icon: Sun, accent: "#F59E0B", time: "Wake up to noon" },
-  { id: "midday",  label: "Midday",  icon: Sunset, accent: "#F97316", time: "Noon to evening" },
-  { id: "evening", label: "Evening", icon: Moon, accent: "#7C5CFC", time: "Evening to bed" },
-  { id: "anytime", label: "Anytime", icon: Zap,  accent: "#10B981", time: "Throughout the day" },
+  { id: "morning", label: "Morning", icon: Sun, art: "☀️", accent: "#F59E0B", time: "Wake up to noon" },
+  { id: "midday",  label: "Midday",  icon: Sunset, art: "🌇", accent: "#F97316", time: "Noon to evening" },
+  { id: "evening", label: "Evening", icon: Moon, art: "🌙", accent: "#7C5CFC", time: "Evening to bed" },
+  { id: "anytime", label: "Anytime", icon: Zap,  art: "⚡", accent: "#10B981", time: "Throughout the day" },
 ];
 
 export default function TodayScreen({ state, save, onOpenPanel }) {
@@ -321,7 +321,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           style={styles.bonusCard}
         >
           <div style={styles.bonusIcon}>
-            <Zap size={20} color="#FBBF24" fill="#FBBF24" />
+            <Emoji e="⚡" size={40} label="" />
           </div>
           <div style={{ flex: 1, textAlign: "left" }}>
             <div style={styles.bonusLabel}>DAILY BONUS · +{dailyBonus.xp} XP</div>
@@ -338,7 +338,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           style={styles.challengeCard}
         >
           <div style={styles.challengeHeader}>
-            <Trophy size={14} color="#7C5CFC" />
+            <Emoji e="🏆" size={26} label="" />
             <span style={styles.challengeLabel}>WEEKLY CHALLENGE · +{weeklyChallenge.xpReward} XP</span>
           </div>
           <div style={styles.challengeText}>{weeklyChallenge.text}</div>
@@ -387,7 +387,6 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
           const blockCompleted = blockQuests.filter((q) => completedIds.includes(q.id)).length;
           const blockDone = blockCompleted === blockQuests.length;
           const isCollapsed = collapsedBlocks[block.id];
-          const BlockIcon = block.icon;
 
           return (
             <div key={block.id} style={styles.timeBlock}>
@@ -397,7 +396,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                   ...styles.blockIconWrap,
                   background: blockDone ? `${block.accent}20` : `${block.accent}10`,
                 }}>
-                  <BlockIcon size={16} color={block.accent} />
+                  <Emoji e={block.art} size={34} label="" />
                 </div>
                 <div style={{ flex: 1, textAlign: "left" }}>
                   <div style={styles.blockTitle}>
@@ -443,19 +442,13 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                             onClick={() => toggleQuest(q.id)}
                             style={{
                               ...styles.questRow,
-                              background: isDone ? `${color}08` : "transparent",
+                              background: isDone ? `${color}1F` : `${color}0D`,
+                              borderColor: isDone ? `${color}66` : `${color}2E`,
+                              boxShadow: `0 3px 0 ${color}${isDone ? "55" : "26"}`,
                             }}
                           >
-                            <div style={{
-                              ...styles.questCheck,
-                              background: isDone ? color : "transparent",
-                              borderColor: isDone ? color : TOKENS.color.border,
-                            }}>
-                              {isDone && (
-                                <svg width="10" height="10" viewBox="0 0 10 10">
-                                  <path d="M2 5 L4.5 7.5 L8 3" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              )}
+                            <div style={{ ...styles.questArt, background: `${color}22` }}>
+                              <Emoji e={cat?.icon} size={36} label="" />
                             </div>
                             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                               <div style={{
@@ -466,9 +459,20 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                                 {q.text}
                               </div>
                               <div style={styles.questMeta}>
-                                <span><Emoji e={cat?.icon} size="1.1em" /> {cat?.label}</span>
-                                <span style={{ color }}>+{q.xp} XP</span>
+                                <span>{cat?.label}</span>
+                                <span style={{ color, fontWeight: 900 }}>+{q.xp} XP</span>
                               </div>
+                            </div>
+                            <div style={{
+                              ...styles.questCheck,
+                              background: isDone ? color : TOKENS.color.surfaceElevated,
+                              borderColor: isDone ? color : `${color}55`,
+                            }}>
+                              {isDone && (
+                                <svg width="16" height="16" viewBox="0 0 10 10">
+                                  <path d="M2 5 L4.5 7.5 L8 3" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
                             </div>
                           </button>
                         );
@@ -505,7 +509,7 @@ export default function TodayScreen({ state, save, onOpenPanel }) {
                     borderColor: allCatDone ? `${color}30` : TOKENS.color.border,
                   }}
                 >
-                  <span style={{ fontSize: 16 }}><Emoji e={cat.icon} size="1.1em" /></span>
+                  <Emoji e={cat.icon} size={30} label="" />
                   <div style={styles.domainTileText}>
                     <div style={{ ...styles.domainTileLabel, color: allCatDone ? color : TOKENS.color.text }}>
                       {cat.label}
@@ -679,7 +683,7 @@ const styles = {
   domainTile: {
     display: "flex", alignItems: "center", gap: TOKENS.space[2],
     padding: `${TOKENS.space[2]}px ${TOKENS.space[3]}px`,
-    border: "1px solid", borderRadius: TOKENS.radius.full,
+    border: "2px solid", borderRadius: TOKENS.radius.full,
     cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
     transition: TOKENS.transition.fast,
   },
@@ -783,12 +787,12 @@ const styles = {
     cursor: "pointer", width: "100%",
   },
   bonusIcon: {
-    width: 36, height: 36, borderRadius: TOKENS.radius.md,
+    width: 56, height: 56, borderRadius: TOKENS.radius.lg, flexShrink: 0,
     background: "rgba(251,191,36,0.18)",
     display: "flex", alignItems: "center", justifyContent: "center",
   },
   bonusLabel: { fontSize: 11, fontWeight: 900, color: "#B45309", letterSpacing: 0.8 },
-  bonusText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text, marginTop: 2 },
+  bonusText: { fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold, color: TOKENS.color.text, marginTop: 2 },
   challengeCard: {
     padding: TOKENS.space[5],
     background: "linear-gradient(135deg, rgba(124,92,252,0.06) 0%, rgba(124,92,252,0.02) 100%)",
@@ -813,7 +817,7 @@ const styles = {
     background: "none", border: "none", cursor: "pointer", width: "100%",
   },
   blockIconWrap: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 52, height: 52, borderRadius: TOKENS.radius.md,
     display: "flex", alignItems: "center", justifyContent: "center",
   },
   blockTitle: {
@@ -822,22 +826,26 @@ const styles = {
   },
   blockCount: { fontSize: TOKENS.font.size.xs, fontWeight: TOKENS.font.weight.bold },
   blockTime: { fontSize: 11, color: TOKENS.color.textTertiary, marginTop: 1 },
-  questList: { display: "flex", flexDirection: "column", gap: 4 },
+  questList: { display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 },
   questRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: `${TOKENS.space[3]}px ${TOKENS.space[4]}px`,
-    border: "none", cursor: "pointer", width: "100%",
-    borderRadius: TOKENS.radius.md,
+    padding: `${TOKENS.space[3]}px ${TOKENS.space[3]}px`,
+    border: "2px solid", cursor: "pointer", width: "100%",
+    borderRadius: TOKENS.radius.lg, minHeight: 72,
     transition: TOKENS.transition.fast,
   },
+  questArt: {
+    width: 52, height: 52, borderRadius: TOKENS.radius.md, flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+  },
   questCheck: {
-    width: 20, height: 20, borderRadius: 10,
-    border: "2px solid", display: "flex", alignItems: "center", justifyContent: "center",
+    width: 32, height: 32, borderRadius: 16,
+    border: "2.5px solid", display: "flex", alignItems: "center", justifyContent: "center",
     flexShrink: 0, transition: TOKENS.transition.fast,
   },
-  questText: { fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.medium, lineHeight: 1.4 },
+  questText: { fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold, lineHeight: 1.3 },
   questMeta: {
-    fontSize: 11, color: TOKENS.color.textTertiary,
+    fontSize: 13, color: TOKENS.color.textTertiary,
     display: "flex", gap: 8, marginTop: 2, fontWeight: TOKENS.font.weight.semibold,
   },
   forgeStrip: {
@@ -962,7 +970,7 @@ const styles = {
 
   // 10A: Pause Day
   pauseBtn: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 52, height: 52, borderRadius: TOKENS.radius.md,
     border: "1px solid",
     display: "flex", alignItems: "center", justifyContent: "center",
     cursor: "pointer", flexShrink: 0,

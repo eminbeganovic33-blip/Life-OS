@@ -7,13 +7,13 @@ export function injectGlobalStyles() {
     :root {
       color-scheme: light dark;
       --c-bg: #FFFFFF;
-      --c-page: #FAF9FE;
-      --c-surface: #F4F3FA;
+      --c-page: #F8F6FF;
+      --c-surface: #F2EFFF;
       --c-surface-elevated: #FFFFFF;
-      --c-surface-alt: #ECEAF5;
-      --c-border: rgba(22, 21, 43, 0.09);
-      --c-border-subtle: rgba(22, 21, 43, 0.05);
-      --c-border-strong: rgba(22, 21, 43, 0.16);
+      --c-surface-alt: #E7E1FF;
+      --c-border: rgba(76, 56, 190, 0.13);
+      --c-border-subtle: rgba(76, 56, 190, 0.07);
+      --c-border-strong: rgba(76, 56, 190, 0.24);
       --c-text: #16152B;
       --c-text-2: rgba(22, 21, 43, 0.64);
       --c-text-3: rgba(22, 21, 43, 0.44);
@@ -22,21 +22,21 @@ export function injectGlobalStyles() {
       --c-primary-shadow: #4A2BD6;
       --c-xp-deep: #B45309;
       --c-tabbar: rgba(255, 255, 255, 0.88);
-      --sh-sm: 0 1px 2px rgba(22,21,43,0.05);
-      --sh-md: 0 4px 16px rgba(22,21,43,0.07);
+      --sh-sm: 0 2px 0 rgba(76,56,190,0.08);
+      --sh-md: 0 3px 0 rgba(76,56,190,0.08), 0 8px 20px rgba(76,56,190,0.08);
       --sh-lg: 0 10px 30px rgba(22,21,43,0.09);
       --sh-xl: 0 20px 50px rgba(22,21,43,0.14);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --c-bg: #121226;
-        --c-page: #0D0D1D;
-        --c-surface: #1C1C36;
-        --c-surface-elevated: #232342;
-        --c-surface-alt: #2A2A4C;
-        --c-border: rgba(240, 238, 255, 0.10);
+        --c-bg: #13112A;
+        --c-page: #0E0C1F;
+        --c-surface: #1F1C3D;
+        --c-surface-elevated: #27234A;
+        --c-surface-alt: #2F2A58;
+        --c-border: rgba(196, 184, 255, 0.14);
         --c-border-subtle: rgba(240, 238, 255, 0.06);
-        --c-border-strong: rgba(240, 238, 255, 0.18);
+        --c-border-strong: rgba(196, 184, 255, 0.24);
         --c-text: #F2F1FF;
         --c-text-2: rgba(242, 241, 255, 0.70);
         --c-text-3: rgba(242, 241, 255, 0.48);

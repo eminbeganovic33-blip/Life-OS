@@ -520,7 +520,7 @@ export default function DojoPanel({ state, save, onClose }) {
           <button onClick={() => { setView("home"); setActiveProgram(null); }} style={styles.backBtn} aria-label="Close">
             <ChevronLeft size={20} color={TOKENS.color.text} />
           </button>
-          <span style={{ fontSize: 22 }}><Emoji e={activeProgram.icon} size="1.1em" /></span>
+          <Emoji e={activeProgram.icon} size={38} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={styles.headerTitle}>{activeProgram.title}</div>
             <div style={styles.headerSub}>{activeProgram.duration} · {activeProgram.frequency} · {activeProgram.level}</div>
@@ -811,10 +811,9 @@ const styles = {
   },
 
   programIcon: {
-    width: 44, height: 44, borderRadius: TOKENS.radius.md,
-    background: "rgba(239,68,68,0.12)",
+    width: 64, height: 64, borderRadius: TOKENS.radius.lg, fontSize: 40, flexShrink: 0,
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 22, flexShrink: 0,
+    background: "linear-gradient(145deg, rgba(249,115,22,0.18), rgba(239,68,68,0.10))",
   },
   programInfo: { flex: 1, textAlign: "left", minWidth: 0 },
   programTitle: {
@@ -1020,9 +1019,8 @@ const styles = {
     padding: `${TOKENS.space[9]}px ${TOKENS.space[5]}px`,
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: 80,
     marginBottom: TOKENS.space[3],
-    opacity: 0.6,
   },
   emptyTitle: {
     fontSize: TOKENS.font.size.md,

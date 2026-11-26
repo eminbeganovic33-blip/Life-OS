@@ -192,7 +192,7 @@ export default function JournalPanel({ state, save, onClose }) {
                   <button onClick={() => openEntry(entry.date)} style={styles.entryBtn}>
                     <div style={styles.entryHeader}>
                       <span style={styles.entryDate}>{dateLabel}</span>
-                      {moodData && <span style={{ fontSize: 18 }}><Emoji e={moodData.emoji} size="1.1em" /></span>}
+                      {moodData && <Emoji e={moodData.emoji} size={32} />}
                     </div>
                     {entry.text && (
                       <div style={styles.entryPreview}>

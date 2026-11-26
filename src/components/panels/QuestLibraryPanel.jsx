@@ -200,7 +200,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
                     }}>
                       <div style={styles.questHead}>
                         <div style={{ ...styles.questIcon, background: `${c}18` }}>
-                          <span style={{ fontSize: 18 }}><Emoji e={q.icon} size="1.1em" /></span>
+                          <Emoji e={q.icon} size={32} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={styles.questTitle}>{q.title}</div>
@@ -283,7 +283,7 @@ export default function QuestLibraryPanel({ state, save, onClose }) {
                   }}>
                     <div style={styles.questHead}>
                       <div style={{ ...styles.questIcon, background: `${c}18` }}>
-                        <span style={{ fontSize: 18 }}><Emoji e={q.icon} size="1.1em" /></span>
+                        <Emoji e={q.icon} size={32} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={styles.questTitle}>{q.title}</div>
@@ -386,7 +386,7 @@ const styles = {
     textAlign: "center",
   },
   emptyIcon: {
-    fontSize: 48, marginBottom: TOKENS.space[3], opacity: 0.6,
+    fontSize: 80, marginBottom: TOKENS.space[3],
   },
   emptyTitle: {
     fontSize: TOKENS.font.size.md,

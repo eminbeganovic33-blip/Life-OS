@@ -205,7 +205,7 @@ const styles = {
     marginBottom: TOKENS.space[5],
     boxShadow: TOKENS.shadow.glowBrand,
   },
-  heroEmoji: { fontSize: 44 },
+  heroEmoji: { fontSize: 64 },
   logo: {
     fontSize: 44, fontWeight: TOKENS.font.weight.heavy,
     color: TOKENS.color.text, letterSpacing: -1.5,

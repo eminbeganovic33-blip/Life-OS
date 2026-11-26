@@ -40,7 +40,7 @@ const styles = {
     minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
     padding: 24, textAlign: "center", background: TOKENS.color.bg, color: TOKENS.color.text,
   },
-  badge: { fontSize: 52, marginBottom: 12 },
+  badge: { fontSize: 72, marginBottom: 12 },
   title: { fontSize: 22, fontWeight: 900, margin: "0 0 8px" },
   sub: { fontSize: 15, lineHeight: 1.5, color: TOKENS.color.textSecondary, maxWidth: 380, margin: 0 },
   btns: { display: "flex", flexDirection: "column", gap: 10, marginTop: 24, width: "100%", maxWidth: 320 },

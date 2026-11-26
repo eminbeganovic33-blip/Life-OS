@@ -218,7 +218,7 @@ export default function ProgressPanel({ state, onClose }) {
             <div style={styles.sectionLabel}>Domain consistency</div>
             {categoryStats.slice(0, 8).map((cat) => (
               <div key={cat.id} style={styles.catRow}>
-                <span style={{ fontSize: 16 }}><Emoji e={cat.icon} size="1.1em" /></span>
+                <Emoji e={cat.icon} size={28} />
                 <span style={styles.catLabel}>{cat.label}</span>
                 <div style={styles.catBar}>
                   <div style={{

@@ -2,6 +2,36 @@
 
 Dated entries, newest first. Each push to GitHub gets an entry saying what changed and why.
 
+## 2026-11-26 — Visual revamp, round 2: 3D images, bigger art, bolder cards
+
+**Branch:** `claude/lifeos-visual-revamp` (still on top of PR #6). **Preview only**: production waits for Emin's OK on the look.
+
+**Why:** Emin's feedback on round 1: "Swap to the 3D Fluent images, make the images bigger and more prominent, and push the style harder before shipping."
+
+**What changed:**
+- **3D images:** the flat Fluent Emoji were replaced with Microsoft's **Fluent Emoji 3D** (MIT).
+  - Only the 136 images in use were downloaded from the official GitHub repo, plus 2 new ones (sun and sunset).
+  - They're saved as 192px WebP, about 590 KB in total and lazy-loaded.
+  - `CREDITS.md` is updated with the source, licence and how to add more.
+- **Bigger, more prominent art:**
+  - **Today:** each quest is now a bold card, with a 52px picture tile, a tinted background, a 2px border, a pressable lip and a 32px check circle. The time blocks use 3D sun, sunset, moon and lightning. The daily bonus and weekly challenge use 3D art, and the streak and freeze pills use 3D fire and snowflake.
+  - **Forge:** tracker art is 64px.
+  - **Dojo and Academy:** programs and courses have 64px tiles.
+  - **Trophies and guides:** images are 40px.
+  - **Onboarding:** the "What's inside" cards use 3D art, and the goal and vice images are bigger.
+  - **Empty states:** 80px images.
+- **Popups:** level-up (rocket or crown), day complete (party popper), Forge milestone (shield), comeback (sunrise) and weekly review (chart) all use large 3D images instead of line icons.
+  - The anniversary popup was see-through at the top-left corner. It's opaque now, and works in dark mode.
+- **More colour:** surfaces and borders have a lavender tint, and cards have a soft solid lip.
+- No change to behaviour or saved data.
+
+**Verified:**
+- `npm test`: 38/38 passing in 3 timezones. Lint: 0 errors (38 advisory warnings). Build: green.
+- Phone-size screenshots, light and dark, of onboarding, the five tabs and 7 popups (day complete, level-up, boss, Forge milestone, comeback, anniversary, weekly review):
+  - 0 console errors;
+  - no emoji characters left as text on the tabs;
+  - no button under 44px.
+
 ## 2026-11-26 — Visual revamp: thick rounded font, big round buttons, real images, dark mode
 
 **Branch:** `claude/lifeos-visual-revamp` (on top of `claude/lifeos-v1-preview` / PR #6, which isn't merged yet)

@@ -281,7 +281,7 @@ export default function ForgePanel({ state, save, onClose }) {
                 {availableHabits.map((habit) => (
                   <div key={habit.id} style={styles.startCard}>
                     <div style={styles.startLeft}>
-                      <span style={{ fontSize: 24 }}><Emoji e={habit.icon} size="1.1em" /></span>
+                      <Emoji e={habit.icon} size={42} />
                       <span style={styles.startLabel}>{habit.label}</span>
                     </div>
                     {expandedGoal === habit.id ? (
@@ -380,7 +380,7 @@ function TrackerCard({ habit, goal, onRelapse, onExtend }) {
     <div style={styles.habitCard}>
       <div style={styles.habitTop}>
         <div style={styles.habitLeft}>
-          <span style={{ fontSize: 28 }}><Emoji e={habit.icon} size="1.1em" /></span>
+          <Emoji e={habit.icon} size={64} />
           <div>
             <div style={styles.habitLabel}>{habit.label}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>

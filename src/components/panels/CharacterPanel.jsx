@@ -129,7 +129,7 @@ export default function CharacterPanel({ state, onClose }) {
             {state.avatar ? (
               renderAnimalAvatar(state.avatar, 88)
             ) : (
-              <span style={{ fontSize: 56 }}><Emoji e={tier.emoji} size="1.1em" /></span>
+              <Emoji e={tier.emoji} size={96} />
             )}
           </div>
           <div style={{ ...styles.tierLabel, color: tier.color }}>{tier.label}</div>
@@ -157,7 +157,7 @@ export default function CharacterPanel({ state, onClose }) {
             return (
               <div key={key} style={styles.statRow}>
                 <div style={styles.statRowTop}>
-                  <span style={{ fontSize: 18 }}><Emoji e={meta.icon} size="1.1em" /></span>
+                  <Emoji e={meta.icon} size={32} />
                   <span style={styles.statName}>{meta.label}</span>
                   <span style={{ ...styles.statValue, color: meta.color }}>{value}</span>
                 </div>

@@ -99,7 +99,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
               boxShadow: `0 12px 36px ${justFinished.coverColor}50`,
             }}
           >
-            <span style={{ fontSize: 56 }}><Emoji e={justFinished.icon} size="1.1em" /></span>
+            <Emoji e={justFinished.icon} size={96} />
           </motion.div>
           <div style={{ ...styles.bookCompleteKicker, color: justFinished.coverColor }}>BOOK COMPLETE</div>
           <div style={styles.bookCompleteTitle}>{justFinished.title}</div>
@@ -151,7 +151,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
         <div style={styles.body}>
           <div style={{ ...styles.bookHero, background: `${book.coverColor}12` }}>
             <div style={{ ...styles.coverIcon, background: book.coverColor }}>
-              <span style={{ fontSize: 40 }}><Emoji e={book.icon} size="1.1em" /></span>
+              <Emoji e={book.icon} size={70} />
             </div>
             <div style={styles.bookTitle}>{book.title}</div>
             <div style={styles.bookAuthor}>by {book.author}</div>
@@ -279,7 +279,7 @@ export default function BookLibraryPanel({ state, save, onClose }) {
                 }}
               >
                 <div style={{ ...styles.bookIcon, background: book.coverColor }}>
-                  <span style={{ fontSize: 22 }}><Emoji e={book.icon} size="1.1em" /></span>
+                  <Emoji e={book.icon} size={38} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                   <div style={styles.rowTitle}>{book.title}</div>
@@ -374,7 +374,7 @@ const styles = {
     textAlign: "center", padding: `${TOKENS.space[9]}px ${TOKENS.space[5]}px`,
   },
   emptyIcon: {
-    fontSize: 48, marginBottom: TOKENS.space[3], opacity: 0.6,
+    fontSize: 80, marginBottom: TOKENS.space[3],
   },
   emptyTitle: {
     fontSize: TOKENS.font.size.md,

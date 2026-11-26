@@ -182,7 +182,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           }}>
             {state.avatar
               ? renderAnimalAvatar(state.avatar, 72)
-              : <span style={{ fontSize: 56 }}><Emoji e={tier.emoji} size="1.1em" /></span>}
+              : <Emoji e={tier.emoji} size={96} />}
             <div style={{ ...styles.levelBadge, background: tier.color }}>Lv.{levelIdx + 1}</div>
           </div>
         </button>
@@ -228,7 +228,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             return (
               <div key={key} style={styles.miniStatItem}>
                 <div style={styles.miniStatHead}>
-                  <span style={{ fontSize: 13 }}><Emoji e={meta.icon} size="1.1em" /></span>
+                  <Emoji e={meta.icon} size={28} />
                   <span style={styles.miniStatLabel}>{meta.label.slice(0, 3).toUpperCase()}</span>
                   <span style={{ ...styles.miniStatValue, color: meta.color }}>{v}</span>
                 </div>
@@ -292,7 +292,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
                 onClick={() => setExpandedTrophy((p) => ({ ...p, [sec.id]: !p[sec.id] }))}
                 style={styles.trophySectionHeader}
               >
-                <span style={{ fontSize: 18 }}><Emoji e={sec.icon} size="1.1em" /></span>
+                <Emoji e={sec.icon} size={32} />
                 <span style={styles.trophySectionLabel}>{sec.label}</span>
                 <span style={{ ...styles.trophySectionMeta, color: unlocked === sectionTrophies.length ? TOKENS.color.success : TOKENS.color.textTertiary }}>
                   {unlocked}/{sectionTrophies.length}
@@ -312,7 +312,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
                         opacity: isUnlocked ? 1 : 0.4,
                         filter: isUnlocked ? "none" : "grayscale(60%)",
                       }}>
-                        <span style={{ fontSize: 24 }}><Emoji e={t.icon} size="1.1em" /></span>
+                        <Emoji e={t.icon} size={42} />
                         <div style={styles.trophyName}>{t.name}</div>
                         <div style={styles.trophyDesc}>{t.desc}</div>
                       </div>

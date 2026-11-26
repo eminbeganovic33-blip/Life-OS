@@ -74,7 +74,7 @@ const styles = {
     background: TOKENS.color.bg,
   },
   iconBadge: {
-    fontSize: 56, marginBottom: 16,
+    fontSize: 72, marginBottom: 16,
   },
   title: {
     fontSize: TOKENS.font.size.xxl,

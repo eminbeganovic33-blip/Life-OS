@@ -260,9 +260,9 @@ export default function AcademyPanel({ state, save, onClose }) {
               <div style={{
                 ...styles.courseIcon,
                 background: done ? "rgba(34,197,94,0.10)" : inProgress ? "rgba(124,92,252,0.08)" : "transparent",
-                borderRadius: 12,
+                borderRadius: TOKENS.radius.lg,
               }}>
-                <Emoji e={course.icon} size="1.1em" />
+                <Emoji e={course.icon} size={44} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={styles.courseName}>{course.title}</div>
@@ -399,8 +399,8 @@ const styles = {
   },
   courseIcon: {
     fontSize: 28,
-    width: 44,
-    height: 44,
+    width: 64,
+    height: 64,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

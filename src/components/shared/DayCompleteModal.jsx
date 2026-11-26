@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Sparkles } from "lucide-react";
+
 import { TOKENS } from "../../styles/tokens";
+import { Emoji } from "./Emoji";
 
 export default function DayCompleteModal({ day, xpEarned, streak, onDismiss }) {
   if (!day) return null;
@@ -30,7 +31,7 @@ export default function DayCompleteModal({ day, xpEarned, streak, onDismiss }) {
             transition={{ type: "spring", stiffness: 220, damping: 14, delay: 0.1 }}
             style={styles.badge}
           >
-            <Sparkles size={36} color="#fff" strokeWidth={2.4} />
+            <Emoji e="🎉" size={68} />
           </motion.div>
 
           <div style={styles.kicker}>DAY COMPLETE</div>
@@ -44,7 +45,7 @@ export default function DayCompleteModal({ day, xpEarned, streak, onDismiss }) {
             </div>
             <div style={styles.stat}>
               <div style={{ ...styles.statVal, color: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                <Flame size={20} color="#F97316" fill="#F97316" /> {streak}
+                <Emoji e="🔥" size={26} label="" /> {streak}
               </div>
               <div style={styles.statLabel}>day streak</div>
             </div>

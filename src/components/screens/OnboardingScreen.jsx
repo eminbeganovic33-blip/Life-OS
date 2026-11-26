@@ -22,11 +22,11 @@ const TROPHY_COUNT = TROPHIES.length;
 // ── Static data ─────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
-  { icon: Target,   color: "#7C5CFC", title: "Daily Quests", body: "Pick habits, complete daily, earn XP" },
-  { icon: Shield,   color: "#F97316", title: "Forge",        body: "Quit habits, track sober days" },
-  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: `Guided programs + a ${EXERCISE_COUNT}-exercise library` },
-  { icon: BookOpen, color: "#3B82F6", title: "Academy",      body: "Courses + book summaries" },
-  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: `${TROPHY_COUNT} trophies. Streaks. Boss days.` },
+  { icon: Target,   art: "🎯", color: "#7C5CFC", title: "Daily Quests", body: "Pick habits, complete daily, earn XP" },
+  { icon: Shield,   art: "🛡️", color: "#F97316", title: "Forge",        body: "Quit habits, track sober days" },
+  { icon: Dumbbell, art: "🏋️", color: "#EF4444", title: "Dojo",         body: `Guided programs + a ${EXERCISE_COUNT}-exercise library` },
+  { icon: BookOpen, art: "📚", color: "#3B82F6", title: "Academy",      body: "Courses + book summaries" },
+  { icon: Trophy,   art: "🏆", color: "#FBBF24", title: "Trophies",     body: `${TROPHY_COUNT} trophies. Streaks. Boss days.` },
 ];
 
 const ACTIVITY_OPTIONS = [
@@ -414,11 +414,10 @@ function QuickTourStep() {
       <p style={styles.sub}>Five tools, one daily practice.</p>
       <div style={styles.tourGrid}>
         {FEATURE_CARDS.map((f) => {
-          const Icon = f.icon;
           return (
-            <div key={f.title} style={{ ...styles.tourCard, borderColor: `${f.color}22` }}>
-              <div style={{ ...styles.tourIcon, background: f.color }}>
-                <Icon size={18} color="#fff" />
+            <div key={f.title} style={{ ...styles.tourCard, borderColor: `${f.color}33`, background: `${f.color}0F` }}>
+              <div style={{ ...styles.tourIcon, background: `${f.color}24` }}>
+                <Emoji e={f.art} size={40} label="" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={styles.tourTitle}>{f.title}</div>
@@ -514,7 +513,7 @@ function VicesStep({ vices, toggleVice }) {
                 color: selected ? "#F97316" : TOKENS.color.text,
               }}
             >
-              <span style={{ fontSize: 18 }}><Emoji e={v.icon} size="1.1em" /></span>
+              <Emoji e={v.icon} size={40} />
               <span>{v.label}</span>
             </button>
           );
@@ -547,7 +546,7 @@ function GoalsStep({ goal, setGoal, timeCommit, setTimeCommit }) {
                 borderColor: selected ? g.color : "transparent",
               }}
             >
-              <span style={{ fontSize: 24 }}><Emoji e={g.emoji} size="1.1em" /></span>
+              <Emoji e={g.emoji} size={52} />
               <div style={{ flex: 1, textAlign: "left" }}>
                 <div style={{ ...styles.optionLabel, color: selected ? g.color : TOKENS.color.text }}>{g.label}</div>
                 <div style={styles.optionSub}>{g.sub}</div>
@@ -602,7 +601,7 @@ function DomainsStep({ domains, toggleDomain, suggestedFromGoal }) {
                 color: isSelected ? cat.color : TOKENS.color.textSecondary,
               }}
             >
-              <span style={{ fontSize: 18 }}><Emoji e={cat.icon} size="1.1em" /></span>
+              <Emoji e={cat.icon} size={32} />
               <span style={styles.domainText}>{cat.label}</span>
               {isSuggested && !isSelected && (
                 <span style={styles.suggestedDot} title="Suggested" />
@@ -761,7 +760,7 @@ const styles = {
     background: TOKENS.color.surface,
   },
   tourIcon: {
-    width: 36, height: 36, borderRadius: 12,
+    width: 56, height: 56, borderRadius: TOKENS.radius.md,
     display: "flex", alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },

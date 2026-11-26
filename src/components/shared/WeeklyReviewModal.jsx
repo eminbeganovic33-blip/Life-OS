@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3 } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { CATEGORIES } from "../../data/categories";
 import { dateToLocalDayKey } from "../../utils/helpers";
@@ -71,7 +70,7 @@ export default function WeeklyReviewModal({ state, onDismiss }) {
             transition={{ type: "spring", stiffness: 220, damping: 14, delay: 0.1 }}
             style={styles.badge}
           >
-            <BarChart3 size={32} color="#fff" strokeWidth={2.4} />
+            <Emoji e="📈" size={60} />
           </motion.div>
           <div style={styles.kicker}>WEEKLY REVIEW</div>
           <div style={styles.title}>Here's your week</div>

@@ -43,7 +43,7 @@ export default function TrophyPanel({ state, onClose }) {
               const tc = getTrophyTierColor(t.tier || 1);
               return (
                 <div key={t.id} style={{ ...styles.card, background: tc.bg, borderColor: tc.border }}>
-                  <div style=<Emoji e={styles.icon} size="1.1em" />><Emoji e={t.icon} size="1.1em" /></div>
+                  <div style={styles.icon}><Emoji e={t.icon} size="1.1em" /></div>
                   <div style={{ flex: 1 }}>
                     <div style={styles.name}>{t.name}</div>
                     <div style={styles.desc}>{t.desc}</div>
@@ -154,8 +154,8 @@ const styles = {
     opacity: 0.6,
   },
   icon: {
-    fontSize: 28,
-    width: 40,
+    fontSize: 40,
+    width: 52,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

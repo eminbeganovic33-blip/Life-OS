@@ -192,7 +192,7 @@ const styles = {
     textAlign: "left",
     width: "100%",
   },
-  guideIcon: { fontSize: 28 },
+  guideIcon: { fontSize: 40 },
   guideName: {
     fontSize: TOKENS.font.size.md,
     fontWeight: TOKENS.font.weight.semibold,
