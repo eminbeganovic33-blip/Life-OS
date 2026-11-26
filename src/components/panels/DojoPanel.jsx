@@ -695,7 +695,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
@@ -801,11 +803,12 @@ const styles = {
   programCard: {
     display: "flex", alignItems: "center", gap: TOKENS.space[4],
     padding: TOKENS.space[4],
-    background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(249,115,22,0.04) 100%)",
-    border: "1px solid rgba(239,68,68,0.15)",
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.border}`,
     borderRadius: TOKENS.radius.lg,
     cursor: "pointer",
   },
+
   programIcon: {
     width: 44, height: 44, borderRadius: TOKENS.radius.md,
     background: "rgba(239,68,68,0.12)",
@@ -823,7 +826,7 @@ const styles = {
   },
   programMeta: {
     display: "flex", alignItems: "center", gap: 4,
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.semibold,
     marginTop: 4,
   },
@@ -842,7 +845,7 @@ const styles = {
     marginBottom: TOKENS.space[3],
   },
   weekNumber: {
-    fontSize: 11, fontWeight: 900, color: "#EF4444",
+    fontSize: 12, fontWeight: 900, color: "#EF4444",
     letterSpacing: 1.2,
   },
   weekFocus: {
@@ -865,7 +868,7 @@ const styles = {
     color: TOKENS.color.text,
   },
   dayExercises: {
-    fontSize: 11, color: TOKENS.color.textTertiary,
+    fontSize: 12, color: TOKENS.color.textTertiary,
     marginTop: 3, lineHeight: 1.4,
   },
   doneCard: {
@@ -939,7 +942,7 @@ const styles = {
   },
   setHeaderLabel: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: TOKENS.font.weight.semibold,
     color: TOKENS.color.textTertiary,
     textTransform: "uppercase",

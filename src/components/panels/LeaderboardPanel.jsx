@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, Award, Flame, Trophy, Dumbbell, BookOpen, Shield, Target, TrendingUp } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
-import { daysBetween, getLevelIndex } from "../../utils";
+import { daysBetween, getLevelIndex, getTotalVolume } from "../../utils";
 import { LEVELS } from "../../data/constants";
 
 // Tier thresholds for "global percentile" approximations.
@@ -33,18 +33,7 @@ export default function LeaderboardPanel({ state, onClose }) {
     const trophies = Object.keys(state.unlockedTrophies || {}).length;
     const coursesDone = Object.values(state.courseProgress || {}).filter((p) => p.completed).length;
 
-    let volume = 0;
-    Object.values(state.workoutLogs || {}).forEach((entries) => {
-      const list = Array.isArray(entries) ? entries : [entries];
-      list.forEach((entry) => {
-        (entry.sets || entry.exercises || []).forEach((s) => {
-          if (s.weight && s.reps) volume += s.weight * s.reps;
-          if (s.sets) s.sets.forEach((set) => {
-            if (set.weight && set.reps) volume += set.weight * set.reps;
-          });
-        });
-      });
-    });
+    const volume = getTotalVolume(state.workoutLogs);
 
     const forgeStreaks = Object.entries(state.sobrietyDates || {}).map(([id, date]) => ({
       id, days: daysBetween(date),
@@ -142,8 +131,9 @@ export default function LeaderboardPanel({ state, onClose }) {
       <div style={styles.body}>
         <div style={{
           ...styles.hero,
-          background: `linear-gradient(135deg, ${overallTier.color}18 0%, ${overallTier.color}08 100%)`,
-          borderColor: `${overallTier.color}30`,
+          background: TOKENS.color.surface,
+          border: `1px solid ${TOKENS.color.border}`,
+          borderLeft: `3px solid ${overallTier.color}`,
         }}>
           <div style={styles.heroLabel}>YOUR OVERALL RANK</div>
           <div style={{ ...styles.heroTier, color: overallTier.color }}>{overallTier.label}</div>
@@ -218,12 +208,14 @@ const styles = {
   },
   header: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1, borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   title: {
     fontSize: TOKENS.font.size.lg, fontWeight: TOKENS.font.weight.bold,
     color: TOKENS.color.text,
@@ -270,7 +262,7 @@ const styles = {
     color: TOKENS.color.text,
   },
   recordTier: {
-    fontSize: 10, fontWeight: 900, letterSpacing: 0.4,
+    fontSize: 11, fontWeight: 900, letterSpacing: 0.4,
     padding: "3px 8px", borderRadius: TOKENS.radius.full,
     textTransform: "uppercase",
   },

@@ -127,7 +127,7 @@ const styles = {
     position: "relative", zIndex: 1,
   },
   kicker: {
-    fontSize: 11, fontWeight: 900,
+    fontSize: 12, fontWeight: 900,
     letterSpacing: 1.5, marginBottom: 4,
   },
   title: {

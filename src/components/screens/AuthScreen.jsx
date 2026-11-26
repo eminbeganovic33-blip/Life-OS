@@ -55,7 +55,7 @@ export default function AuthScreen({ onSkip }) {
           <div style={styles.logo}>Life OS</div>
           <div style={styles.tagline}>Build the life. One habit at a time.</div>
           <div style={styles.subtagline}>
-            Build the habits that build the life. Track quests, forge sobriety, train your body, learn from the best.
+            Track daily quests, forge sobriety streaks, train your body, and learn from the best — leveling up as you go.
           </div>
         </motion.div>
 
@@ -186,22 +186,23 @@ const styles = {
     minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
-    padding: `${TOKENS.space[10]}px ${TOKENS.space[6]}px ${TOKENS.space[8]}px`,
+    justifyContent: "center",
+    padding: `${TOKENS.space[8]}px ${TOKENS.space[6]}px ${TOKENS.space[8]}px`,
     background: `linear-gradient(180deg, ${TOKENS.color.bg} 0%, #FAFAFA 100%)`,
   },
   heroContent: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    justifyContent: "center",
     textAlign: "center",
   },
   heroGradient: {
-    width: 88, height: 88, borderRadius: 24,
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    width: 88, height: 88, borderRadius: TOKENS.radius.xl,
+    background: TOKENS.game.gradient,
     display: "flex", alignItems: "center", justifyContent: "center",
     marginBottom: TOKENS.space[5],
-    boxShadow: "0 12px 32px rgba(124,92,252,0.25)",
+    boxShadow: TOKENS.shadow.glowBrand,
   },
   heroEmoji: { fontSize: 44 },
   logo: {
@@ -216,7 +217,7 @@ const styles = {
     fontSize: TOKENS.font.size.sm, color: TOKENS.color.textTertiary,
     marginTop: TOKENS.space[5], maxWidth: 320, lineHeight: 1.6,
   },
-  footer: { display: "flex", flexDirection: "column", gap: TOKENS.space[3] },
+  footer: { display: "flex", flexDirection: "column", gap: TOKENS.space[3], marginTop: TOKENS.space[10] },
   googleBtn: {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
     width: "100%", padding: "14px",
@@ -228,7 +229,7 @@ const styles = {
   googleG: {
     width: 20, height: 20, borderRadius: "50%",
     background: "linear-gradient(135deg, #4285F4 0%, #34A853 50%, #FBBC05 75%, #EA4335 100%)",
-    color: "#fff", fontSize: 12, fontWeight: 900,
+    color: "#fff", fontSize: 13, fontWeight: 900,
     display: "flex", alignItems: "center", justifyContent: "center",
   },
   primaryBtn: {

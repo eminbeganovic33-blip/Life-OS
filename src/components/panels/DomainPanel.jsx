@@ -34,7 +34,7 @@ export default function DomainPanel({ domainId, state, save, onClose, onOpenPane
     save({
       ...state,
       xp: Math.max(0, (state.xp || 0) + xpDelta),
-      lifetimeXp: Math.max(0, (state.lifetimeXp || 0) + (xpDelta > 0 ? xpDelta : 0)),
+      lifetimeXp: Math.max(0, (state.lifetimeXp || 0) + xpDelta),
       completedQuests: {
         ...state.completedQuests,
         [today]: todayCompleted,
@@ -150,7 +150,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: `${TOKENS.space[5]}px ${TOKENS.space[5]}px`,
+    paddingRight: `${TOKENS.space[5]}px`,
+    paddingBottom: `${TOKENS.space[5]}px`,
+    paddingLeft: `${TOKENS.space[5]}px`,
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1,
     borderBottomStyle: "solid",

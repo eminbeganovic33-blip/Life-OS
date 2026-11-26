@@ -1,20 +1,56 @@
 import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
-import { ChevronLeft, BookOpen, Check, Search, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, BookOpen, Check, Search, Trash2, Flame, Sparkles } from "lucide-react";
 import { TOKENS } from "../../styles/tokens";
 import { getTodayStr } from "../../utils";
+import { useToast } from "../shared/Toast";
+import { track } from "../../firebase";
 
 const MOODS = [
-  { val: 1, emoji: "😣", label: "Awful" },
-  { val: 2, emoji: "😔", label: "Bad" },
-  { val: 3, emoji: "😐", label: "Meh" },
-  { val: 4, emoji: "🙂", label: "Okay" },
-  { val: 5, emoji: "😊", label: "Good" },
-  { val: 6, emoji: "🤩", label: "Great" },
+  { val: 1, emoji: "😣", label: "Awful", color: "#EF4444" },
+  { val: 2, emoji: "😔", label: "Bad",   color: "#F97316" },
+  { val: 3, emoji: "😐", label: "Meh",   color: "#F59E0B" },
+  { val: 4, emoji: "🙂", label: "Okay",  color: "#84CC16" },
+  { val: 5, emoji: "😊", label: "Good",  color: "#22C55E" },
+  { val: 6, emoji: "🤩", label: "Great", color: "#10B981" },
 ];
+
+// Rotating reflective prompts — reduces blank-page friction.
+const PROMPTS = [
+  "What went well today?",
+  "What drained your energy?",
+  "One thing you're grateful for…",
+  "What will tomorrow's you thank you for?",
+  "What did you learn today?",
+  "How did you handle a hard moment?",
+  "What are you proud of right now?",
+  "What's one thing you'd do differently?",
+];
+
+// Count consecutive days (ending today or yesterday) with a journal entry or mood.
+function getJournalStreak(journal = {}, moods = {}) {
+  const has = (d) => !!(journal[d]?.text || moods[d]);
+  const fmt = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  let streak = 0;
+  const cursor = new Date();
+  // Allow today to be empty without breaking the streak — start from today,
+  // but if today is empty, begin counting from yesterday.
+  if (!has(fmt(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (has(fmt(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
 
 export default function JournalPanel({ state, save, onClose }) {
   const today = getTodayStr();
+  const toast = useToast();
   const [view, setView] = useState("write");
   const [editDate, setEditDate] = useState(today);
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +60,18 @@ export default function JournalPanel({ state, save, onClose }) {
   const [mood, setMood] = useState(state.moods?.[editDate] || null);
   const [text, setText] = useState(existing.text || "");
   const [saved, setSaved] = useState(false);
+
+  const journalStreak = useMemo(
+    () => getJournalStreak(state.journal, state.moods),
+    [state.journal, state.moods]
+  );
+
+  const prompt = useMemo(() => {
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    return PROMPTS[dayOfYear % PROMPTS.length];
+  }, []);
+
+  const isEditingExisting = !!(existing.text || state.moods?.[editDate]);
 
   const pastEntries = useMemo(() => {
     const journal = state.journal || {};
@@ -55,7 +103,22 @@ export default function JournalPanel({ state, save, onClose }) {
     };
     save(updated);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    track("journal_saved", { has_text: !!text.trim(), has_mood: mood != null, editing: isEditingExisting });
+    // Confirm + leave the screen so saving feels resolved, not stuck.
+    const isToday = editDate === today;
+    toast.show(
+      isEditingExisting ? "Entry updated" : "Journal saved — see you tomorrow ✍️",
+      { type: "xp", duration: 2400 }
+    );
+    setTimeout(() => {
+      // After editing a past entry, return to the history list; otherwise close to Today.
+      if (!isToday) {
+        setSaved(false);
+        setView("history");
+      } else {
+        onClose();
+      }
+    }, 800);
   }
 
   function openEntry(date) {
@@ -189,51 +252,72 @@ export default function JournalPanel({ state, save, onClose }) {
       </div>
 
       <div style={styles.body}>
-        <div style={styles.dateTag}>{dateLabel}</div>
+        {/* Date + journaling streak */}
+        <div style={styles.metaRow}>
+          <span style={styles.dateTag}>{dateLabel}</span>
+          {journalStreak > 0 && (
+            <span style={styles.streakChip}>
+              <Flame size={12} color="#F97316" fill="#F97316" />
+              {journalStreak} day{journalStreak > 1 ? "s" : ""} journaling
+            </span>
+          )}
+        </div>
 
         <div style={styles.section}>
           <div style={styles.sectionLabel}>How are you feeling?</div>
           <div style={styles.moodRow}>
-            {MOODS.map((m) => (
-              <button
-                key={m.val}
-                onClick={() => setMood(m.val)}
-                style={{
-                  ...styles.moodBtn,
-                  background: mood === m.val ? TOKENS.color.surface : "transparent",
-                  transform: mood === m.val ? "scale(1.15)" : "scale(1)",
-                }}
-              >
-                <span style={{ fontSize: 28 }}>{m.emoji}</span>
-                <span style={{
-                  fontSize: TOKENS.font.size.xs,
-                  color: mood === m.val ? TOKENS.color.text : TOKENS.color.textTertiary,
-                  fontWeight: TOKENS.font.weight.medium,
-                }}>
-                  {m.label}
-                </span>
-              </button>
-            ))}
+            {MOODS.map((m) => {
+              const active = mood === m.val;
+              return (
+                <button
+                  key={m.val}
+                  onClick={() => { setMood(m.val); setSaved(false); }}
+                  style={{
+                    ...styles.moodBtn,
+                    background: active ? `${m.color}14` : "transparent",
+                    boxShadow: active ? `inset 0 0 0 2px ${m.color}` : "inset 0 0 0 1px transparent",
+                    transform: active ? "translateY(-2px)" : "none",
+                  }}
+                >
+                  <span style={{ fontSize: 26, filter: active ? "none" : "grayscale(0.3)", opacity: active ? 1 : 0.85 }}>{m.emoji}</span>
+                  <span style={{
+                    fontSize: TOKENS.font.size.xs,
+                    color: active ? m.color : TOKENS.color.textTertiary,
+                    fontWeight: active ? TOKENS.font.weight.bold : TOKENS.font.weight.medium,
+                  }}>
+                    {m.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div style={styles.section}>
-          <div style={styles.sectionLabel}>What's on your mind?</div>
+          <div style={styles.promptRow}>
+            <Sparkles size={13} color={TOKENS.color.brand} />
+            <span style={styles.promptText}>{prompt}</span>
+          </div>
           <textarea
             value={text}
             onChange={(e) => { setText(e.target.value); setSaved(false); }}
-            placeholder="Write freely..."
+            placeholder="Write freely… no one's reading but you."
             style={styles.textarea}
-            rows={8}
+            rows={9}
           />
+          <div style={styles.charCount}>{text.length > 0 ? `${text.length} characters` : ""}</div>
         </div>
+      </div>
 
+      {/* Pinned save footer — removes the awkward dead space */}
+      <div style={styles.footer}>
         <button
           onClick={handleSave}
-          disabled={!mood && !text}
+          disabled={(!mood && !text) || saved}
           style={{
             ...styles.saveBtn,
-            opacity: !mood && !text ? 0.4 : 1,
+            opacity: (!mood && !text) ? 0.4 : 1,
+            cursor: (!mood && !text) ? "default" : "pointer",
             background: saved ? TOKENS.color.success : TOKENS.color.text,
           }}
         >
@@ -241,7 +325,7 @@ export default function JournalPanel({ state, save, onClose }) {
             <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <Check size={18} /> Saved
             </span>
-          ) : "Save entry"}
+          ) : isEditingExisting ? "Update entry" : "Save entry"}
         </button>
       </div>
     </motion.div>
@@ -266,7 +350,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
@@ -315,16 +401,60 @@ const styles = {
     color: TOKENS.color.text,
     fontFamily: "inherit",
   },
-  dateTag: {
-    fontSize: TOKENS.font.size.sm,
-    fontWeight: TOKENS.font.weight.semibold,
-    color: TOKENS.color.textSecondary,
+  metaRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: TOKENS.space[5],
+  },
+  dateTag: {
+    fontSize: TOKENS.font.size.md,
+    fontWeight: TOKENS.font.weight.bold,
+    color: TOKENS.color.text,
+  },
+  streakChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: TOKENS.font.size.xs,
+    fontWeight: TOKENS.font.weight.bold,
+    color: "#F97316",
+    background: "rgba(249,115,22,0.10)",
+    padding: "4px 10px",
+    borderRadius: TOKENS.radius.full,
   },
   body: {
     flex: 1,
     overflowY: "auto",
     padding: TOKENS.space[5],
+  },
+  promptRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: TOKENS.space[3],
+  },
+  promptText: {
+    fontSize: TOKENS.font.size.sm,
+    fontWeight: TOKENS.font.weight.semibold,
+    color: TOKENS.color.brand,
+  },
+  charCount: {
+    fontSize: TOKENS.font.size.xs,
+    color: TOKENS.color.textTertiary,
+    textAlign: "right",
+    marginTop: 6,
+    minHeight: 14,
+  },
+  footer: {
+    paddingTop: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
+    paddingBottom: `max(${TOKENS.space[5]}px, env(safe-area-inset-bottom))`,
+    borderTopWidth: 1,
+    borderTopStyle: "solid",
+    borderTopColor: TOKENS.color.border,
+    background: TOKENS.color.bg,
   },
   section: {
     marginBottom: TOKENS.space[6],
@@ -343,17 +473,18 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 4,
-    padding: "8px 6px",
+    gap: 5,
+    padding: "10px 6px",
     border: "none",
     borderRadius: TOKENS.radius.md,
     cursor: "pointer",
     transition: TOKENS.transition.fast,
+    flex: 1,
   },
   textarea: {
     width: "100%",
     padding: TOKENS.space[4],
-    borderRadius: TOKENS.radius.md,
+    borderRadius: TOKENS.radius.lg,
     borderWidth: 1,
     borderStyle: "solid",
     borderColor: TOKENS.color.border,
@@ -363,8 +494,9 @@ const styles = {
     color: TOKENS.color.text,
     resize: "none",
     outline: "none",
-    lineHeight: 1.6,
+    lineHeight: 1.65,
     boxSizing: "border-box",
+    minHeight: 200,
   },
   saveBtn: {
     width: "100%",
@@ -387,7 +519,9 @@ const styles = {
   entryBtn: {
     width: "100%",
     textAlign: "left",
-    padding: TOKENS.space[4],
+    paddingTop: TOKENS.space[4],
+    paddingBottom: TOKENS.space[4],
+    paddingLeft: TOKENS.space[4],
     paddingRight: 44,
     background: "none",
     border: "none",

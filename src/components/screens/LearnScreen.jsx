@@ -50,8 +50,7 @@ export default function LearnScreen({ state, save }) {
       {dailyInsight && (
       <div style={{
         ...styles.insightCard,
-        background: `linear-gradient(135deg, ${dailyInsight.bookColor}14 0%, ${dailyInsight.bookColor}05 100%)`,
-        borderColor: `${dailyInsight.bookColor}30`,
+        borderLeft: `3px solid ${dailyInsight.bookColor}`,
       }}>
         <div style={styles.insightHeader}>
           <Lightbulb size={14} color={dailyInsight.bookColor} />
@@ -85,7 +84,7 @@ export default function LearnScreen({ state, save }) {
               onClick={() => setTab(t.id)}
               style={{
                 ...styles.tab,
-                background: isActive ? TOKENS.color.text : "transparent",
+                background: isActive ? TOKENS.color.brand : "transparent",
                 color: isActive ? "#fff" : TOKENS.color.textSecondary,
               }}
             >
@@ -109,15 +108,16 @@ export default function LearnScreen({ state, save }) {
 }
 
 const styles = {
-  screen: { padding: TOKENS.space[5], paddingBottom: 0 },
+  screen: { paddingTop: TOKENS.space[5], paddingRight: TOKENS.space[5], paddingLeft: TOKENS.space[5], paddingBottom: 100 },
   insightCard: {
     padding: TOKENS.space[5],
     borderRadius: TOKENS.radius.lg,
-    border: "1px solid",
+    background: TOKENS.color.surface,
+    border: `1px solid ${TOKENS.color.borderSubtle}`,
     marginBottom: TOKENS.space[5],
   },
   insightHeader: { display: "flex", alignItems: "center", gap: 6, marginBottom: TOKENS.space[3] },
-  insightLabel: { fontSize: 10, fontWeight: 900, letterSpacing: 0.6 },
+  insightLabel: { fontSize: 11, fontWeight: 800, letterSpacing: TOKENS.track.caps },
   insightTitle: {
     fontSize: TOKENS.font.size.md, fontWeight: TOKENS.font.weight.bold,
     color: TOKENS.color.text, marginBottom: TOKENS.space[2],

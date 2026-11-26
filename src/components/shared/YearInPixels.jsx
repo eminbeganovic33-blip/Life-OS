@@ -86,6 +86,6 @@ const styles = {
     gap: 4,
   },
   legendLabel: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
   },
 };

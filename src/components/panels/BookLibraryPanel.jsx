@@ -336,12 +336,14 @@ const styles = {
   },
   header: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1, borderBottomStyle: "solid",
     borderBottomColor: TOKENS.color.border,
   },
-  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 4 },
+  backBtn: { background: "none", border: "none", cursor: "pointer", padding: 10, margin: -6, display: "flex", alignItems: "center", justifyContent: "center" },
   title: {
     fontSize: TOKENS.font.size.lg, fontWeight: TOKENS.font.weight.bold,
     color: TOKENS.color.text,
@@ -419,16 +421,16 @@ const styles = {
     height: 4, borderRadius: 2, transition: "background 0.3s ease",
   },
   bookMetaRow: {
-    marginTop: 4, fontSize: 11, fontWeight: TOKENS.font.weight.semibold,
+    marginTop: 4, fontSize: 12, fontWeight: TOKENS.font.weight.semibold,
   },
   bookCompleteBadge: {
     display: "inline-flex", alignItems: "center", gap: 4,
     padding: "3px 8px", borderRadius: TOKENS.radius.full,
-    fontSize: 10, fontWeight: 900, letterSpacing: 0.6,
+    fontSize: 11, fontWeight: 900, letterSpacing: 0.6,
   },
-  bookProgressMeta: { fontSize: 11, letterSpacing: 0.2 },
+  bookProgressMeta: { fontSize: 12, letterSpacing: 0.2 },
   bookNotStartedMeta: {
-    fontSize: 11, color: TOKENS.color.textTertiary,
+    fontSize: 12, color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.medium,
   },
   bookCompleteHero: {
@@ -443,7 +445,7 @@ const styles = {
     marginBottom: TOKENS.space[5],
   },
   bookCompleteKicker: {
-    fontSize: 11, fontWeight: 900,
+    fontSize: 12, fontWeight: 900,
     letterSpacing: 1.5, marginBottom: TOKENS.space[2],
   },
   bookCompleteTitle: {

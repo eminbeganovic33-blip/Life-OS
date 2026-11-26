@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, TrendingUp } from "lucide-react";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
-import { getTodayStr, daysBetween, getDayQuests } from "../../utils";
+import { daysBetween, getDayQuests } from "../../utils";
 import { questIdMatchesCategory } from "../../utils/helpers";
 import { CATEGORIES } from "../../data/categories";
 
@@ -13,8 +13,7 @@ function getDateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
-export default function ProgressPanel({ state, save, onClose }) {
-  const today = getTodayStr();
+export default function ProgressPanel({ state, onClose }) {
   const dayNumber = state.startDate ? daysBetween(state.startDate) + 1 : 1;
 
   // Last 7 days bar chart
@@ -275,7 +274,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: TOKENS.space[3],
-    padding: TOKENS.space[5],
+    paddingRight: TOKENS.space[5],
+    paddingBottom: TOKENS.space[5],
+    paddingLeft: TOKENS.space[5],
     paddingTop: `max(${TOKENS.space[5]}px, env(safe-area-inset-top))`,
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
@@ -386,7 +387,7 @@ const styles = {
     justifyContent: "flex-end",
   },
   heatLegendLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: TOKENS.color.textTertiary,
   },
   trendChart: {
@@ -419,7 +420,7 @@ const styles = {
     transition: "height 0.4s ease",
   },
   trendLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.medium,
   },

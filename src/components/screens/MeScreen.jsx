@@ -2,19 +2,21 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronRight, RotateCcw, Shield, Trophy,
-  Download, LogOut, Flame, Award,
+  Download, Upload, LogOut, Flame, Award,
   Sparkles, Star, LogIn, TrendingUp, Settings, Crown,
   Volume2, VolumeX, PlayCircle,
 } from "lucide-react";
 import { getSoundsEnabled, setSoundsEnabled, feedback } from "../../utils/audio";
 import { TOKENS, DOMAIN_COLORS } from "../../styles/tokens";
-import { getTodayStr, daysBetween, getLevelIndex } from "../../utils";
+import { getTodayStr, daysBetween, getLevelIndex, getTotalVolume, workoutCountForDay } from "../../utils";
 import { LEVELS, MOTIVATION_CARDS } from "../../data/constants";
 import { TROPHIES } from "../../data/trophies";
 import { CATEGORIES } from "../../data/categories";
 import { renderAnimalAvatar } from "../shared/AnimalAvatars";
 import { getCharacterStats, getCharacterTier, STAT_META } from "../../utils/character";
 import { useAuth } from "../../hooks/useAuth";
+import { firebaseConfigured } from "../../firebase";
+import { STATE_KEY, PRE_IMPORT_KEY, validateBackup, downloadJson, readRawState, latestQuarantine, stash } from "../../utils/backup";
 import YearInPixels from "../shared/YearInPixels";
 import PatternInsights from "../shared/PatternInsights";
 
@@ -39,7 +41,6 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
   }
   const totalCompleted = Object.keys(state.completedQuests || {}).filter(k => (state.completedQuests[k]?.length || 0) > 0).length;
   const [expandedTrophy, setExpandedTrophy] = useState({});
-  const [showAllTrophies, setShowAllTrophies] = useState(false);
   const [showYearInPixels, setShowYearInPixels] = useState(false);
 
   const levelIdx = getLevelIndex(state.xp || 0);
@@ -59,25 +60,11 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
 
   const totalWorkouts = useMemo(() => {
     return Object.values(state.workoutLogs || {}).reduce(
-      (sum, day) => sum + (Array.isArray(day) ? day.length : 1), 0
+      (sum, day) => sum + workoutCountForDay(day), 0
     );
   }, [state.workoutLogs]);
 
-  const totalVolume = useMemo(() => {
-    let vol = 0;
-    Object.values(state.workoutLogs || {}).forEach((entries) => {
-      const list = Array.isArray(entries) ? entries : [entries];
-      list.forEach((entry) => {
-        (entry.sets || entry.exercises || []).forEach((s) => {
-          if (s.weight && s.reps) vol += s.weight * s.reps;
-          if (s.sets) s.sets.forEach((set) => {
-            if (set.weight && set.reps) vol += set.weight * set.reps;
-          });
-        });
-      });
-    });
-    return vol;
-  }, [state.workoutLogs]);
+  const totalVolume = useMemo(() => getTotalVolume(state.workoutLogs), [state.workoutLogs]);
 
   const trophyCount = Object.keys(state.unlockedTrophies || {}).length;
   const lifetimeQuests = useMemo(() => {
@@ -87,21 +74,83 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
   }, [state.completedQuests]);
 
   function handleExport() {
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `life-os-backup-${today}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson(state, `life-os-backup-${today}.json`);
   }
 
   function handleReset() {
-    if (window.confirm("This will erase ALL your data permanently. Are you sure?")) {
-      localStorage.removeItem("life-os-state");
+    if (window.confirm("This will erase ALL your data permanently. Export a backup first. Are you sure?")) {
+      localStorage.removeItem(STATE_KEY);
       window.location.reload();
     }
+  }
+
+  // A blob that failed to load (or was reset from the crash screen) is kept
+  // in quarantine — let the user take it with them.
+  const quarantined = latestQuarantine();
+  function handleRecoveryDownload() {
+    if (quarantined) downloadJson(quarantined, `life-os-recovered-${today}.json`);
+  }
+
+  // Undo the last import: the state from right before it was snapshotted.
+  const preImport = (() => { try { return localStorage.getItem(PRE_IMPORT_KEY); } catch { return null; } })();
+  function handleUndoImport() {
+    if (!preImport) return;
+    if (!window.confirm("Restore the data you had before your last import? The imported data is kept as a recovery copy.")) return;
+    try {
+      stash(readRawState());
+      localStorage.setItem(STATE_KEY, preImport);
+      localStorage.removeItem(PRE_IMPORT_KEY);
+    } catch { /* storage blocked */ }
+    window.location.reload();
+  }
+
+  // Restore from an exported backup file. The mirror of handleExport — without
+  // this, local-only users who switch phones have no way back into their data.
+  function handleImport() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(reader.result);
+        } catch {
+          window.alert("That file isn't valid JSON. Make sure you picked a Life OS backup.");
+          return;
+        }
+        // Schema check: wrong-typed fields are reset to defaults (they used to
+        // crash the next load, which then wiped everything).
+        const result = validateBackup(parsed);
+        if (!result.ok) {
+          window.alert(result.reason);
+          return;
+        }
+        const { days, journalEntries, fixedFields } = result.summary;
+        const ok = window.confirm(
+          `Restore this backup? It has ${days} completed day(s) and ${journalEntries} journal entr${journalEntries === 1 ? "y" : "ies"}` +
+          (fixedFields ? ` (${fixedFields} damaged field(s) will be reset)` : "") +
+          `. It will REPLACE everything on this device — a copy of your current data is kept first.`
+        );
+        if (!ok) return;
+        // Snapshot the current state so a wrong file is reversible.
+        try { const current = readRawState(); if (current) localStorage.setItem(PRE_IMPORT_KEY, current); } catch { /* full storage */ }
+        // Write through BOTH stores, mirroring useAppState's adapter — it
+        // prefers window.storage on load, so localStorage alone isn't enough.
+        const json = JSON.stringify(result.state);
+        Promise.resolve(window.storage?.set?.(STATE_KEY, json))
+          .catch(() => {})
+          .finally(() => {
+            try { localStorage.setItem(STATE_KEY, json); } catch { /* full/blocked storage — reload will surface it */ }
+            window.location.reload();
+          });
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   }
 
   function handleSignOut() {
@@ -121,8 +170,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
         animate={{ opacity: 1, y: 0 }}
         style={{
           ...styles.hero,
-          background: `linear-gradient(135deg, ${tier.color}14 0%, ${tier.color}04 100%)`,
-          borderColor: `${tier.color}30`,
+          boxShadow: `inset 0 0 0 1px ${tier.color}55, ${TOKENS.shadow.lg}`,
         }}
       >
         <button onClick={() => onOpenPanel("avatar")} style={styles.avatarBtn}>
@@ -179,7 +227,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             return (
               <div key={key} style={styles.miniStatItem}>
                 <div style={styles.miniStatHead}>
-                  <span style={{ fontSize: 12 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 13 }}>{meta.icon}</span>
                   <span style={styles.miniStatLabel}>{meta.label.slice(0, 3).toUpperCase()}</span>
                   <span style={{ ...styles.miniStatValue, color: meta.color }}>{v}</span>
                 </div>
@@ -196,7 +244,7 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
       <div style={styles.statsGrid}>
         <StatCard label="Streak" value={state.streak || 0} icon={<Flame size={14} color="#F97316" />} />
         <StatCard label="Best" value={state.bestStreak || 0} />
-        <StatCard label="Days" value={totalCompleted} />
+        <StatCard label="Days done" value={totalCompleted} />
         <StatCard label="Quests" value={lifetimeQuests} />
         <StatCard label="Workouts" value={totalWorkouts} />
         <StatCard label="Courses" value={coursesDone} />
@@ -343,6 +391,21 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
             }} />
           </div>
         </button>
+        {firebaseConfigured && (
+          <button
+            onClick={() => save({ ...state, analyticsConsent: !state.analyticsConsent })}
+            style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}
+            aria-pressed={!!state.analyticsConsent}
+          >
+            <Shield size={16} color={state.analyticsConsent ? TOKENS.color.text : TOKENS.color.textTertiary} />
+            <span style={styles.linkLabel}>
+              Share anonymous usage stats {state.analyticsConsent ? "on" : "off"}
+            </span>
+            <div style={{ ...styles.toggleSwitch, background: state.analyticsConsent ? "#22C55E" : TOKENS.color.border }}>
+              <div style={{ ...styles.toggleKnob, transform: state.analyticsConsent ? "translateX(16px)" : "translateX(0)" }} />
+            </div>
+          </button>
+        )}
         <button onClick={() => save({ ...state, onboarded: false, _replayTour: true })} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
           <PlayCircle size={16} color="#7C5CFC" />
           <span style={{ ...styles.linkLabel, color: "#7C5CFC" }}>Replay welcome tour</span>
@@ -353,7 +416,26 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
           <span style={styles.linkLabel}>Export data</span>
           <ChevronRight size={16} color={TOKENS.color.textTertiary} />
         </button>
-        {user ? (
+        <button onClick={handleImport} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+          <Upload size={16} color={TOKENS.color.text} />
+          <span style={styles.linkLabel}>Import backup</span>
+          <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+        </button>
+        {preImport && (
+          <button onClick={handleUndoImport} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+            <RotateCcw size={16} color={TOKENS.color.text} />
+            <span style={styles.linkLabel}>Undo last import</span>
+            <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+          </button>
+        )}
+        {quarantined && (
+          <button onClick={handleRecoveryDownload} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+            <Download size={16} color={TOKENS.color.warning} />
+            <span style={{ ...styles.linkLabel, color: TOKENS.color.warning }}>Download recovered data</span>
+            <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+          </button>
+        )}
+        {!firebaseConfigured ? null : user ? (
           <button onClick={handleSignOut} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
             <LogOut size={16} color={TOKENS.color.textSecondary} />
             <span style={{ ...styles.linkLabel, color: TOKENS.color.textSecondary }}>
@@ -371,6 +453,11 @@ export default function MeScreen({ state, save, user, onOpenPanel }) {
         <button onClick={handleReset} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
           <RotateCcw size={16} color={TOKENS.color.danger} />
           <span style={{ ...styles.linkLabel, color: TOKENS.color.danger }}>Reset all data</span>
+          <ChevronRight size={16} color={TOKENS.color.textTertiary} />
+        </button>
+        <button onClick={() => window.open("/privacy", "_blank")} style={{ ...styles.linkRow, marginTop: TOKENS.space[2] }}>
+          <Shield size={16} color={TOKENS.color.textTertiary} />
+          <span style={styles.linkLabel}>Privacy Policy</span>
           <ChevronRight size={16} color={TOKENS.color.textTertiary} />
         </button>
       </div>
@@ -392,50 +479,52 @@ function StatCard({ label, value, suffix, icon }) {
 }
 
 const styles = {
-  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px ${TOKENS.space[5]}px` },
+  screen: { padding: `${TOKENS.space[7]}px ${TOKENS.space[5]}px 120px` },
   hero: {
     display: "flex", alignItems: "center", gap: TOKENS.space[5],
     padding: TOKENS.space[5],
-    borderRadius: TOKENS.radius.lg,
-    border: "1px solid",
+    borderRadius: TOKENS.radius.xl,
+    background: TOKENS.game.spotlight,
+    border: "1px solid rgba(255,255,255,0.06)",
     marginBottom: TOKENS.space[4],
   },
   avatarBtn: { background: "none", border: "none", padding: 0, cursor: "pointer" },
   avatarCircle: {
     width: 88, height: 88, borderRadius: 44,
-    background: TOKENS.color.surfaceElevated,
+    background: "linear-gradient(135deg, #F3F0FF 0%, #EEF2FF 100%)",
     display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative", flexShrink: 0,
     transition: TOKENS.transition.normal,
+    border: "2px solid rgba(124,92,252,0.20)",
   },
   levelBadge: {
     position: "absolute", bottom: -4, right: -4,
-    fontSize: 10, fontWeight: 900, color: "#fff",
+    fontSize: 11, fontWeight: 900, color: "#fff",
     padding: "3px 8px", borderRadius: TOKENS.radius.full,
     boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
   },
   identity: { flex: 1, minWidth: 0 },
   displayName: {
     fontSize: TOKENS.font.size.xl, fontWeight: TOKENS.font.weight.heavy,
-    color: TOKENS.color.text, letterSpacing: -0.3,
+    color: TOKENS.game.spotlightText, letterSpacing: TOKENS.track.tight,
   },
   heroLevelRow: {
     display: "flex", alignItems: "center", gap: 6,
     marginTop: 4,
   },
   heroLevelLabel: {
-    fontSize: 10, fontWeight: 900, color: "#fff",
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    fontSize: 11, fontWeight: 900, color: "#fff",
+    background: TOKENS.game.gradient,
     padding: "2px 8px", borderRadius: TOKENS.radius.full,
     letterSpacing: 0.4,
   },
   heroLevelName: {
     fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.bold,
-    color: TOKENS.color.text, letterSpacing: 0.2,
+    color: TOKENS.game.spotlightTextSoft, letterSpacing: 0.2,
   },
   tierChip: {
     display: "inline-flex", alignItems: "center", gap: 4,
-    fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+    fontSize: 12, fontWeight: 700, letterSpacing: 0.2,
   },
   xpSection: { marginBottom: TOKENS.space[6] },
   xpRow: { display: "flex", justifyContent: "space-between", marginBottom: TOKENS.space[2] },
@@ -454,14 +543,14 @@ const styles = {
     marginBottom: TOKENS.space[3],
   },
   sectionBtnLabel: {
-    flex: 1, fontSize: 10, fontWeight: 900,
+    flex: 1, fontSize: 11, fontWeight: 900,
     color: TOKENS.color.textTertiary, letterSpacing: 0.8,
   },
   sectionBtnMeta: { fontSize: TOKENS.font.size.sm, fontWeight: 900 },
   miniStats: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: TOKENS.space[3] },
   miniStatItem: {},
   miniStatHead: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 },
-  miniStatLabel: { fontSize: 9, fontWeight: 900, color: TOKENS.color.textTertiary, letterSpacing: 0.4 },
+  miniStatLabel: { fontSize: 10, fontWeight: 900, color: TOKENS.color.textTertiary, letterSpacing: 0.4 },
   miniStatValue: { fontSize: TOKENS.font.size.sm, fontWeight: 900 },
   miniStatBar: { height: 3, background: TOKENS.color.border, borderRadius: 2, overflow: "hidden", marginTop: 4 },
   miniStatFill: { height: "100%" },
@@ -478,9 +567,9 @@ const styles = {
     fontSize: TOKENS.font.size.lg, fontWeight: 900,
     color: TOKENS.color.text, display: "inline-flex", alignItems: "center",
   },
-  statSuffix: { fontSize: 10, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.textTertiary, marginLeft: 2 },
+  statSuffix: { fontSize: 11, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.textTertiary, marginLeft: 2 },
   statLabel: {
-    fontSize: 10, fontWeight: TOKENS.font.weight.semibold,
+    fontSize: 11, fontWeight: TOKENS.font.weight.semibold,
     color: TOKENS.color.textTertiary, marginTop: 2, letterSpacing: 0.4,
     textTransform: "uppercase",
   },
@@ -519,8 +608,8 @@ const styles = {
     background: TOKENS.color.surface, borderRadius: TOKENS.radius.md,
     transition: TOKENS.transition.fast, textAlign: "center",
   },
-  trophyName: { fontSize: 10, fontWeight: 900, color: TOKENS.color.text, marginTop: 2 },
-  trophyDesc: { fontSize: 9, color: TOKENS.color.textTertiary, lineHeight: 1.3 },
+  trophyName: { fontSize: 11, fontWeight: 900, color: TOKENS.color.text, marginTop: 2 },
+  trophyDesc: { fontSize: 10, color: TOKENS.color.textTertiary, lineHeight: 1.3 },
   expandRow: {
     display: "flex", alignItems: "center", gap: TOKENS.space[3],
     padding: `${TOKENS.space[3]}px 0`,
@@ -541,7 +630,7 @@ const styles = {
   },
   linkLabel: { flex: 1, fontSize: TOKENS.font.size.sm, fontWeight: TOKENS.font.weight.semibold, color: TOKENS.color.text },
   badge: {
-    fontSize: 10, fontWeight: 900, color: TOKENS.color.textTertiary,
+    fontSize: 11, fontWeight: 900, color: TOKENS.color.textTertiary,
     background: TOKENS.color.border, padding: "2px 8px",
     borderRadius: TOKENS.radius.full,
   },

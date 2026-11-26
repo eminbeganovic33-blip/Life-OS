@@ -766,12 +766,113 @@ const FORGE_PROGRAMS = {
         action: "Decide your path forward: stay off entirely, return with strict boundaries, or keep certain platforms and delete others. Whatever you choose, you're choosing from a position of strength, not compulsion."
       }
     ]
+  },
+
+  impulse_spending: {
+    title: "30-Day Intentional Spending Reset",
+    description: "A practical daily guide to break the buy-to-feel-good loop, surface the subscriptions quietly draining you, and make spending a decision instead of a reflex.",
+    days: [
+      // === ACUTE PHASE (Days 1-7) ===
+      { day: 1, phase: "Acute Phase",
+        tip: "Impulse buying is engineered: one-click checkout, 'only 2 left', and free returns all exist to remove the pause where you'd reconsider. The urge is real, but it's manufactured.",
+        action: "Delete saved cards from your phone and browsers, and remove one-click/express checkout. Re-entering card numbers is the friction that kills most impulse buys." },
+      { day: 2, phase: "Acute Phase",
+        tip: "The dopamine spike happens at the moment of buying, not owning. That's why the thrill fades by the time the box arrives. You're chasing a feeling, not a thing.",
+        action: "Start a 'want list' note. Every time you want to buy something non-essential, write it down instead of buying. You'll act on almost none of it later." },
+      { day: 3, phase: "Acute Phase",
+        tip: "Most impulse purchases die if you simply wait. The 24-hour rule turns a reflex back into a decision.",
+        action: "Adopt the 24-hour rule for anything non-essential (48 hours for anything over $100). If you still want it tomorrow, reconsider then." },
+      { day: 4, phase: "Acute Phase",
+        tip: "Subscriptions are the silent leak. The average person underestimates their monthly subscription total by more than half and is paying for things they forgot exist.",
+        action: "List every recurring charge you can find from the last two bank/card statements. Cancel at least one you'd forgotten or don't truly use today." },
+      { day: 5, phase: "Acute Phase",
+        tip: "Emotional spending mirrors emotional eating. Boredom, stress, loneliness, and 'I deserve this' are the most common triggers — not genuine need.",
+        action: "Before any purchase today, pause and ask: 'Am I buying this, or am I trying to change how I feel?' Write down what you notice." },
+      { day: 6, phase: "Acute Phase",
+        tip: "Marketing manufactures urgency. Countdown timers, 'sale ends tonight', and limited drops are designed to bypass your judgment. Real value doesn't expire at midnight.",
+        action: "Unsubscribe from every retailer marketing email and turn off shopping-app notifications. No sale alert, no manufactured urge." },
+      { day: 7, phase: "Acute Phase",
+        tip: "One week of pauses. The reflex to buy-on-feeling is already weakening. The money you didn't spend is doing the exact opposite of a subscription — quietly working for you.",
+        action: "Tally what you almost bought this week from your want list but didn't. Add up the total. That's week one of your freedom fund." },
+      // === ADJUSTMENT (Days 8-14) ===
+      { day: 8, phase: "Adjustment",
+        tip: "A budget isn't restriction — it's permission. Knowing what you can spend guilt-free removes the anxiety that often triggers more spending.",
+        action: "Give every category a rough monthly number, including a 'fun money' amount you can spend with zero guilt. Spending becomes a plan, not a slip." },
+      { day: 9, phase: "Adjustment",
+        tip: "Cash and debit feel different from credit. Research shows people spend significantly more on cards because the pain of paying is deferred and abstract.",
+        action: "For discretionary spending this week, switch to debit or a weekly cash envelope. Feel the money actually leave." },
+      { day: 10, phase: "Adjustment",
+        tip: "Convenience apps (food delivery, rideshare, in-app purchases) are impulse machines with no friction. They're often the biggest invisible leak after subscriptions.",
+        action: "Audit your three most-used spending apps. Delete one, or log out and remove its payment method so each use is a deliberate choice." },
+      { day: 11, phase: "Adjustment",
+        tip: "The 'I'm saving money' trap: buying something on sale you didn't plan to buy isn't saving — it's spending. A 40%-off impulse is still 100% unplanned.",
+        action: "Next time a discount tempts you, ask: 'Would I buy this at full price today if it weren't on sale?' If no, walk away." },
+      { day: 12, phase: "Adjustment",
+        tip: "Boredom is a top spending trigger. Scrolling shopping apps is entertainment that happens to cost money. Replace the activity, not just the willpower.",
+        action: "Make a list of five free things to do when you're bored or stressed. Do one today instead of browsing a store or app." },
+      { day: 13, phase: "Adjustment",
+        tip: "Social spending — keeping up, group buys, 'treat culture' — is real pressure. You can opt out without opting out of the relationship.",
+        action: "Plan one low- or no-cost way to socialize this week. Practice a simple 'I'm saving for something' line for when you decline a spendy plan." },
+      { day: 14, phase: "Adjustment",
+        tip: "Two weeks of intentional spending. Your default is shifting from 'buy now' to 'do I actually want this?'. Check your balance — the leak is slowing.",
+        action: "Move the money you didn't impulsively spend into a separate savings account today. Make your progress visible and harder to touch." },
+      // === BUILDING MOMENTUM (Days 15-21) ===
+      { day: 15, phase: "Building Momentum",
+        tip: "A no-spend day is a powerful reset: 24 hours where you buy nothing beyond pre-committed essentials. It proves how much spending was optional.",
+        action: "Do one full no-spend day today. No coffees, no apps, no 'small' buys. Notice how many urges were habit, not need." },
+      { day: 16, phase: "Building Momentum",
+        tip: "Decluttering reveals the cost of past impulse buys. Seeing barely-used purchases is the most honest argument against the next one.",
+        action: "Find five things you bought impulsively and rarely use. Sell or donate them. Let the lesson — not the guilt — guide future buys." },
+      { day: 17, phase: "Building Momentum",
+        tip: "'One in, one out' caps accumulation. If something new comes in, something old goes out — which forces you to actually value the purchase.",
+        action: "Adopt a one-in-one-out rule for a category you over-buy (clothes, gadgets, books). Apply it to your next purchase." },
+      { day: 18, phase: "Building Momentum",
+        tip: "Perfection isn't the goal. One impulse buy doesn't erase three weeks of progress — guilt spirals just trigger more spending to feel better.",
+        action: "If you slipped, note the trigger without judgment and move on. Re-commit to the 24-hour rule for the rest of the week." },
+      { day: 19, phase: "Building Momentum",
+        tip: "Money has a job. Dollars with a clear purpose — an emergency fund, a trip, debt payoff — are far harder to fritter away on impulse.",
+        action: "Name one specific goal for your freedom fund and the amount. Set it as the destination for every dollar you don't impulse-spend." },
+      { day: 20, phase: "Building Momentum",
+        tip: "Your relationship with 'stuff' is changing. Experiences and progress toward goals reliably outlast the few-day glow of a new purchase.",
+        action: "Spend on an experience or a long-wanted, well-considered item instead of a random impulse. Notice the difference in how it feels a week later." },
+      { day: 21, phase: "Building Momentum",
+        tip: "Three weeks rewires the loop. The pause before buying is becoming automatic, and the urge to buy-on-feeling is markedly quieter.",
+        action: "Review your want list from the past three weeks. Notice how few items you actually still want. That gap is the impulse you've conquered." },
+      // === CONSOLIDATION (Days 22-30) ===
+      { day: 22, phase: "Consolidation",
+        tip: "Automation beats willpower. Money you never see is money you don't spend. Pay your future self first, automatically.",
+        action: "Set up an automatic transfer to savings on payday, even a small amount. Make saving the default and spending the deliberate act." },
+      { day: 23, phase: "Consolidation",
+        tip: "A 30-day list is the ultimate filter for bigger wants. Most 'must-haves' quietly lose their pull given enough time.",
+        action: "Start a 30-day list for any non-essential over $100. Nothing on it gets bought until 30 days pass. Add anything you're eyeing now." },
+      { day: 24, phase: "Consolidation",
+        tip: "Recurring charges deserve a recurring review. Free trials convert, prices creep up, and 'I'll use it later' rarely happens.",
+        action: "Put a monthly 'subscription audit' reminder in your calendar. Run it now: cancel anything you haven't used in the last month." },
+      { day: 25, phase: "Consolidation",
+        tip: "Knowing your hourly rate reframes every purchase. A $60 impulse isn't '$60' — it's the hours of your life it cost to earn it.",
+        action: "Estimate your real hourly income. Before your next non-essential buy, convert the price into hours worked. Decide if it's worth that." },
+      { day: 26, phase: "Consolidation",
+        tip: "Your environment drives behavior. The apps on your home screen and the emails in your inbox are constant invitations to spend.",
+        action: "Move shopping apps off your home screen into a back-page folder. Keep your banking/savings app front and center instead." },
+      { day: 27, phase: "Consolidation",
+        tip: "Gratitude blunts the 'I need more' reflex. Appreciating what you already own is the cheapest, most effective anti-impulse tool there is.",
+        action: "Write down three things you already own that you're genuinely grateful for. Use them today instead of replacing or upgrading them." },
+      { day: 28, phase: "Consolidation",
+        tip: "Mindful spending is the long game: every dollar is a choice that either moves you toward your goals or away from them. Neither is neutral.",
+        action: "Review the last week of spending. For each purchase ask: 'aligned with my goals, or autopilot?' Note one pattern to change." },
+      { day: 29, phase: "Consolidation",
+        tip: "You now have a toolkit: the pause, the want list, automation, and the audit. These are permanent infrastructure, not a 30-day stunt.",
+        action: "Write your three most effective rules from this month as your personal 'spending protocol.' Keep it where you'll see it at checkout." },
+      { day: 30, phase: "Consolidation",
+        tip: "Thirty days of intentional spending. The buy-to-feel-good loop is broken, your subscriptions are trimmed, and your savings are visibly growing. This compounds for the rest of your life.",
+        action: "Add up everything you didn't impulse-spend this month and move it toward your goal. Then set your next milestone: 60 days, 90 days, a year." }
+    ]
   }
 };
 
 /**
  * Returns the program day object for a given tracker and day number.
- * @param {string} trackerId - One of: smoking, alcohol, junkfood, social_media
+ * @param {string} trackerId - One of: smoking, alcohol, junkfood, social_media, impulse_spending
  * @param {number} dayNumber - Day number (1-30)
  * @returns {object|null} The day object, or null if tracker or day is invalid
  */

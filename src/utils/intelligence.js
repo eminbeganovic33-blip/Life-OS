@@ -164,7 +164,6 @@ export function getQuestSuggestions(state, existingQuestTexts = []) {
     currentDay = 1,
     liftingStreak = 0,
     sobrietyDates = {},
-    customQuests = [],
     focusCategories = null,
   } = state;
   // Normalised set of texts already on today's quest list (core + custom)
@@ -415,7 +414,6 @@ export function getPersonalizedQuote(state, allQuotes) {
   const {
     streak = 0,
     sobrietyDates = {},
-    moods = {},
   } = state;
 
   const latestMood = getLatestMood(state);
@@ -493,12 +491,11 @@ export function getProactiveNudges(state) {
   const nudges = [];
   const {
     currentDay = 1, streak = 0, moods = {}, journal = {},
-    completedQuests = {}, sobrietyDates = {}, liftingStreak = 0,
+    sobrietyDates = {}, liftingStreak = 0,
     focusCategories = null,
   } = state;
 
   const rates = getCategoryCompletionRates(state);
-  const latestMood = getLatestMood(state);
   const focusSet = Array.isArray(focusCategories) && focusCategories.length > 0
     ? new Set(focusCategories)
     : null;
@@ -585,7 +582,7 @@ export function getProactiveNudges(state) {
       type: "streak_celebration",
       icon: "🎉",
       title: `${streak}-day streak!`,
-      message: `You've been consistent for ${streak} days straight. That puts you ahead of 90% of users who start habit-building apps.`,
+      message: `You've been consistent for ${streak} days straight. Most people who start a new habit drop it within the first two weeks — you didn't.`,
       priority: 2,
     });
   }

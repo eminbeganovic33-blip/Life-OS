@@ -9,17 +9,23 @@ import { CATEGORIES } from "../../data/categories";
 import { ANIMAL_AVATARS, renderAnimalAvatar } from "../shared/AnimalAvatars";
 import { getTodayStr } from "../../utils";
 import { getCalibratedStartersForCategory, QUEST_LIBRARY } from "../../data/questLibrary";
+import { TROPHIES } from "../../data/trophies";
+import { track, setAnalyticsConsent, firebaseConfigured } from "../../firebase";
 
 const QUEST_LIBRARY_COUNT = QUEST_LIBRARY.length;
+// Not imported from data/exerciseLibrary.js — that file is 32KB and belongs to
+// the lazy Dojo chunk; OnboardingScreen is eager. Keep in sync manually.
+const EXERCISE_COUNT = 45;
+const TROPHY_COUNT = TROPHIES.length;
 
 // ── Static data ─────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
   { icon: Target,   color: "#7C5CFC", title: "Daily Quests", body: "Pick habits, complete daily, earn XP" },
   { icon: Shield,   color: "#F97316", title: "Forge",        body: "Quit habits, track sober days" },
-  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: "Log workouts from a 945-exercise library" },
+  { icon: Dumbbell, color: "#EF4444", title: "Dojo",         body: `Guided programs + a ${EXERCISE_COUNT}-exercise library` },
   { icon: BookOpen, color: "#3B82F6", title: "Academy",      body: "Courses + book summaries" },
-  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: "34 trophies. Streaks. Boss days." },
+  { icon: Trophy,   color: "#FBBF24", title: "Trophies",     body: `${TROPHY_COUNT} trophies. Streaks. Boss days.` },
 ];
 
 const ACTIVITY_OPTIONS = [
@@ -108,6 +114,9 @@ export default function OnboardingScreen({ state, save }) {
   const [timeCommit, setTimeCommit] = useState(null);
   // Domains (auto-set when entering step 6, but user can adjust)
   const [domains, setDomains] = useState([]);
+  // Opt-in usage stats (only offered when Firebase is configured). Unticked by
+  // default — GDPR consent must be an active choice.
+  const [shareStats, setShareStats] = useState(!!state.analyticsConsent);
 
   // When we enter step 6, pre-populate domains from goal — but only if user
   // hasn't touched them yet (i.e., domains is still empty).
@@ -216,6 +225,20 @@ export default function OnboardingScreen({ state, save }) {
       });
     }
 
+    // Safety net: if the user selected no domains, seed a few universal easy
+    // starters so Today is never empty on day 1 (empty first screen = churn).
+    if (activeQuests.length === 0) {
+      ["sleep", "water", "exercise"].forEach((catId) => {
+        const picks = getCalibratedStartersForCategory(catId, "short", 1);
+        picks.forEach((q, i) => activeQuests.push({
+          id: `aq-${catId}-${i}-${Date.now()}`,
+          libraryId: q.id,
+          addedAt: Date.now(),
+          paused: false,
+        }));
+      });
+    }
+
     // 2) Forge trackers — auto-create one entry per vice the user wants to quit
     //    (only adds new ones; never resets a tracker that's already running)
     const sobrietyDates = { ...(state.sobrietyDates || {}) };
@@ -225,9 +248,11 @@ export default function OnboardingScreen({ state, save }) {
     const suggestedCourseId = GOAL_COURSE_MAP[goal] || "getting_started";
     const academyFocus = Array.from(new Set([...(state.academyFocus || []), suggestedCourseId]));
 
+    if (firebaseConfigured) setAnalyticsConsent(shareStats);
     save({
       ...state,
       onboarded: true,
+      analyticsConsent: firebaseConfigured ? shareStats : !!state.analyticsConsent,
       // Preserve the user's actual journey start on legacy replays
       startDate: isLegacyReplay ? (state.startDate || today) : today,
       _replayTour: false,
@@ -244,6 +269,15 @@ export default function OnboardingScreen({ state, save }) {
         vices,
         setAt: today,
       },
+    });
+
+    // Funnel: onboarding completed — the top of the retention funnel.
+    track("onboarding_complete", {
+      goal: goal || "none",
+      domains: domains.length,
+      vices: vices.length,
+      quests_seeded: activeQuests.length,
+      time_commitment: timeCommit || "short",
     });
   }
 
@@ -317,7 +351,7 @@ export default function OnboardingScreen({ state, save }) {
           {step === 6 && (
             <DomainsStep domains={domains} toggleDomain={toggleDomain} suggestedFromGoal={(GOAL_DOMAIN_MAP[goal] || [])} />
           )}
-          {step === 7 && <ReadyStep summary={summary} />}
+          {step === 7 && <ReadyStep summary={summary} shareStats={shareStats} onToggleStats={() => setShareStats((v) => !v)} />}
         </motion.div>
       </AnimatePresence>
 
@@ -583,7 +617,7 @@ function DomainsStep({ domains, toggleDomain, suggestedFromGoal }) {
   );
 }
 
-function ReadyStep({ summary }) {
+function ReadyStep({ summary, shareStats, onToggleStats }) {
   return (
     <div style={styles.center}>
       <motion.div
@@ -620,6 +654,16 @@ function ReadyStep({ summary }) {
         Browse {QUEST_LIBRARY_COUNT}+ habits any time from <strong>Today → Browse quests</strong>.
         Your plan adapts as you go.
       </div>
+
+      {firebaseConfigured && (
+        <label style={styles.consentRow}>
+          <input type="checkbox" checked={shareStats} onChange={onToggleStats} style={styles.consentBox} />
+          <span>
+            Share pseudonymous usage stats (which screens you use — never your journal, moods or
+            quit trackers) to help improve Life OS. You can change this in Me → Settings.
+          </span>
+        </label>
+      )}
     </div>
   );
 }
@@ -657,6 +701,12 @@ function OptionCard({ option, selected, onClick, accent }) {
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = {
+  consentRow: {
+    display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left",
+    marginTop: TOKENS.space[4], fontSize: TOKENS.font.size.xs, lineHeight: 1.45,
+    color: TOKENS.color.textSecondary, cursor: "pointer", maxWidth: 360,
+  },
+  consentBox: { width: 18, height: 18, marginTop: 1, flexShrink: 0, accentColor: "#7C5CFC" },
   container: {
     minHeight: "100dvh",
     display: "flex", flexDirection: "column",
@@ -673,11 +723,11 @@ const styles = {
   content: { flex: 1, display: "flex", flexDirection: "column", paddingTop: TOKENS.space[4] },
   center: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingTop: "12%" },
   heroGradient: {
-    width: 112, height: 112, borderRadius: 32,
-    background: "linear-gradient(135deg, #7C5CFC 0%, #EC4899 100%)",
+    width: 112, height: 112, borderRadius: TOKENS.radius.xl,
+    background: TOKENS.game.gradient,
     display: "flex", alignItems: "center", justifyContent: "center",
     marginBottom: TOKENS.space[6],
-    boxShadow: "0 16px 40px rgba(124,92,252,0.3)",
+    boxShadow: TOKENS.shadow.glowBrand,
   },
   title: {
     fontSize: TOKENS.font.size.xxl,
@@ -749,7 +799,7 @@ const styles = {
     marginTop: TOKENS.space[6], marginBottom: TOKENS.space[3],
   },
   subHeaderLabel: {
-    fontSize: 11, fontWeight: 900, letterSpacing: 0.8,
+    fontSize: 12, fontWeight: 900, letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   optionList: { display: "flex", flexDirection: "column", gap: TOKENS.space[2] },
@@ -804,7 +854,7 @@ const styles = {
     textAlign: "center",
   },
   timeLabel: { fontSize: TOKENS.font.size.xs, fontWeight: 900 },
-  timeSub: { fontSize: 10, color: TOKENS.color.textTertiary, marginTop: 2 },
+  timeSub: { fontSize: 11, color: TOKENS.color.textTertiary, marginTop: 2 },
   // Domains
   domainGrid: {
     display: "flex", flexWrap: "wrap", gap: TOKENS.space[3],
@@ -833,10 +883,10 @@ const styles = {
   // Ready
   readyGlow: {
     width: 112, height: 112, borderRadius: "50%",
-    background: "linear-gradient(135deg, #22C55E 0%, #10B981 100%)",
+    background: TOKENS.game.success,
     display: "flex", alignItems: "center", justifyContent: "center",
     marginBottom: TOKENS.space[6],
-    boxShadow: "0 16px 40px rgba(34,197,94,0.3)",
+    boxShadow: TOKENS.shadow.glowSuccess,
   },
   readyStatsRow: {
     display: "flex", gap: TOKENS.space[3],
@@ -854,7 +904,7 @@ const styles = {
     letterSpacing: -0.5,
   },
   readyStatLabel: {
-    fontSize: 10, color: TOKENS.color.textTertiary,
+    fontSize: 11, color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.semibold,
     textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2,
   },

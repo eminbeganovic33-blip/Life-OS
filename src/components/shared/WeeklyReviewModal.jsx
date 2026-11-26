@@ -23,7 +23,6 @@ export default function WeeklyReviewModal({ state, onDismiss }) {
 
   const stats = useMemo(() => {
     let daysCompleted = 0;
-    let totalXp = 0;
     let questsCompleted = 0;
     const categoryHits = {};
 
@@ -37,11 +36,6 @@ export default function WeeklyReviewModal({ state, onDismiss }) {
         if (!cat) return;
         categoryHits[cat] = (categoryHits[cat] || 0) + 1;
       });
-    });
-
-    weekDates.forEach((date) => {
-      const mood = state.moods?.[date];
-      if (mood !== undefined) totalXp += 0;
     });
 
     const topCategory = Object.entries(categoryHits).sort((a, b) => b[1] - a[1])[0];
@@ -159,7 +153,7 @@ const styles = {
     position: "relative", zIndex: 1,
   },
   kicker: {
-    fontSize: 11, fontWeight: 900,
+    fontSize: 12, fontWeight: 900,
     color: "#3B82F6", letterSpacing: 1.5,
     marginBottom: 4,
   },
@@ -188,7 +182,7 @@ const styles = {
     borderRadius: TOKENS.radius.full,
   },
   dayName: {
-    fontSize: 10,
+    fontSize: 11,
     color: TOKENS.color.textTertiary,
     fontWeight: TOKENS.font.weight.medium,
   },

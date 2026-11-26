@@ -19,7 +19,7 @@ export function questIdMatchesCategory(qid, category) {
 
 // Frequency → today's day-of-week check (Sun=0..Sat=6).
 // MWF for "3x_week", Mon-Fri for "weekdays", Sunday for "weekly", any day for "monthly" (always due).
-function isDueToday(frequency, dayNumber) {
+function isDueToday(frequency, _dayNumber) {
   const today = new Date();
   const dow = today.getDay();
   switch (frequency) {
@@ -84,6 +84,18 @@ export function getTodayStr() {
 }
 
 /**
+ * Parse a stored date string safely. Bare "YYYY-MM-DD" strings parse as UTC
+ * midnight, which is the *previous local day* everywhere west of UTC — noon
+ * anchoring removes that day-shift. Full ISO timestamps pass through as-is.
+ */
+export function parseDayKey(dateStr) {
+  if (typeof dateStr === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + "T12:00:00");
+  }
+  return new Date(dateStr);
+}
+
+/**
  * Feature Set 4: Quests now use calculateQuestXP for dynamic XP.
  * Custom quests from state are merged in when provided.
  */
@@ -121,6 +133,7 @@ export function getDayQuests(day, customQuests, state) {
             timeOfDay: lib.timeOfDay || "anytime",
             difficulty: lib.difficulty,
             frequency: freq,
+            type: lib.type || "build",
           };
         }
         // LEGACY SHAPE: { id, category, questIndex }
@@ -191,22 +204,56 @@ export function getDayQuests(day, customQuests, state) {
 
 export function daysBetween(dateStr) {
   if (!dateStr) return 0;
-  const d = new Date(dateStr);
+  const d = parseDayKey(dateStr);
   if (isNaN(d.getTime())) return 0; // Invalid date guard
-  const now = new Date();
-  return Math.max(0, Math.floor((now - d) / 86400000));
+  // Compare local calendar days, not raw 24h windows — otherwise the count
+  // flips an hour early/late around DST and for noon-anchored day keys.
+  const startOfDay = (x) => { const c = new Date(x); c.setHours(0, 0, 0, 0); return c; };
+  return Math.max(0, Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000));
 }
 
-export function getTotalVolume(workoutLogs) {
-  let vol = 0;
-  Object.values(workoutLogs || {}).forEach((sessions) => {
-    sessions.forEach((s) => {
-      s.sets.forEach((set) => {
-        vol += (set.weight || 0) * (set.reps || 0);
+/**
+ * workoutLogs day values exist in TWO shapes and every consumer must tolerate both:
+ *  - Legacy/dev-seed: an ARRAY of sessions [{ exercise, sets: [{weight, reps}] }]
+ *  - DojoPanel (real writes): a single OBJECT
+ *    { type, label, ts, sets: <number>, volume: <number>, exercises: [{ name, sets: [{done, weight, reps}] }] }
+ * Naively treating the object as an array (or `sets` as an array) crashes — use
+ * these helpers instead of touching the raw shape.
+ */
+export function workoutCountForDay(dayLog) {
+  if (!dayLog) return 0;
+  if (Array.isArray(dayLog)) return dayLog.length;
+  return 1;
+}
+
+export function workoutVolumeForDay(dayLog) {
+  if (!dayLog) return 0;
+  // DojoPanel object shape: volume is precomputed — trust it.
+  if (!Array.isArray(dayLog)) {
+    if (typeof dayLog.volume === "number") return dayLog.volume;
+    // Fallback: derive from nested exercises' set arrays.
+    let vol = 0;
+    (dayLog.exercises || []).forEach((ex) => {
+      (Array.isArray(ex.sets) ? ex.sets : []).forEach((set) => {
+        vol += (parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0);
       });
+    });
+    return vol;
+  }
+  // Legacy array shape
+  let vol = 0;
+  dayLog.forEach((s) => {
+    (Array.isArray(s.sets) ? s.sets : []).forEach((set) => {
+      vol += (set.weight || 0) * (set.reps || 0);
     });
   });
   return vol;
+}
+
+export function getTotalVolume(workoutLogs) {
+  return Object.values(workoutLogs || {}).reduce(
+    (sum, dayLog) => sum + workoutVolumeForDay(dayLog), 0
+  );
 }
 
 /**
@@ -215,12 +262,13 @@ export function getTotalVolume(workoutLogs) {
  */
 export function getCalendarDay(startDate) {
   if (!startDate) return 1;
-  const start = new Date(startDate);
+  const start = parseDayKey(startDate);
   const now = new Date();
   // Reset to midnight for clean day comparison
   start.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
-  const diff = Math.floor((now - start) / 86400000);
+  // Round (not floor): DST shifts make some day-gaps 23h/25h.
+  const diff = Math.round((now - start) / 86400000);
   return Math.max(1, diff + 1); // Day 1 is the start date
 }
 
@@ -271,58 +319,125 @@ export function migrateActiveQuests(s) {
   return { ...s, activeQuests: migrated };
 }
 
-/** Reconcile streaks after a gap in activity. Shared by useAppState and useCloudSync. */
+/** Shift a YYYY-MM-DD local day key by n calendar days (DST-safe: noon anchored). */
+export function addDaysToKey(dayKey, n) {
+  const d = parseDayKey(dayKey);
+  d.setDate(d.getDate() + n);
+  return dateToLocalDayKey(d);
+}
+
+const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Most recent completed day key strictly before `today`, or null. */
+function lastCompletedDayBefore(completedDays, today) {
+  let best = null;
+  for (const [key, done] of Object.entries(completedDays || {})) {
+    if (!done || !DAY_KEY_RE.test(key) || key >= today) continue;
+    if (!best || key > best) best = key;
+  }
+  return best;
+}
+
+/**
+ * Low-shame consistency: completed days out of the last `windowDays` days of
+ * the journey. Today only counts once it's completed (it's still in
+ * progress), paused days are excused entirely. A miss costs 1/14 here instead
+ * of zeroing everything — the counterweight to a streak reset.
+ */
+export function getConsistency(s, windowDays = 14) {
+  const today = getTodayStr();
+  const start = typeof s.startDate === "string" && DAY_KEY_RE.test(s.startDate) ? s.startDate : today;
+  const paused = new Set(s.pausedDates || []);
+  const done = s.completedDays || {};
+  let total = 0;
+  let count = 0;
+  for (let i = 0; i < windowDays; i++) {
+    const key = addDaysToKey(today, -i);
+    if (key < start) break;
+    if (i === 0 && !done[key]) continue;
+    if (paused.has(key)) continue;
+    total++;
+    if (done[key]) count++;
+  }
+  return { done: count, total };
+}
+
+export const MAX_STREAK_FREEZES = 3;
+
+/**
+ * Streak freeze award for reaching `newStreak` — one freeze per 7-day
+ * milestone, max 3 banked, none in Hard Mode. The single place freezes are
+ * earned (day completion calls this); returns the state patch, or null.
+ */
+export function freezeAwardFor(s, newStreak) {
+  if (s.hardMode || newStreak <= 0 || newStreak % 7 !== 0) return null;
+  if (newStreak <= (s.lastFreezeAwardedAtStreak || 0)) return null;
+  const current = s.streakFreezes || 0;
+  if (current >= MAX_STREAK_FREEZES) return { lastFreezeAwardedAtStreak: newStreak };
+  return {
+    streakFreezes: current + 1,
+    lastFreezeAwardedAtStreak: newStreak,
+    streakFreezeEarnedDate: getTodayStr(),
+  };
+}
+
+/**
+ * Reconcile the day streak on load. The single place a missed day spends a
+ * freeze or breaks the streak.
+ *
+ * The anchor is the last day that was actually COMPLETED, not the last day
+ * the app was opened (`lastActiveDate` is bumped on every open, so anchoring
+ * on it made "active yesterday" look like a missed day and capped every
+ * streak at 1). Only days strictly between that anchor and today count as
+ * missed — today is still in progress. Paused days (10A) and rest days are
+ * excused. `streakCheckedThrough` records the last day already accounted for,
+ * so reopening the app on the same day never spends a second freeze.
+ */
 export function reconcileStreaks(s) {
   const today = getTodayStr();
-  const lastActive = s.lastActiveDate;
-  if (!lastActive || lastActive === today) return s;
+  const yesterday = addDaysToKey(today, -1);
+  const lastDone = lastCompletedDayBefore(s.completedDays, today);
+  // A marker after yesterday (clock was ahead, or a backup from a phone with
+  // a wrong clock) would silently forgive real misses — ignore it.
+  const checked = s.streakCheckedThrough && s.streakCheckedThrough <= yesterday ? s.streakCheckedThrough : null;
+  const from = checked && (!lastDone || checked > lastDone) ? checked : lastDone;
 
-  // Check if any missed day was an intentional rest day. Walk forward
-  // from the day AFTER lastActive up to the day BEFORE today, in journey-day
-  // numbers so we can match against state.restDays directly.
-  const restDays = s.restDays || [];
-  const missedDays = daysBetween(lastActive);
-  // The day-number of `lastActive`. Today's journey day is s.currentDay; if the
-  // user missed N days, lastActive corresponded to currentDay - N.
-  const lastActiveDayNum = s.currentDay - missedDays;
-  let allMissedWereRest = true;
-  for (let i = 1; i <= missedDays; i++) {
-    const checkDay = lastActiveDayNum + i;
-    if (!restDays.includes(checkDay)) { allMissedWereRest = false; break; }
-  }
+  if ((s.streak || 0) > 0 && from && from < yesterday) {
+    const paused = new Set(s.pausedDates || []);
+    const restDays = new Set(s.restDays || []); // journey-day numbers
+    const startDay = s.startDate ? parseDayKey(s.startDate) : null;
+    const journeyDay = (key) => {
+      if (!startDay) return null;
+      const d = parseDayKey(key);
+      return Math.round((d - startDay) / 86400000) + 1;
+    };
 
-  // ANY miss should consume a freeze or break the streak. The previous code
-  // gave a free pass on single-day misses (missedDays > 1) AND gated freeze
-  // consumption on missedDays <= 2 (which never fired for the 1-day case).
-  if (missedDays >= 1 && !allMissedWereRest) {
-    const freezes = s.streakFreezes || 0;
-    if (freezes > 0 && missedDays <= 2) {
-      s = {
-        ...s,
-        streakFreezes: freezes - 1,
-        streakFreezeUsedDate: today,
-        streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak, missedDays }],
-      };
-    } else {
-      s = { ...s, streak: 0 };
+    let missed = 0;
+    for (let key = addDaysToKey(from, 1); key < today; key = addDaysToKey(key, 1)) {
+      if (paused.has(key) || restDays.has(journeyDay(key))) continue;
+      missed++;
+      if (missed > 366) break; // corrupted dates — don't spin
+    }
+
+    if (missed > 0) {
+      const freezes = s.streakFreezes || 0;
+      if (!s.hardMode && freezes >= missed) {
+        s = {
+          ...s,
+          streakFreezes: freezes - missed,
+          streakFreezeUsedDate: today,
+          streakFreezeUsedCount: missed,
+          streakFreezeLog: [...(s.streakFreezeLog || []), { date: today, streakPreserved: s.streak, missedDays: missed }],
+        };
+      } else {
+        // Preserve the broken streak so the comeback modal can offer a
+        // guilt-free partial restore (Phase 9E).
+        // Reset the freeze milestone too, so freezes can be re-earned at 7/14/21.
+        s = { ...s, streak: 0, lastBrokenStreak: s.streak, streakBrokenDate: today, lastFreezeAwardedAtStreak: 0 };
+      }
     }
   }
-
-  const MAX_FREEZES = 3;
-  const currentFreezes = s.streakFreezes || 0;
-  const lastFreezeAwardedAt = s.lastFreezeAwardedAtStreak || 0;
-  if (s.streak > 0 && s.streak >= lastFreezeAwardedAt + 7 && currentFreezes < MAX_FREEZES) {
-    const newMilestone = Math.floor(s.streak / 7) * 7;
-    if (newMilestone > lastFreezeAwardedAt) {
-      s = {
-        ...s,
-        streakFreezes: Math.min(currentFreezes + 1, MAX_FREEZES),
-        // Mark "earned today" so App can show a one-time toast on hydrate.
-        streakFreezeEarnedDate: today,
-        lastFreezeAwardedAtStreak: newMilestone,
-      };
-    }
-  }
+  if (s.streakCheckedThrough !== yesterday) s = { ...s, streakCheckedThrough: yesterday };
 
   if (s.lastLiftDate) {
     const liftGap = daysBetween(s.lastLiftDate);

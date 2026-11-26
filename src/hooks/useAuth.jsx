@@ -1,15 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-} from "firebase/auth";
-import { auth, googleProvider, facebookProvider, firebaseConfigured } from "../firebase";
+import { firebaseConfigured, loadFirebase } from "../firebase";
 
 const AuthContext = createContext(null);
 
@@ -38,108 +28,77 @@ function friendlyAuthError(err) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  // Starts false when Firebase isn't configured, so no synchronous setState
+  // is needed in the effect below.
   const [loading, setLoading] = useState(firebaseConfigured);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!firebaseConfigured || !auth) {
-      setLoading(false);
-      return;
-    }
+    if (!firebaseConfigured) return;
+    let cancelled = false;
+    let unsubscribe = () => {};
+    // Fallback: never leave the splash spinner up on a flaky connection or
+    // misconfigured domain.
+    const timeout = setTimeout(() => setLoading(false), 4000);
 
-    // Handle result from signInWithRedirect
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) setUser(result.user);
+    loadFirebase()
+      .then((fb) => {
+        if (cancelled || !fb) return;
+        // Handle result from signInWithRedirect
+        fb.authApi.getRedirectResult(fb.auth)
+          .then((result) => { if (result?.user) setUser(result.user); })
+          .catch((err) => setError(friendlyAuthError(err)));
+        unsubscribe = fb.authApi.onAuthStateChanged(fb.auth, (firebaseUser) => {
+          clearTimeout(timeout);
+          setUser(firebaseUser);
+          setLoading(false);
+        });
       })
-      .catch((err) => {
-        setError(friendlyAuthError(err));
-      });
+      .catch(() => { clearTimeout(timeout); setLoading(false); });
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-    });
-    return unsubscribe;
+    return () => { cancelled = true; clearTimeout(timeout); unsubscribe(); };
   }, []);
 
-  const login = async (email, password) => {
+  // Run an auth call with the lazily loaded SDK, mapping errors to copy.
+  async function withAuth(fn, { rethrow = true } = {}) {
     setError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const fb = await loadFirebase();
+      if (!fb) throw Object.assign(new Error("Accounts aren't available in this version of Life OS."), { code: "app/no-firebase" });
+      return await fn(fb);
     } catch (err) {
       const msg = friendlyAuthError(err);
       setError(msg);
-      throw new Error(msg);
+      if (rethrow) throw new Error(msg);
     }
-  };
+  }
 
-  const signup = async (email, password, displayName) => {
-    setError(null);
-    try {
-      const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
-      if (displayName) {
-        await updateProfile(newUser, { displayName });
-      }
-    } catch (err) {
-      const msg = friendlyAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  };
+  const login = (email, password) =>
+    withAuth((fb) => fb.authApi.signInWithEmailAndPassword(fb.auth, email, password));
 
-  const loginWithGoogle = async () => {
-    setError(null);
-    try {
-      // Use redirect (no popup) — works on mobile, PWA, and when popups are blocked
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err) {
-      const msg = friendlyAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  };
+  const signup = (email, password, displayName) =>
+    withAuth(async (fb) => {
+      const { user: newUser } = await fb.authApi.createUserWithEmailAndPassword(fb.auth, email, password);
+      if (displayName) await fb.authApi.updateProfile(newUser, { displayName });
+    });
 
-  const loginWithFacebook = async () => {
-    setError(null);
-    try {
-      await signInWithRedirect(auth, facebookProvider);
-    } catch (err) {
-      const msg = friendlyAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  };
+  // Redirect (no popup) — works on mobile, PWA, and when popups are blocked
+  const loginWithGoogle = () =>
+    withAuth((fb) => fb.authApi.signInWithRedirect(fb.auth, fb.googleProvider));
 
-  const logout = async () => {
-    setError(null);
-    try {
-      await signOut(auth);
-    } catch (err) {
-      setError(friendlyAuthError(err));
-    }
-  };
+  const loginWithFacebook = () =>
+    withAuth((fb) => fb.authApi.signInWithRedirect(fb.auth, fb.facebookProvider));
 
-  const resetPassword = async (email) => {
-    setError(null);
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (err) {
-      const msg = friendlyAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  };
+  const logout = () => withAuth((fb) => fb.authApi.signOut(fb.auth), { rethrow: false });
 
-  const updateDisplayName = async (name) => {
-    setError(null);
-    try {
-      await updateProfile(auth.currentUser, { displayName: name });
-      setUser({ ...auth.currentUser });
-    } catch (err) {
-      setError(friendlyAuthError(err));
-    }
-  };
+  const resetPassword = (email) =>
+    withAuth((fb) => fb.authApi.sendPasswordResetEmail(fb.auth, email));
+
+  const updateDisplayName = (name) =>
+    withAuth(async (fb) => {
+      await fb.authApi.updateProfile(fb.auth.currentUser, { displayName: name });
+      setUser({ ...fb.auth.currentUser });
+    }, { rethrow: false });
 
   const value = {
     user, loading, error,

@@ -1,16 +1,27 @@
 // AI Service Layer — uses Gemini API via environment variable.
-// Key is loaded from VITE_GEMINI_API_KEY in .env (never hardcoded).
+// Disabled for v1: see the GEMINI_API_KEY note below.
 //
 // Public surface kept intentionally tiny — only the AI Coach widget and the
 // AI Workout Generator are wired up today. If more callers appear, add
 // purpose-built wrappers rather than expanding this file.
 
-import { dateToLocalDayKey } from "./helpers";
+import { dateToLocalDayKey, daysBetween } from "./helpers";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-const GEMINI_MODEL = "gemini-2.0-flash";
+// AI coach is cut for v1 (decision 2026-11-26): any VITE_* key ships in the
+// public JS bundle, so the key is not read from the env at all. With an empty
+// key, isAIConfigured() is false and the coach + workout generator hide.
+// To bring AI back, call Gemini through a server-side proxy instead of
+// restoring `import.meta.env.VITE_GEMINI_API_KEY` here.
+const GEMINI_API_KEY = "";
+// gemini-2.0-flash was shut down on 2026-06-01; its official replacement is
+// gemini-3.6-flash. Keep the id overridable so the next retirement is an env
+// change, not a code change.
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-3.6-flash";
+// The key goes in a header, not the query string, so it doesn't land in URL
+// logs. It still ships in the client bundle: restrict it to this site's
+// referrer + a quota in Google Cloud, or move the call behind a server proxy.
 const GEMINI_URL = GEMINI_API_KEY
-  ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
+  ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
   : "";
 
 const AI_CACHE_KEY = "life-os-ai-cache";
@@ -18,6 +29,21 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const MOOD_LABELS = [null, "Awful", "Bad", "Meh", "Okay", "Good", "Great"];
 
 export function isAIConfigured() { return !!GEMINI_API_KEY; }
+
+// Prominent disclosure (Play User Data policy): the coach prompt includes
+// sensitive context (moods, quit trackers, a journal excerpt), so ask once,
+// explicitly, before the first request. Returns true when allowed.
+const AI_CONSENT_TEXT =
+  "AI Coach sends your message plus a summary of your Life OS data — name, level and streak, " +
+  "recent quests and moods, your quit-tracker names and day counts, onboarding goals, and a short " +
+  "excerpt of your latest journal entry — to Google's Gemini API to write a reply.\n\n" +
+  "Nothing is sent unless you use the coach. Allow?";
+export function ensureAIConsent(state, save) {
+  if (state?.aiConsentAt) return true;
+  if (!window.confirm(AI_CONSENT_TEXT)) return false;
+  save((prev) => ({ ...prev, aiConsentAt: new Date().toISOString() }));
+  return true;
+}
 
 // --- Cache ---
 
@@ -69,7 +95,7 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
   try {
     const res = await fetch(GEMINI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ parts: [{ text: userPrompt }] }],
@@ -81,9 +107,8 @@ async function callAI(systemPrompt, userPrompt, cacheKey) {
     });
     if (!res.ok) {
       if (res.status === 429) return AI_ERR_QUOTA;
-      // eslint-disable-next-line no-console
-      console.warn("Gemini API error:", res.status);
-      return null;
+      console.warn("Gemini API error:", res.status, GEMINI_MODEL);
+      return AI_ERR_NETWORK; // 404 = retired model id, 403 = bad/blocked key
     }
     const data = await res.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
@@ -145,8 +170,7 @@ function buildStateSummary(state) {
     .map(([day, mood]) => `${day}: ${MOOD_LABELS[mood] || "Unknown"}`);
 
   const forgeTrackers = Object.entries(sobrietyDates).map(([id, date]) => {
-    const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-    return `${id}: ${days} days clean`;
+    return `${id}: ${daysBetween(date)} days clean`;
   });
 
   const journalKeys = Object.keys(journal).sort().reverse();

@@ -1,6 +1,9 @@
 // Life OS Service Worker
-// Bump CACHE_VERSION on deploy to force clients to fetch new assets.
-const CACHE_VERSION = "v3-2026-05-11";
+// "__BUILD_ID__" and the BUILD_ASSETS list are filled in at build time
+// (vite.config.js → stampServiceWorker) so every deploy gets fresh caches,
+// precaches its own hashed assets, and the old caches are deleted on activate.
+const CACHE_VERSION = "__BUILD_ID__";
+const BUILD_ASSETS = [] /* __BUILD_ASSETS__ */;
 const STATIC_CACHE = `life-os-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `life-os-runtime-${CACHE_VERSION}`;
 
@@ -13,6 +16,7 @@ const PRECACHE_URLS = [
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",
+  ...BUILD_ASSETS,
 ];
 
 // ── Install: precache app shell ──────────────────────────────────────────────
@@ -21,7 +25,9 @@ self.addEventListener("install", (event) => {
     caches
       .open(STATIC_CACHE)
       .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+      // No skipWaiting() here: a new version waits until the user taps
+      // "Update" (SKIP_WAITING message below) or every window is closed, so a
+      // deploy never yanks the page mid-workout or mid-journal.
   );
 });
 
@@ -64,8 +70,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(STATIC_CACHE).then((c) => c.put("/index.html", clone));
+          // Never cache an error page as the offline app shell.
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(STATIC_CACHE).then((c) => c.put("/index.html", clone));
+          }
           return res;
         })
         .catch(() =>

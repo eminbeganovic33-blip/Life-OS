@@ -1,32 +1,41 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TOKENS } from "../../styles/tokens";
-import { getTodayStr, getDayQuests, daysBetween, getLevelIndex } from "../../utils";
+import { getTodayStr, getDayQuests, daysBetween, getLevelIndex, parseDayKey, freezeAwardFor, reconcileStreaks } from "../../utils";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
+import { prefetchLazyChunks } from "../../utils/prefetchLazyChunks";
 import { useTrophies } from "../../hooks/useTrophies";
 import { useToast } from "../shared/Toast";
 
-import DomainPanel from "../panels/DomainPanel";
-import JournalPanel from "../panels/JournalPanel";
-import ForgePanel from "../panels/ForgePanel";
-import DojoPanel from "../panels/DojoPanel";
-import ProgressPanel from "../panels/ProgressPanel";
-import AcademyPanel from "../panels/AcademyPanel";
-import TrophyPanel from "../panels/TrophyPanel";
-import KnowledgePanel from "../panels/KnowledgePanel";
-import CustomQuestPanel from "../panels/CustomQuestPanel";
-import AvatarPickerPanel from "../panels/AvatarPickerPanel";
-import BookLibraryPanel from "../panels/BookLibraryPanel";
-import LeaderboardPanel from "../panels/LeaderboardPanel";
-import CharacterPanel from "../panels/CharacterPanel";
-import CardCollectionPanel from "../panels/CardCollectionPanel";
-import QuestLibraryPanel from "../panels/QuestLibraryPanel";
+// Panels are lazy-loaded — they pull in the heavy data libraries (exercises,
+// books, courses, forge programs) which would otherwise bloat the initial bundle.
+// lazyWithRetry auto-reloads once if a chunk 404s after a new deploy.
+const DomainPanel = lazyWithRetry(() => import("../panels/DomainPanel"));
+const JournalPanel = lazyWithRetry(() => import("../panels/JournalPanel"));
+const ForgePanel = lazyWithRetry(() => import("../panels/ForgePanel"));
+const DojoPanel = lazyWithRetry(() => import("../panels/DojoPanel"));
+const ProgressPanel = lazyWithRetry(() => import("../panels/ProgressPanel"));
+const AcademyPanel = lazyWithRetry(() => import("../panels/AcademyPanel"));
+const TrophyPanel = lazyWithRetry(() => import("../panels/TrophyPanel"));
+const KnowledgePanel = lazyWithRetry(() => import("../panels/KnowledgePanel"));
+const CustomQuestPanel = lazyWithRetry(() => import("../panels/CustomQuestPanel"));
+const AvatarPickerPanel = lazyWithRetry(() => import("../panels/AvatarPickerPanel"));
+const BookLibraryPanel = lazyWithRetry(() => import("../panels/BookLibraryPanel"));
+const LeaderboardPanel = lazyWithRetry(() => import("../panels/LeaderboardPanel"));
+const CharacterPanel = lazyWithRetry(() => import("../panels/CharacterPanel"));
+const CardCollectionPanel = lazyWithRetry(() => import("../panels/CardCollectionPanel"));
+const QuestLibraryPanel = lazyWithRetry(() => import("../panels/QuestLibraryPanel"));
+const InboxPanel = lazyWithRetry(() => import("../panels/InboxPanel"));
 
+// Today + Onboarding stay eager: Today is the default tab (fastest first paint),
+// and Onboarding is the first-run entry screen — it must never gate a brand-new
+// user behind a second network fetch that could fail. The rest are lazy.
 import TodayScreen from "../screens/TodayScreen";
-import TrainScreen from "../screens/TrainScreen";
-import LearnScreen from "../screens/LearnScreen";
-import ForgeScreen from "../screens/ForgeScreen";
-import MeScreen from "../screens/MeScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
+const TrainScreen = lazyWithRetry(() => import("../screens/TrainScreen"));
+const LearnScreen = lazyWithRetry(() => import("../screens/LearnScreen"));
+const ForgeScreen = lazyWithRetry(() => import("../screens/ForgeScreen"));
+const MeScreen = lazyWithRetry(() => import("../screens/MeScreen"));
 
 import XPToast from "../shared/XPToast";
 import DayCompleteModal from "../shared/DayCompleteModal";
@@ -37,25 +46,65 @@ import Confetti from "../shared/Confetti";
 import BossModal from "../shared/BossModal";
 import ForgeSuccessModal from "../shared/ForgeSuccessModal";
 import AnniversaryModal, { ANNIVERSARY_DAYS } from "../shared/AnniversaryModal";
+import QuickCaptureFab from "../shared/QuickCaptureFab";
+import UpdateBanner from "../shared/UpdateBanner";
 import TabBar from "./TabBar";
 import { MOTIVATION_CARDS } from "../../data/constants";
 import { feedback } from "../../utils/audio";
+import { track, setAnalyticsConsent } from "../../firebase";
 
 const SPECIAL_PANELS = [
   "journal", "forge", "dojo", "progress",
   "academy", "trophies", "knowledge", "custom-quests",
   "avatar", "books", "leaderboard", "character", "cards", "quest-library",
+  "inbox",
 ];
 
+// Minimal fallback shown while a lazy screen/panel chunk loads. Kept subtle —
+// chunks are small and load in a blink on a warm connection.
+function ScreenFallback() {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, display: "flex",
+      alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+    }}>
+      <div style={{
+        width: 22, height: 22,
+        border: "2px solid rgba(124,92,252,0.20)",
+        borderTopColor: "#7C5CFC",
+        borderRadius: "50%",
+        animation: "spin 0.6s linear infinite",
+      }} />
+    </div>
+  );
+}
+
+// Home-screen shortcuts in public/manifest.json open /?view=<id>.
+const VIEW_TO_TAB = { home: "today", today: "today", forge: "forge", dojo: "train", train: "train", learn: "learn", me: "me", journal: "today" };
+function initialView() {
+  try {
+    const view = new URLSearchParams(window.location.search).get("view");
+    return { tab: VIEW_TO_TAB[view] || "today", panel: view === "journal" ? "journal" : null };
+  } catch {
+    return { tab: "today", panel: null };
+  }
+}
+
 export default function AppShell({ state, save, user }) {
-  const [activeTab, setActiveTab] = useState("today");
-  const [activePanel, setActivePanel] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => initialView().tab);
+  const [activePanel, setActivePanel] = useState(() => initialView().panel);
+  // Local day this shell last reconciled for; changes when the app is resumed
+  // (or left open) past midnight, re-running the day-start effect below.
+  const [dayKey, setDayKey] = useState(getTodayStr);
+  const dayKeyRef = useRef(dayKey);
 
   const [xpToast, setXpToast] = useState({ xp: 0, visible: false });
   const [dayCompleteModal, setDayCompleteModal] = useState(null);
   const [levelUpModal, setLevelUpModal] = useState(null);
   const [weeklyReview, setWeeklyReview] = useState(false);
   const [comebackDays, setComebackDays] = useState(0);
+  const [comebackPrevStreak, setComebackPrevStreak] = useState(0);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [bossModal, setBossModal] = useState(null);
   const [forgeSuccess, setForgeSuccess] = useState(null);
@@ -88,7 +137,59 @@ export default function AppShell({ state, save, user }) {
   }, []);
   const closePanel = useCallback(() => setActivePanel(null), []);
 
-  // Comeback detection + streak protection + lastActiveDate bump on mount.
+  // Analytics are opt-in; keep the facade in sync before any track() below.
+  useEffect(() => {
+    setAnalyticsConsent(state.analyticsConsent === true);
+  }, [state.analyticsConsent]);
+
+  // Day rollover without a reload: a TWA/PWA stays resident for days, so the
+  // load-time reconcile alone let a skipped day go unnoticed and credited the
+  // first tap after midnight to the wrong day.
+  useEffect(() => {
+    function checkDay() {
+      if (document.visibilityState !== "visible") return;
+      const now = getTodayStr();
+      if (now === dayKeyRef.current) return;
+      dayKeyRef.current = now;
+      save((prev) => reconcileStreaks(prev));
+      setDayKey(now);
+    }
+    document.addEventListener("visibilitychange", checkDay);
+    const id = setInterval(checkDay, 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", checkDay);
+      clearInterval(id);
+    };
+  }, [save]);
+
+  // Funnel: which of the 5 pillars users actually open. Drives the post-launch
+  // focus decision — keep what gets used, demote what doesn't.
+  useEffect(() => {
+    track("tab_view", { tab: activeTab });
+  }, [activeTab]);
+
+  // Warm every lazy chunk during idle time so tab switches are instant and the
+  // service worker caches them for offline (first paint stays untouched —
+  // kickoff is delayed well past initial render).
+  useEffect(() => {
+    const t = setTimeout(() => prefetchLazyChunks(), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Android TWA: hardware back button closes the active panel instead of exiting the app.
+  useEffect(() => {
+    function handleAndroidBack() {
+      if (activePanel) { setActivePanel(null); return; }
+      if (dayCompleteModal) { setDayCompleteModal(null); return; }
+      if (levelUpModal !== null) { setLevelUpModal(null); return; }
+      if (weeklyReview) { setWeeklyReview(false); return; }
+      // Nothing to close — let the OS handle it (app moves to background)
+    }
+    window.addEventListener("android-back", handleAndroidBack);
+    return () => window.removeEventListener("android-back", handleAndroidBack);
+  }, [activePanel, dayCompleteModal, levelUpModal, weeklyReview]);
+
+  // Comeback detection + lastActiveDate bump on mount and on day rollover.
   // Consolidated into a single save() so we don't race with other mount effects.
   useEffect(() => {
     if (!state.onboarded) return;
@@ -98,31 +199,28 @@ export default function AppShell({ state, save, user }) {
     const patch = { lastActiveDate: today };
     let toastMsg = null;
 
-    if (state.lastActiveDate) {
-      const last = new Date(state.lastActiveDate + "T12:00:00");
-      const now = new Date();
-      const diff = Math.floor((now - last) / 86400000);
-
-      if (diff >= 2 && state.streak > 0) {
-        const freezes = state.streakFreezes || 0;
-        const daysToCover = diff - 1; // gap of 2 = 1 missed day
-        // Hard Mode: skip freeze protection entirely — break the streak on any miss.
-        if (!state.hardMode && freezes >= daysToCover) {
-          patch.streakFreezes = freezes - daysToCover;
-          toastMsg = `Streak freeze used (${patch.streakFreezes} left). Streak preserved.`;
-        } else {
-          patch.streak = 0;
-          patch.streakFreezes = state.hardMode ? freezes : 0;
-          setComebackDays(diff);
-        }
-      } else if (diff >= 2) {
-        setComebackDays(diff);
-      }
+    // Freeze spending / streak breaking already happened exactly once in
+    // reconcileStreaks() on load. This effect only reports the outcome.
+    if (state.streakFreezeUsedDate === today && state.streak > 0) {
+      const used = state.streakFreezeUsedCount || 1;
+      toastMsg = `${used > 1 ? `${used} streak freezes` : "Streak freeze"} used (${state.streakFreezes || 0} left). Streak preserved.`;
     }
 
-    save({ ...state, ...patch });
+    const brokeToday = state.streakBrokenDate === today && (state.lastBrokenStreak || 0) > 0;
+    const diff = state.lastActiveDate
+      ? Math.round((parseDayKey(today) - parseDayKey(state.lastActiveDate)) / 86400000)
+      : 0;
+    // Show the comeback screen after an absence OR whenever the streak broke
+    // today — the most common break is a daily opener who left yesterday
+    // unfinished, and that used to happen silently.
+    if (diff >= 2 || brokeToday) {
+      setComebackPrevStreak(brokeToday ? state.lastBrokenStreak : 0);
+      setComebackDays(Math.max(diff - 1, 1)); // days strictly between last open and today
+    }
+
+    save((prev) => ({ ...prev, ...patch }));
     if (toastMsg) setTimeout(() => toast.show(toastMsg, { type: "xp", duration: 3200 }), 600);
-  }, []);
+  }, [dayKey]);
 
   // Weekly review: show on Sunday if not shown this week.
   // Skip for brand-new users (<7 active days) — recapping an empty week is
@@ -135,7 +233,7 @@ export default function AppShell({ state, save, user }) {
     const activeDays = Object.keys(state.completedDays || {}).length;
     if (activeDays < 7) return;
     setWeeklyReview(true);
-  }, []);
+  }, [dayKey]);
 
   // XP change → toast + level-up check
   useEffect(() => {
@@ -163,7 +261,9 @@ export default function AppShell({ state, save, user }) {
     if (state.completedDays?.[today]) return;
 
     const dayNumber = state.startDate ? daysBetween(state.startDate) + 1 : 1;
-    const todayQuests = getDayQuests(dayNumber, state.customQuests, state);
+    // Same rule as the Today screen's "day sealed" banner: avoidance quests
+    // (10B) are tracked separately and never block day completion.
+    const todayQuests = getDayQuests(dayNumber, state.customQuests, state).filter((q) => q.type !== "avoid");
     const completedIds = state.completedQuests?.[today] || [];
     const allDone = todayQuests.length > 0 && todayQuests.every((q) => completedIds.includes(q.id));
 
@@ -187,12 +287,10 @@ export default function AppShell({ state, save, user }) {
         newCollectedCards[unlockedCardId] = today;
       }
 
-      // Award a streak freeze every 7 days (max 3 banked).
-      // Hard Mode: no freezes — the point is they don't protect you.
+      // Award a streak freeze every 7 days (max 3 banked, none in Hard Mode).
       const currentFreezes = state.streakFreezes || 0;
-      const newFreezes = !state.hardMode && newStreak > 0 && newStreak % 7 === 0
-        ? Math.min(3, currentFreezes + 1)
-        : currentFreezes;
+      const freezePatch = freezeAwardFor(state, newStreak) || {};
+      const newFreezes = freezePatch.streakFreezes ?? currentFreezes;
 
       save({
         ...state,
@@ -204,7 +302,7 @@ export default function AppShell({ state, save, user }) {
         xp: (state.xp || 0) + xpBonus,
         lifetimeXp: (state.lifetimeXp || 0) + xpBonus,
         collectedCards: newCollectedCards,
-        streakFreezes: newFreezes,
+        ...freezePatch,
       });
 
       if (unlockedCardId !== null) {
@@ -213,6 +311,8 @@ export default function AppShell({ state, save, user }) {
       if (newFreezes > currentFreezes) {
         setTimeout(() => toast.show(`Streak freeze earned (${newFreezes}/3)`, { type: "xp", duration: 2400 }), 1600);
       }
+
+      track("day_complete", { day: dayNumber, xp_earned: xpEarned, streak: newStreak });
 
       setTimeout(() => {
         setDayCompleteModal({ day: dayNumber, xpEarned, streak: newStreak });
@@ -239,7 +339,7 @@ export default function AppShell({ state, save, user }) {
     if (hit) {
       setAnniversaryDay(hit);
     }
-  }, []);
+  }, [dayKey]);
 
   // Forge milestone detection
   useEffect(() => {
@@ -249,49 +349,63 @@ export default function AppShell({ state, save, user }) {
     let changed = false;
 
     Object.entries(state.sobrietyDates || {}).forEach(([habitId, startDate]) => {
-      const days = Math.floor((new Date() - new Date(startDate)) / 86400000);
-      const key = `${habitId}-${days}`;
-      if (MILESTONES.includes(days) && !shown[key]) {
-        shown[key] = true;
-        changed = true;
-        // Show modal for the first milestone hit this session. The rest are
-        // still marked seen so they don't re-fire next mount.
-        if (!firstHit) firstHit = { habitId, days };
-      }
+      // Same local-calendar count the Forge UI shows (the old UTC math fired
+      // "7 days" while the tracker still read 6d), and catch up on milestones
+      // reached on a day the app wasn't opened instead of skipping them.
+      const days = daysBetween(startDate);
+      const reached = MILESTONES.filter((m) => m <= days && !shown[`${habitId}-${m}`]);
+      if (reached.length === 0) return;
+      reached.forEach((m) => { shown[`${habitId}-${m}`] = true; });
+      changed = true;
+      const top = reached[reached.length - 1];
+      if (!firstHit || top > firstHit.days) firstHit = { habitId, days: top };
     });
 
     if (changed) {
-      save({ ...state, shownForgeMilestones: shown });
+      save((prev) => ({ ...prev, shownForgeMilestones: { ...(prev.shownForgeMilestones || {}), ...shown } }));
       if (firstHit) setForgeSuccess(firstHit);
     }
-  }, []);
+  }, [dayKey]);
 
   if (!state.onboarded) {
-    return <OnboardingScreen state={state} save={save} />;
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <OnboardingScreen state={state} save={save} />
+      </Suspense>
+    );
   }
 
   return (
     <div data-app-shell style={styles.container}>
       <div style={styles.content}>
-        {activeTab === "today" && (
-          <TodayScreen state={state} save={save} onOpenPanel={openPanel} />
-        )}
-        {activeTab === "train" && (
-          <TrainScreen state={state} save={save} />
-        )}
-        {activeTab === "learn" && (
-          <LearnScreen state={state} save={save} />
-        )}
-        {activeTab === "forge" && (
-          <ForgeScreen state={state} save={save} />
-        )}
-        {activeTab === "me" && (
-          <MeScreen state={state} save={save} user={user} onOpenPanel={openPanel} />
-        )}
+        <Suspense fallback={<ScreenFallback />}>
+          {activeTab === "today" && (
+            <TodayScreen state={state} save={save} onOpenPanel={openPanel} />
+          )}
+          {activeTab === "train" && (
+            <TrainScreen state={state} save={save} />
+          )}
+          {activeTab === "learn" && (
+            <LearnScreen state={state} save={save} />
+          )}
+          {activeTab === "forge" && (
+            <ForgeScreen state={state} save={save} />
+          )}
+          {activeTab === "me" && (
+            <MeScreen state={state} save={save} user={user} onOpenPanel={openPanel} />
+          )}
+        </Suspense>
       </div>
 
+      <UpdateBanner />
       <TabBar activeTab={activeTab} onChangeTab={(tab) => { setActivePanel(null); setActiveTab(tab); }} />
 
+      {/* QuickCaptureFab: Today tab only — prevents it covering content on other screens */}
+      {activeTab === "today" && (
+        <QuickCaptureFab state={state} save={save} onOpenInbox={() => openPanel("inbox")} />
+      )}
+
+      <Suspense fallback={<ScreenFallback />}>
       <AnimatePresence>
         {activePanel === "journal" && (
           <JournalPanel key="journal" state={state} save={save} onClose={closePanel} />
@@ -335,6 +449,9 @@ export default function AppShell({ state, save, user }) {
         {activePanel === "quest-library" && (
           <QuestLibraryPanel key="quest-library" state={state} save={save} onClose={closePanel} />
         )}
+        {activePanel === "inbox" && (
+          <InboxPanel key="inbox" state={state} save={save} onClose={closePanel} />
+        )}
         {activePanel && !SPECIAL_PANELS.includes(activePanel) && (
           <DomainPanel
             key={activePanel}
@@ -346,6 +463,7 @@ export default function AppShell({ state, save, user }) {
           />
         )}
       </AnimatePresence>
+      </Suspense>
 
       <XPToast xp={xpToast.xp} visible={xpToast.visible} />
 
@@ -378,6 +496,18 @@ export default function AppShell({ state, save, user }) {
       {comebackDays > 0 && (
         <ComebackModal
           missedDays={comebackDays}
+          prevStreak={comebackPrevStreak}
+          onLogOne={() => {
+            setActivePanel(null);
+            setActiveTab("today");
+            setComebackDays(0);
+          }}
+          onRestoreHalf={() => {
+            const restored = Math.floor(comebackPrevStreak / 2);
+            // Re-align the freeze milestone with the restored streak.
+            save({ ...state, streak: restored, lastBrokenStreak: 0, lastFreezeAwardedAtStreak: Math.floor(restored / 7) * 7 });
+            setComebackDays(0);
+          }}
           onDismiss={() => setComebackDays(0)}
         />
       )}

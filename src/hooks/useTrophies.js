@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { TROPHIES } from "../data";
-import { getTodayStr, getTotalVolume } from "../utils";
+import { getTodayStr, getTotalVolume, workoutCountForDay, getCalendarDay } from "../utils";
 
 // Extract category from any quest id shape (legacy / lib- / custom-).
 function questCategory(qid) {
@@ -16,7 +16,7 @@ export function useTrophies() {
     const unlocked = { ...(s.unlockedTrophies || {}) };
     const completedQuestsByCategory = {};
 
-    Object.entries(s.completedQuests || {}).forEach(([day, qIds]) => {
+    Object.entries(s.completedQuests || {}).forEach(([, qIds]) => {
       qIds.forEach((qid) => {
         const cat = questCategory(qid);
         if (!cat) return;
@@ -26,7 +26,7 @@ export function useTrophies() {
     });
 
     const totalCompletedDays = Object.keys(s.completedDays || {}).length;
-    const workoutCount = Object.values(s.workoutLogs || {}).reduce((a, b) => a + b.length, 0);
+    const workoutCount = Object.values(s.workoutLogs || {}).reduce((a, b) => a + workoutCountForDay(b), 0);
     const completedCourses = Object.values(s.courseProgress || {}).filter((p) => p.completed).length;
     const recoveryCount = (s.recoveryJournals || []).length;
     const totalVolume = getTotalVolume(s.workoutLogs);
@@ -38,7 +38,8 @@ export function useTrophies() {
       let earned = false;
       if (t.daysReq && t.category === "all") earned = totalCompletedDays >= t.daysReq;
       else if (t.daysReq && t.category !== "all") earned = (completedQuestsByCategory[t.category] || 0) >= t.daysReq;
-      else if (t.dayReq) earned = s.currentDay >= t.dayReq;
+      // state.currentDay is never updated after init — derive the journey day.
+      else if (t.dayReq) earned = getCalendarDay(s.startDate) >= t.dayReq;
       else if (t.countReq && t.category === "dojo") earned = workoutCount >= t.countReq;
       else if (t.countReq && t.category === "academy") earned = completedCourses >= t.countReq;
       else if (t.countReq && t.category === "forge") earned = recoveryCount >= t.countReq;
