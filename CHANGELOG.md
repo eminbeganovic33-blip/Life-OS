@@ -2,6 +2,23 @@
 
 Dated entries, newest first. Each push to GitHub gets an entry saying what changed and why.
 
+## 2026-11-26 — Revamp follow-up: one popup at a time, room under the "+" button
+
+**Branch:** `claude/lifeos-visual-revamp`. Preview only.
+
+**Why:** the round-2 review found two glitches.
+- When a day completed, the day-complete, level-up and boss popups all opened at once, so a second card showed behind the top one.
+- On Today, the last card ended up under the floating "+" button.
+
+**What changed:**
+- **Popups:** celebration popups now show one at a time, in a fixed order: day complete → level up → boss → comeback → weekly review → Forge milestone → anniversary. Each one appears when the previous one is dismissed.
+- **Today:** the screen now has 168px of space at the bottom (96px on other tabs), so the last card scrolls fully clear of the "+" button. The button itself stays above the tab bar.
+
+**Verified:**
+- `npm test`: 38/38 passing. Lint: 0 errors. Build: green.
+- Headless check: the popups come up in sequence with nothing stacked behind, in light and dark.
+- At the end of the Today scroll, no button sits under the "+".
+
 ## 2026-11-26 — Visual revamp, round 2: 3D images, bigger art, bolder cards
 
 **Branch:** `claude/lifeos-visual-revamp` (still on top of PR #6). **Preview only**: production waits for Emin's OK on the look.

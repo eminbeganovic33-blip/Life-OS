@@ -375,9 +375,21 @@ export default function AppShell({ state, save, user }) {
     );
   }
 
+  const topModal = [
+    dayCompleteModal && "day",
+    levelUpModal !== null && "level",
+    bossModal && "boss",
+    comebackDays > 0 && "comeback",
+    weeklyReview && "weekly",
+    forgeSuccess && "forge",
+    anniversaryDay && "anniversary",
+  ].find(Boolean) || null;
+
   return (
     <div data-app-shell style={styles.container}>
-      <div style={styles.content}>
+      {/* Today has a floating "+" button above the tab bar (84px up, 52px
+          tall): leave room so the last card can scroll clear of it. */}
+      <div style={{ ...styles.content, paddingBottom: activeTab === "today" ? 168 : 96 }}>
         <Suspense fallback={<ScreenFallback />}>
           {activeTab === "today" && (
             <TodayScreen state={state} save={save} onOpenPanel={openPanel} />
@@ -467,7 +479,10 @@ export default function AppShell({ state, save, user }) {
 
       <XPToast xp={xpToast.xp} visible={xpToast.visible} />
 
-      {dayCompleteModal && (
+      {/* Celebration popups show one at a time, in this order; the next one
+          appears when the current one is dismissed (they used to stack). */}
+
+      {topModal === "day" && (
         <DayCompleteModal
           day={dayCompleteModal.day}
           xpEarned={dayCompleteModal.xpEarned}
@@ -476,14 +491,14 @@ export default function AppShell({ state, save, user }) {
         />
       )}
 
-      {levelUpModal !== null && (
+      {topModal === "level" && (
         <LevelUpModal
           level={levelUpModal}
           onDismiss={() => setLevelUpModal(null)}
         />
       )}
 
-      {weeklyReview && (
+      {topModal === "weekly" && (
         <WeeklyReviewModal
           state={state}
           onDismiss={() => {
@@ -493,7 +508,7 @@ export default function AppShell({ state, save, user }) {
         />
       )}
 
-      {comebackDays > 0 && (
+      {topModal === "comeback" && (
         <ComebackModal
           missedDays={comebackDays}
           prevStreak={comebackPrevStreak}
@@ -512,7 +527,7 @@ export default function AppShell({ state, save, user }) {
         />
       )}
 
-      {bossModal && (
+      {topModal === "boss" && (
         <BossModal
           bossDay={bossModal}
           state={state}
@@ -524,7 +539,7 @@ export default function AppShell({ state, save, user }) {
         />
       )}
 
-      {forgeSuccess && (
+      {topModal === "forge" && (
         <ForgeSuccessModal
           habitId={forgeSuccess.habitId}
           days={forgeSuccess.days}
@@ -532,7 +547,7 @@ export default function AppShell({ state, save, user }) {
         />
       )}
 
-      {anniversaryDay && (
+      {topModal === "anniversary" && (
         <AnniversaryModal
           day={anniversaryDay}
           onDismiss={() => {
